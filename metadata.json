@@ -1,0 +1,6 @@
+{
+  "name": "LINGUAVERSE AI",
+  "description": "Voice-first, evidence-based AI English language learning and communication intelligence platform tailored for Bangla-speaking learners.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

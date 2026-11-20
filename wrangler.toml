@@ -1,0 +1,65 @@
+# LINGUAVERSE AI — Cloudflare Pages + Workers + D1 + R2 + KV Configuration
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "linguaverse-ai-api"
+main = "workers/index.ts"
+compatibility_date = "2026-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Pages static asset output (Vite SPA build)
+pages_build_output_dir = "dist"
+
+[vars]
+APP_ENV = "development"
+DEFAULT_UI_LANGUAGE = "en"
+GEMINI_PRIMARY_MODEL = "gemini-4-hydrogen"
+GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite"
+SPEAKING_PROMPT_VERSION = "speaking-eval-v3.2"
+TRANSFER_PROMPT_VERSION = "transfer-rubric-v5.1"
+AUDIO_RETENTION_DAYS = "30"
+RATE_LIMIT_REQUESTS_PER_MINUTE = "30"
+
+# Normalized Relational Database (Cloudflare D1 — SQLite)
+# Apply schema via: npx wrangler d1 execute linguaverse-db --file=./schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "linguaverse-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Private Voice Recording Storage (Cloudflare R2 — Zero-Egress Object Storage)
+# Stores learner self-review audio clips only when store_mic_recordings consent = 1
+[[r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "linguaverse-voice-recordings"
+preview_bucket_name = "linguaverse-voice-recordings-preview"
+
+# Session Store & Edge Rate-Limiting (Cloudflare KV)
+[[kv_namespaces]]
+binding = "SESSION_KV"
+id = "00000000000000000000000000000001"
+preview_id = "00000000000000000000000000000002"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000003"
+preview_id = "00000000000000000000000000000004"
+
+# Secrets (NEVER commit real keys; set via `wrangler secret put <NAME>`):
+# - GEMINI_API_KEY
+# - JWT_SIGNING_SECRET
+# - ADMIN_BOOTSTRAP_SECRET
+
+[observability]
+enabled = true
+
+[env.staging]
+name = "linguaverse-ai-api-staging"
+vars = { APP_ENV = "staging", AUDIO_RETENTION_DAYS = "14" }
+
+[env.production]
+name = "linguaverse-ai-api-prod"
+vars = { APP_ENV = "production", AUDIO_RETENTION_DAYS = "30", RATE_LIMIT_REQUESTS_PER_MINUTE = "25" }
+routes = [
+  { pattern = "api.linguaverse.ai/*", zone_name = "linguaverse.ai" }
+]
