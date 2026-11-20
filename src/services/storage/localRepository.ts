@@ -16,11 +16,25 @@ import {
   calculateLessonMastery,
   computeActiveStreakDays,
 } from '../../domain/spacedRepetition';
+import {
+  canResendOtp,
+  generateSixDigitOtp,
+  hashOtpCode,
+  OTP_EXPIRY_MS,
+  OTP_RESEND_COOLDOWN_MS,
+  verifyOtpSubmission,
+  type StoredOtpTokenRecord,
+} from '../../domain/otpVerification';
 import { getTransferScenario } from '../../domain/transferLabEngine';
 import type {
+  AccountStatus,
   ActivityLedgerSummary,
+  AdminOverviewStats,
+  AdminRole,
+  AdminUserSummary,
   AuthSession,
   DiagnosticUserAnswer,
+  EmailOtpDeliveryInfo,
   EvidenceStartingProfile,
   ExerciseAttemptRecord,
   LearnerProfile,
@@ -62,9 +76,10 @@ interface StoredUserRecord extends UserAccount {
 }
 
 interface LocalDatabaseState {
-  version: 5;
+  version: 6;
   users: Record<string, StoredUserRecord>;
   profiles: Record<string, LearnerProfile>;
+  emailVerificationTokens: Record<string, StoredOtpTokenRecord[]>;
   diagnostics: Record<string, EvidenceStartingProfile[]>;
   mistakes: Record<string, MistakeMemoryItem[]>;
   lessonAttempts: Record<string, LessonAttemptRecord[]>;
@@ -81,9 +96,10 @@ const SESSION_STORAGE_KEY = 'linguaverse_session_v1';
 
 function createEmptyDb(): LocalDatabaseState {
   return {
-    version: 5,
+    version: 6,
     users: {},
     profiles: {},
+    emailVerificationTokens: {},
     diagnostics: {},
     mistakes: {},
     lessonAttempts: {},
@@ -142,6 +158,8 @@ function stripSecrets(user: StoredUserRecord): UserAccount {
     email: user.email,
     plan: user.plan,
     role: user.role ?? 'learner',
+    emailVerified: user.emailVerified ?? true,
+    accountStatus: user.accountStatus ?? 'active',
     createdAt: user.createdAt,
   };
 }
@@ -263,9 +281,10 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       if (!raw) return createEmptyDb();
       const parsed = JSON.parse(raw) as Partial<LocalDatabaseState>;
       return {
-        version: 5,
+        version: 6,
         users: parsed.users ?? {},
         profiles: parsed.profiles ?? {},
+        emailVerificationTokens: parsed.emailVerificationTokens ?? {},
         diagnostics: parsed.diagnostics ?? {},
         mistakes: parsed.mistakes ?? {},
         lessonAttempts: parsed.lessonAttempts ?? {},
@@ -369,6 +388,63 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     };
   }
 
+  private async issueEmailOtpToken(
+    db: LocalDatabaseState,
+    user: StoredUserRecord
+  ): Promise<EmailOtpDeliveryInfo> {
+    const nowMs = Date.now();
+    const otpCode = generateSixDigitOtp();
+    const otpHash = await hashOtpCode(user.email, otpCode);
+    const expiresAt = new Date(nowMs + OTP_EXPIRY_MS).toISOString();
+    const resendAvailableAt = new Date(nowMs + OTP_RESEND_COOLDOWN_MS).toISOString();
+
+    const record: StoredOtpTokenRecord = {
+      id: generateId('otp'),
+      userId: user.id,
+      email: user.email,
+      otpHash,
+      expiresAt,
+      resendAvailableAt,
+      attempts: 0,
+      createdAt: new Date(nowMs).toISOString(),
+    };
+
+    const existing = db.emailVerificationTokens[user.id] ?? [];
+    db.emailVerificationTokens[user.id] = [record, ...existing].slice(0, 5);
+    this.writeDb(db);
+
+    let deliveryMode: EmailOtpDeliveryInfo['deliveryMode'] = 'local_dev_preview';
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            name: user.name,
+            otpCode,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { deliveryMode?: string; delivered?: boolean };
+          if (data.delivered || data.deliveryMode === 'email_provider') {
+            deliveryMode = 'email_provider';
+          }
+        }
+      } catch {
+        // Local dev preview fallback when Express/email endpoint is unreachable
+      }
+    }
+
+    return {
+      email: user.email,
+      expiresAt,
+      resendAvailableAt,
+      deliveryMode,
+      devPreviewOtp: deliveryMode === 'local_dev_preview' ? otpCode : undefined,
+    };
+  }
+
   async register(payload: RegisterPayload): Promise<AuthResult> {
     const name = payload.name.trim();
     const email = normalizeEmail(payload.email);
@@ -401,6 +477,8 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       email,
       plan: payload.plan ?? 'free',
       role: 'learner',
+      emailVerified: false,
+      accountStatus: 'active',
       createdAt: now,
       passwordSalt: salt,
       passwordHash,
@@ -426,6 +504,7 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
 
     db.users[userId] = userRecord;
     db.profiles[userId] = learnerProfile;
+    db.emailVerificationTokens[userId] = [];
     db.diagnostics[userId] = [];
     db.mistakes[userId] = [];
     db.lessonAttempts[userId] = [];
@@ -437,8 +516,13 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     db.activities[userId] = createZeroActivitySummary();
     this.writeDb(db);
 
+    const otpDelivery = await this.issueEmailOtpToken(db, userRecord);
     const session = this.createSession(userId);
-    return this.buildAuthResult(db, userRecord, session);
+    const result = this.buildAuthResult(db, userRecord, session);
+    return {
+      ...result,
+      otpDelivery,
+    };
   }
 
   async login(payload: LoginPayload): Promise<AuthResult> {
@@ -455,13 +539,31 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       throw new Error('No account found with this email. Please create an account first.');
     }
 
+    if (user.accountStatus === 'suspended') {
+      throw new Error('This account has been suspended by an administrator.');
+    }
+
     const computedHash = await hashPassword(password, user.passwordSalt);
     if (computedHash !== user.passwordHash) {
       throw new Error('Incorrect password. Please check your credentials and try again.');
     }
 
     const session = this.createSession(user.id);
-    return this.buildAuthResult(db, user, session);
+    const result = this.buildAuthResult(db, user, session);
+    if (user.emailVerified === false) {
+      const latestToken = (db.emailVerificationTokens[user.id] ?? [])[0];
+      if (!latestToken || latestToken.consumedAt || Date.now() > Date.parse(latestToken.expiresAt)) {
+        result.otpDelivery = await this.issueEmailOtpToken(db, user);
+      } else {
+        result.otpDelivery = {
+          email: user.email,
+          expiresAt: latestToken.expiresAt,
+          resendAvailableAt: latestToken.resendAvailableAt,
+          deliveryMode: 'local_dev_preview',
+        };
+      }
+    }
+    return result;
   }
 
   async logout(): Promise<void> {
@@ -474,12 +576,68 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
 
     const db = this.readDb();
     const user = db.users[session.userId];
-    if (!user || !db.profiles[session.userId]) {
+    if (!user || !db.profiles[session.userId] || user.accountStatus === 'suspended') {
       this.storage.removeItem(SESSION_STORAGE_KEY);
       return null;
     }
 
     return this.buildAuthResult(db, user, session);
+  }
+
+  async verifyEmailOtp(userId: string, code: string): Promise<{ user: UserAccount }> {
+    const db = this.readDb();
+    const user = db.users[userId];
+    if (!user) {
+      throw new Error('Account not found.');
+    }
+    if (user.emailVerified) {
+      return { user: stripSecrets(user) };
+    }
+
+    const tokens = db.emailVerificationTokens[userId] ?? [];
+    const latest = tokens[0];
+    const outcome = await verifyOtpSubmission({
+      token: latest,
+      submittedCode: code,
+    });
+
+    if (!outcome.ok) {
+      if (latest && outcome.code === 'MISMATCH') {
+        tokens[0] = { ...latest, attempts: latest.attempts + 1 };
+        db.emailVerificationTokens[userId] = tokens;
+        this.writeDb(db);
+      }
+      throw new Error(outcome.messageEn);
+    }
+
+    const now = new Date().toISOString();
+    if (latest) {
+      tokens[0] = { ...latest, consumedAt: now };
+      db.emailVerificationTokens[userId] = tokens;
+    }
+    user.emailVerified = true;
+    db.users[userId] = user;
+    this.writeDb(db);
+
+    return { user: stripSecrets(user) };
+  }
+
+  async resendEmailOtp(userId: string): Promise<EmailOtpDeliveryInfo> {
+    const db = this.readDb();
+    const user = db.users[userId];
+    if (!user) {
+      throw new Error('Account not found.');
+    }
+
+    const tokens = db.emailVerificationTokens[userId] ?? [];
+    const check = canResendOtp(tokens[0]);
+    if (!check.allowed) {
+      throw new Error(
+        `Please wait ${check.waitSeconds} seconds before requesting a new verification code.`
+      );
+    }
+
+    return this.issueEmailOtpToken(db, user);
   }
 
   async updateProfile(
@@ -1254,10 +1412,118 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     throw new Error('Flagged mistake record not found.');
   }
 
+  async getAdminOverviewStats(aiCallsCount = 0): Promise<AdminOverviewStats> {
+    const db = this.readDb();
+    const users = Object.values(db.users);
+    const verifiedUsers = users.filter((u) => u.emailVerified !== false).length;
+    const suspendedUsers = users.filter((u) => u.accountStatus === 'suspended').length;
+    const lessonsCompleted = Object.values(db.lessonAttempts).reduce(
+      (sum, list) => sum + list.length,
+      0
+    );
+    const speakingSessions = Object.values(db.speakingSessions).reduce(
+      (sum, list) => sum + list.filter((s) => s.turns.length > 0).length,
+      0
+    );
+    const transferAttempts = Object.values(db.transferAttempts).reduce(
+      (sum, list) => sum + list.length,
+      0
+    );
+    let activeMistakes = 0;
+    let flaggedMistakes = 0;
+    for (const items of Object.values(db.mistakes)) {
+      for (const m of items) {
+        if (m.status !== 'resolved') activeMistakes += 1;
+        if (m.falseCorrectionReported || m.adminReviewStatus) flaggedMistakes += 1;
+      }
+    }
+
+    return {
+      totalUsers: users.length,
+      verifiedUsers,
+      suspendedUsers,
+      lessonsCompleted,
+      speakingSessions,
+      transferAttempts,
+      aiCalls: aiCallsCount,
+      activeMistakes,
+      flaggedMistakes,
+    };
+  }
+
+  async listAdminUsers(searchQuery = ''): Promise<AdminUserSummary[]> {
+    const db = this.readDb();
+    const q = searchQuery.trim().toLowerCase();
+    return Object.values(db.users)
+      .filter((u) => {
+        if (!q) return true;
+        return (
+          u.name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.role ?? 'learner').toLowerCase().includes(q)
+        );
+      })
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role ?? 'learner',
+        plan: u.plan,
+        emailVerified: u.emailVerified !== false,
+        accountStatus: u.accountStatus ?? 'active',
+        lessonsCompleted: (db.lessonAttempts[u.id] ?? []).length,
+        speakingSessions: (db.speakingSessions[u.id] ?? []).filter((s) => s.turns.length > 0)
+          .length,
+        activeMistakes: (db.mistakes[u.id] ?? []).filter((m) => m.status !== 'resolved').length,
+        createdAt: u.createdAt,
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async updateAdminUserAccount(
+    targetUserId: string,
+    patch: {
+      role?: AdminRole;
+      accountStatus?: AccountStatus;
+      emailVerified?: boolean;
+    }
+  ): Promise<AdminUserSummary> {
+    const db = this.readDb();
+    const target = db.users[targetUserId];
+    if (!target) {
+      throw new Error('Target user account not found.');
+    }
+
+    if (patch.role !== undefined) target.role = patch.role;
+    if (patch.accountStatus !== undefined) target.accountStatus = patch.accountStatus;
+    if (patch.emailVerified !== undefined) target.emailVerified = patch.emailVerified;
+
+    db.users[targetUserId] = target;
+    this.writeDb(db);
+
+    return {
+      id: target.id,
+      name: target.name,
+      email: target.email,
+      role: target.role ?? 'learner',
+      plan: target.plan,
+      emailVerified: target.emailVerified !== false,
+      accountStatus: target.accountStatus ?? 'active',
+      lessonsCompleted: (db.lessonAttempts[target.id] ?? []).length,
+      speakingSessions: (db.speakingSessions[target.id] ?? []).filter(
+        (s) => s.turns.length > 0
+      ).length,
+      activeMistakes: (db.mistakes[target.id] ?? []).filter((m) => m.status !== 'resolved')
+        .length,
+      createdAt: target.createdAt,
+    };
+  }
+
   async clearLocalAccountData(userId: string): Promise<void> {
     const db = this.readDb();
     delete db.users[userId];
     delete db.profiles[userId];
+    delete db.emailVerificationTokens[userId];
     delete db.diagnostics[userId];
     delete db.mistakes[userId];
     delete db.lessonAttempts[userId];

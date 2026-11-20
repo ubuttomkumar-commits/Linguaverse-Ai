@@ -186,6 +186,14 @@ export const apiClient = {
       return listAuditLogs();
     },
 
+    getOverviewStats: (aiCallsCount?: number) =>
+      repository.getAdminOverviewStats(aiCallsCount),
+    listUsers: (searchQuery?: string) => repository.listAdminUsers(searchQuery),
+    updateUserAccount: (
+      targetUserId: string,
+      patch: Parameters<typeof repository.updateAdminUserAccount>[1]
+    ) => repository.updateAdminUserAccount(targetUserId, patch),
+
     appendAuditLog,
   },
 

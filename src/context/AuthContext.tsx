@@ -16,8 +16,13 @@ import { computeTotalVerifiedXp } from '../domain/gamificationEngine';
 import { appendAuditLog } from '../services/governanceStore';
 import { clearAllAudioBlobs } from '../utils/audioBlobStore';
 import type {
+  AccountStatus,
   ActivityLedgerSummary,
+  AdminOverviewStats,
+  AdminRole,
+  AdminUserSummary,
   DiagnosticUserAnswer,
+  EmailOtpDeliveryInfo,
   EvidenceStartingProfile,
   ExerciseAttemptRecord,
   LearnerProfile,
@@ -40,6 +45,37 @@ const ZERO_ACTIVITY: ActivityLedgerSummary = {
   totalPracticeMinutes: 0,
 };
 
+const OTP_DELIVERY_SESSION_KEY = 'linguaverse_pending_otp_v1';
+
+function readStoredOtpDelivery(userId: string): EmailOtpDeliveryInfo | null {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return null;
+    const raw = window.sessionStorage.getItem(OTP_DELIVERY_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { userId?: string; info?: EmailOtpDeliveryInfo };
+    if (parsed.userId !== userId || !parsed.info) return null;
+    return parsed.info;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredOtpDelivery(userId: string | null, info: EmailOtpDeliveryInfo | null): void {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return;
+    if (!userId || !info) {
+      window.sessionStorage.removeItem(OTP_DELIVERY_SESSION_KEY);
+    } else {
+      window.sessionStorage.setItem(
+        OTP_DELIVERY_SESSION_KEY,
+        JSON.stringify({ userId, info })
+      );
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 interface AuthContextValue {
   isHydrating: boolean;
   user: UserAccount | null;
@@ -56,9 +92,12 @@ interface AuthContextValue {
   totalVerifiedXp: number;
   activitySummary: ActivityLedgerSummary;
   storageMode: 'local' | 'cloudflare-d1';
-  register: (payload: RegisterPayload) => Promise<void>;
-  login: (payload: LoginPayload) => Promise<void>;
+  pendingOtpDelivery: EmailOtpDeliveryInfo | null;
+  register: (payload: RegisterPayload) => Promise<UserAccount>;
+  login: (payload: LoginPayload) => Promise<UserAccount>;
   logout: () => Promise<void>;
+  verifyEmailOtp: (code: string) => Promise<UserAccount>;
+  resendEmailOtp: () => Promise<EmailOtpDeliveryInfo>;
   updateProfile: (patch: UpdateProfilePayload) => Promise<void>;
   submitDiagnostic: (answers: DiagnosticUserAnswer[]) => Promise<EvidenceStartingProfile>;
   recordExerciseAttempt: (payload: RecordExerciseAttemptPayload) => Promise<{
@@ -97,6 +136,16 @@ interface AuthContextValue {
     updatedMistake: MistakeMemoryItem;
     flaggedMistakes: MistakeMemoryItem[];
   }>;
+  getAdminOverviewStats: (aiCallsCount?: number) => Promise<AdminOverviewStats>;
+  listAdminUsers: (searchQuery?: string) => Promise<AdminUserSummary[]>;
+  updateAdminUserAccount: (
+    targetUserId: string,
+    patch: {
+      role?: AdminRole;
+      accountStatus?: AccountStatus;
+      emailVerified?: boolean;
+    }
+  ) => Promise<AdminUserSummary>;
   deleteAllRecordings: () => Promise<{ deletedCount: number }>;
   clearAccount: () => Promise<{ deletedAudioCount: number }>;
 }
@@ -118,6 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [transferAttempts, setTransferAttempts] = useState<TransferAttemptRecord[]>([]);
   const [xpLedger, setXpLedger] = useState<XpLedgerEntry[]>([]);
   const [activitySummary, setActivitySummary] = useState<ActivityLedgerSummary>(ZERO_ACTIVITY);
+  const [pendingOtpDelivery, setPendingOtpDelivery] = useState<EmailOtpDeliveryInfo | null>(null);
 
   const totalVerifiedXp = useMemo(() => computeTotalVerifiedXp(xpLedger), [xpLedger]);
 
@@ -136,6 +186,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTransferAttempts(result.transferAttempts ?? []);
       setXpLedger(result.xpLedger ?? []);
       setActivitySummary(result.activitySummary);
+      if (result.user.emailVerified === false) {
+        const otpInfo = result.otpDelivery ?? readStoredOtpDelivery(result.user.id);
+        setPendingOtpDelivery(otpInfo);
+        if (otpInfo) writeStoredOtpDelivery(result.user.id, otpInfo);
+      } else {
+        setPendingOtpDelivery(null);
+        writeStoredOtpDelivery(null, null);
+      }
       if (result.profile.onboardingCompleted) {
         setLang(result.profile.preferredUiLanguage);
       }
@@ -174,12 +232,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTransferAttempts(result.transferAttempts ?? []);
     setXpLedger(result.xpLedger ?? []);
     setActivitySummary(result.activitySummary);
+    const otpInfo = result.otpDelivery ?? null;
+    setPendingOtpDelivery(otpInfo);
+    writeStoredOtpDelivery(result.user.id, otpInfo);
+    return result.user;
   }, []);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
       const result = await repository.login(payload);
       hydrateFromResult(result);
+      return result.user;
     },
     [hydrateFromResult]
   );
@@ -198,7 +261,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTransferAttempts([]);
     setXpLedger([]);
     setActivitySummary(ZERO_ACTIVITY);
+    setPendingOtpDelivery(null);
+    writeStoredOtpDelivery(null, null);
   }, []);
+
+  const verifyEmailOtp = useCallback(
+    async (code: string) => {
+      if (!user) throw new Error('Not authenticated.');
+      const res = await repository.verifyEmailOtp(user.id, code);
+      setUser(res.user);
+      setPendingOtpDelivery(null);
+      writeStoredOtpDelivery(null, null);
+      appendAuditLog({
+        actorUserId: res.user.id,
+        actorEmail: res.user.email,
+        actorRole: res.user.role ?? 'learner',
+        action: 'auth.email_verified',
+        resourceType: 'email_verification',
+        resourceId: res.user.id,
+        summaryEn: `Verified email address ${res.user.email} via 6-digit OTP.`,
+        summaryBn: `৬-সংখ্যার OTP কোড দিয়ে ${res.user.email} ইমেইল যাচাই সম্পন্ন হয়েছে।`,
+      });
+      return res.user;
+    },
+    [user]
+  );
+
+  const resendEmailOtp = useCallback(async () => {
+    if (!user) throw new Error('Not authenticated.');
+    const info = await repository.resendEmailOtp(user.id);
+    setPendingOtpDelivery(info);
+    writeStoredOtpDelivery(user.id, info);
+    return info;
+  }, [user]);
 
   const updateProfile = useCallback(
     async (patch: UpdateProfilePayload) => {
@@ -338,6 +433,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user]
   );
 
+  const getAdminOverviewStats = useCallback(async (aiCallsCount?: number) => {
+    return repository.getAdminOverviewStats(aiCallsCount);
+  }, []);
+
+  const listAdminUsers = useCallback(async (searchQuery?: string) => {
+    return repository.listAdminUsers(searchQuery);
+  }, []);
+
+  const updateAdminUserAccount = useCallback(
+    async (
+      targetUserId: string,
+      patch: {
+        role?: AdminRole;
+        accountStatus?: AccountStatus;
+        emailVerified?: boolean;
+      }
+    ) => {
+      const updated = await repository.updateAdminUserAccount(targetUserId, patch);
+      if (user && targetUserId === user.id) {
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                role: updated.role,
+                accountStatus: updated.accountStatus,
+                emailVerified: updated.emailVerified,
+              }
+            : prev
+        );
+      }
+      return updated;
+    },
+    [user]
+  );
+
   const deleteAllRecordings = useCallback(async () => {
     const result = await clearAllAudioBlobs();
     if (user) {
@@ -404,9 +534,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         totalVerifiedXp,
         activitySummary,
         storageMode: repository.mode,
+        pendingOtpDelivery,
         register,
         login,
         logout,
+        verifyEmailOtp,
+        resendEmailOtp,
         updateProfile,
         submitDiagnostic,
         recordExerciseAttempt,
@@ -417,6 +550,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         recordTransferAttempt,
         getFlaggedMistakes,
         reviewFlaggedMistake,
+        getAdminOverviewStats,
+        listAdminUsers,
+        updateAdminUserAccount,
         deleteAllRecordings,
         clearAccount,
       }}

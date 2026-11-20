@@ -1,250 +1,218 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
-import {
-  analyzeSampleSentence,
-  HERO_SAMPLE_PRESETS,
-} from '../../domain/sampleAnalyzer';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Volume2 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import type { ExplanationLanguage } from '../../types/domain';
+import { HERO_SCENARIOS, LANDING_COPY } from '../../domain/landingContent';
+import { AcousticCore3D } from './AcousticCore3D';
+import { TiltSpotlightCard } from './TiltSpotlightCard';
+import { speakEnglishExample, stopSpeaking, type PlaybackSpeed } from '../../utils/speechSynthesis';
 
 export function HeroSamplePreview() {
-  const { lang, t } = useLanguage();
-  const [selectedPresetId, setSelectedPresetId] = useState<string>(HERO_SAMPLE_PRESETS[0].id);
-  const [draftSentence, setDraftSentence] = useState<string>(HERO_SAMPLE_PRESETS[0].inputSentence);
-  const [submittedSentence, setSubmittedSentence] = useState<string>(
-    HERO_SAMPLE_PRESETS[0].inputSentence
-  );
-  const [explanationLang, setExplanationLang] = useState<ExplanationLanguage>('both');
-  const [fixApplied, setFixApplied] = useState(false);
+  const { lang } = useLanguage();
+  const copy = LANDING_COPY[lang].hero;
+  const [scenarioIdx, setScenarioIdx] = useState(0);
+  const [pulseKey, setPulseKey] = useState(1);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeSpeed, setActiveSpeed] = useState<PlaybackSpeed | null>(null);
 
-  const analysis = useMemo(() => analyzeSampleSentence(submittedSentence), [submittedSentence]);
+  const scenario = HERO_SCENARIOS[scenarioIdx];
 
-  const handleSelectPreset = (presetId: string, sentence: string) => {
-    setSelectedPresetId(presetId);
-    setDraftSentence(sentence);
-    setSubmittedSentence(sentence);
-    setFixApplied(false);
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
+
+  const handleSelectScenario = (index: number) => {
+    stopSpeaking();
+    setIsSpeaking(false);
+    setActiveSpeed(null);
+    setScenarioIdx(index);
+    setPulseKey((k) => k + 1);
   };
 
-  const handleAnalyzeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleaned = draftSentence.trim();
-    if (!cleaned) return;
-    setSelectedPresetId('custom');
-    setSubmittedSentence(cleaned);
-    setFixApplied(false);
+  const handlePlayAudio = (speed: PlaybackSpeed) => {
+    setPulseKey((k) => k + 1);
+    setIsSpeaking(true);
+    setActiveSpeed(speed);
+    const started = speakEnglishExample({
+      text: scenario.fullNatural,
+      rate: speed,
+      onEnd: () => {
+        setIsSpeaking(false);
+        setActiveSpeed(null);
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        setActiveSpeed(null);
+      },
+    });
+    if (!started) {
+      setIsSpeaking(false);
+      setActiveSpeed(null);
+    }
   };
 
-  const handleApplyFix = () => {
-    setFixApplied(true);
-  };
-
-  const handleReset = () => {
-    const preset =
-      HERO_SAMPLE_PRESETS.find((p) => p.id === selectedPresetId) ?? HERO_SAMPLE_PRESETS[0];
-    setSelectedPresetId(preset.id);
-    setDraftSentence(preset.inputSentence);
-    setSubmittedSentence(preset.inputSentence);
-    setFixApplied(false);
-  };
+  const dnaItems = [
+    { label: copy.dnaAxes.accuracy, value: scenario.dnaPreview.accuracy, color: 'bg-[#3B82F6]' },
+    { label: copy.dnaAxes.naturalness, value: scenario.dnaPreview.naturalness, color: 'bg-[#7C3AED]' },
+    { label: copy.dnaAxes.clarity, value: scenario.dnaPreview.clarity, color: 'bg-[#F59E0B]' },
+  ];
 
   return (
-    <section
-      aria-label={t.samplePreview.badge}
-      className="flex h-full flex-col justify-between rounded-xl border border-slate-800 bg-[#111827] p-5 sm:p-6"
+    <TiltSpotlightCard
+      as="div"
+      maxTilt={3}
+      className="rounded-2xl border border-white/[0.09] bg-[#0E1526]/92 p-5 sm:p-6 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl"
     >
-      <div>
-        {/* Honest Sample Label (unboxed typographic hierarchy) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[#F59E0B]">
-              {t.samplePreview.badge}
-            </p>
-            <p className="mt-0.5 text-xs text-slate-400">{t.samplePreview.subtitle}</p>
+      {/* Top Row: Integrated 3D Acoustic Core + Communication DNA Live Mini-Dashboard */}
+      <div className="flex flex-col items-center gap-4 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-center sm:gap-5">
+        <AcousticCore3D pulseKey={pulseKey} isSpeaking={isSpeaking} compact />
+
+        <div className="min-w-0 flex-1 w-full">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-[#F59E0B]">{copy.samplePreviewTag}</p>
+            <span className="text-[11px] font-medium text-slate-400">
+              {lang === 'bn' ? scenario.contextBn : scenario.contextEn}
+            </span>
           </div>
-          <div
-            role="group"
-            aria-label="Sample explanation language"
-            className="inline-flex items-center rounded-md border border-slate-800 bg-[#0A0F1C] p-0.5"
-          >
-            {(['bn', 'both', 'en'] as ExplanationLanguage[]).map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setExplanationLang(opt)}
-                aria-pressed={explanationLang === opt}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  opt === 'bn' ? 'font-bn' : ''
-                } ${
-                  explanationLang === opt
-                    ? 'bg-[#8B5CF6] text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {t.samplePreview.explanationToggle[opt]}
-              </button>
-            ))}
+          <p className="mt-1 text-xs leading-relaxed text-slate-300">{copy.sampleSubtitle}</p>
+
+          {/* Mini Communication DNA Skill Bars */}
+          <div className="mt-3.5 space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-slate-200">{copy.dnaMiniTitle}</span>
+              <span className="text-slate-400">{copy.dnaSampleCaption}</span>
+            </div>
+            <div className="space-y-1.5">
+              {dnaItems.map((bar) => (
+                <div key={bar.label} className="grid grid-cols-12 items-center gap-2 text-[11px]">
+                  <span className="col-span-5 truncate text-slate-400">{bar.label}</span>
+                  <div className="col-span-5 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className={`h-full rounded-full ${bar.color} transition-[width] duration-500 ease-out`}
+                      style={{ width: `${bar.value}%` }}
+                    />
+                  </div>
+                  <span className="col-span-2 text-right font-mono font-semibold text-slate-200 tabular-nums">
+                    {bar.value}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Preset Selector Tabs */}
-        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Sample sentences">
-          {HERO_SAMPLE_PRESETS.map((preset) => {
-            const isActive = selectedPresetId === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handleSelectPreset(preset.id, preset.inputSentence)}
-                aria-pressed={isActive}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'border-[#3B82F6] bg-[#3B82F6]/15 text-white'
-                    : 'border-slate-800 bg-[#0A0F1C] text-slate-300 hover:border-slate-700 hover:text-white'
-                }`}
-              >
-                {lang === 'bn' ? preset.labelBn : preset.labelEn}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Interactive Sentence Input */}
-        <form onSubmit={handleAnalyzeSubmit} className="mt-4">
-          <label
-            htmlFor="hero-sample-input"
-            className="block text-xs font-medium text-slate-400"
-          >
-            {t.samplePreview.inputLabel}
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="hero-sample-input"
-              type="text"
-              value={draftSentence}
-              onChange={(e) => setDraftSentence(e.target.value)}
-              placeholder={t.samplePreview.inputPlaceholder}
-              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-[#0A0F1C] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[#3B82F6] focus:outline-none"
-            />
+      {/* 3 Real Scenarios Switcher */}
+      <div
+        role="tablist"
+        aria-label="Real speaking scenarios"
+        className="mt-4 grid grid-cols-3 gap-1.5 rounded-xl border border-white/[0.07] bg-[#050914] p-1"
+      >
+        {HERO_SCENARIOS.map((item, idx) => {
+          const active = idx === scenarioIdx;
+          return (
             <button
-              type="submit"
-              className="rounded-lg bg-[#3B82F6] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              {t.samplePreview.analyzeBtn}
-            </button>
-          </div>
-        </form>
-
-        {/* Analysis Output */}
-        <div className="mt-5 space-y-4 border-t border-slate-800 pt-4">
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span
-              className={`inline-flex items-center gap-1.5 font-semibold ${
-                analysis.hasDetectedMistake ? 'text-[#F59E0B]' : 'text-emerald-400'
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => handleSelectScenario(idx)}
+              className={`min-h-[38px] rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap truncate cursor-pointer ${
+                active
+                  ? 'bg-[#3B82F6] text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]'
+                  : 'text-slate-400 hover:text-slate-100'
               }`}
             >
-              {analysis.hasDetectedMistake ? (
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              )}
-              <span>
-                {analysis.hasDetectedMistake
-                  ? t.samplePreview.detectedLabel
-                  : t.samplePreview.cleanLabel}
+              {lang === 'bn' ? item.tabBn : item.tabEn}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Scenario Transformation Display */}
+      <div key={scenario.id} className="mt-3.5 space-y-3">
+        <p className="text-xs text-slate-400">
+          <span className="font-semibold text-slate-300">Prompt: </span>“
+          {lang === 'bn' ? scenario.promptQuestionBn : scenario.promptQuestionEn}”
+        </p>
+
+        {/* Before -> After Side by Side */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-rose-500/25 bg-[#050914]/90 p-3.5">
+            <p className="text-[11px] font-medium text-rose-300">{copy.heardLabel}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
+              {scenario.brokenBefore}
+              <span className="rounded bg-rose-500/15 px-1 text-rose-200 underline decoration-rose-400/80 decoration-wavy underline-offset-4">
+                {scenario.brokenHighlight}
               </span>
-            </span>
-            <span className="font-mono text-[11px] text-slate-400 tabular-nums">
-              {analysis.memoryTag}
-            </span>
-          </div>
-
-          {/* Before / After comparison */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-slate-800 bg-[#0A0F1C] p-3.5">
-              <p className="text-[11px] font-medium text-slate-400">
-                {t.samplePreview.originalLabel}
-              </p>
-              <p className="mt-1.5 text-sm font-medium text-slate-200 leading-relaxed">
-                {analysis.hasDetectedMistake && !fixApplied ? (
-                  <>
-                    <span className="text-rose-300 underline decoration-rose-400/80 decoration-wavy underline-offset-4">
-                      {analysis.originalSentence}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-slate-400 line-through">{analysis.originalSentence}</span>
-                )}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-[#3B82F6]/40 bg-[#0A0F1C] p-3.5">
-              <p className="text-[11px] font-medium text-[#3B82F6]">
-                {t.samplePreview.naturalLabel}
-              </p>
-              <p className="mt-1.5 text-sm font-semibold text-emerald-300 leading-relaxed">
-                {analysis.correctedSentence}
-              </p>
-            </div>
-          </div>
-
-          {/* L1 Bangla Interference Explanation */}
-          <div className="space-y-2.5 text-sm leading-relaxed">
-            <p className="text-xs font-semibold text-slate-300">
-              {lang === 'bn' ? analysis.patternNameBn : analysis.patternNameEn}
+              {scenario.brokenAfter}
             </p>
+          </div>
 
-            {(explanationLang === 'bn' || explanationLang === 'both') && (
-              <div className="font-bn space-y-1.5 text-sm leading-relaxed text-slate-200">
-                <p>
-                  <span className="font-semibold text-[#8B5CF6]">বাংলা ব্যাখ্যা: </span>
-                  {analysis.explanationBn}
-                </p>
-                <p className="text-xs text-slate-400">{analysis.l1TriggerBn}</p>
-              </div>
-            )}
+          <div className="rounded-xl border border-[#3B82F6]/35 bg-[#050914]/90 p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-medium text-[#3B82F6]">{copy.naturalLabel}</p>
+              <span className="truncate text-[11px] font-medium text-slate-400">
+                {lang === 'bn' ? scenario.categoryBn : scenario.categoryEn}
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm font-semibold leading-relaxed text-emerald-300">
+              {scenario.naturalBefore}
+              <span className="rounded bg-emerald-500/15 px-1 text-emerald-200">
+                {scenario.naturalHighlight}
+              </span>
+              {scenario.naturalAfter}
+            </p>
+          </div>
+        </div>
 
-            {(explanationLang === 'en' || explanationLang === 'both') && (
-              <div className="space-y-1 text-sm leading-relaxed text-slate-300">
-                <p>
-                  <span className="font-semibold text-[#3B82F6]">English note: </span>
-                  {analysis.explanationEn}
-                </p>
-                {explanationLang === 'en' && (
-                  <p className="text-xs text-slate-400">{analysis.l1TriggerEn}</p>
-                )}
-              </div>
-            )}
+        {/* Bangla Grammar Explanation + Slow Audio Controls */}
+        <div className="rounded-xl border border-white/[0.07] bg-[#050914]/75 p-3.5 space-y-2">
+          <p className="font-bn text-xs sm:text-[13px] leading-relaxed text-slate-200">
+            <span className="font-semibold text-[#A78BFA]">{copy.banglaExplainLabel}: </span>
+            {scenario.explanationBn}
+          </p>
+          {lang === 'en' && (
+            <p className="text-xs leading-relaxed text-slate-400">
+              <span className="font-semibold text-slate-300">{copy.englishExplainLabel}: </span>
+              {scenario.explanationEn}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handlePlayAudio(0.75)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeSpeed === 0.75
+                  ? 'border-[#3B82F6] bg-[#3B82F6]/20 text-white'
+                  : 'border-white/10 bg-[#0E1526] text-slate-300 hover:border-[#3B82F6]/50 hover:text-white'
+              }`}
+            >
+              <Volume2 className="h-3.5 w-3.5 text-[#F59E0B]" aria-hidden="true" />
+              <span>{copy.listenSlow}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlayAudio(1.0)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeSpeed === 1.0
+                  ? 'border-[#3B82F6] bg-[#3B82F6]/20 text-white'
+                  : 'border-white/10 bg-[#0E1526] text-slate-300 hover:border-[#3B82F6]/50 hover:text-white'
+              }`}
+            >
+              <Volume2 className="h-3.5 w-3.5 text-[#3B82F6]" aria-hidden="true" />
+              <span>{copy.listenNormal}</span>
+            </button>
+            <a
+              href="#live-demo"
+              className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-[#3B82F6] hover:text-blue-300 transition-colors whitespace-nowrap"
+            >
+              <span>{lang === 'bn' ? 'নিজের বাক্য পরীক্ষা করুন' : 'Test your own sentence'}</span>
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
           </div>
         </div>
       </div>
-
-      {/* Micro-interaction footer */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
-        {analysis.hasDetectedMistake && !fixApplied ? (
-          <button
-            type="button"
-            onClick={handleApplyFix}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-[#0A0F1C] px-3.5 py-2 text-xs font-semibold text-slate-100 hover:border-[#3B82F6] hover:text-white transition-colors cursor-pointer"
-          >
-            <span>{t.samplePreview.applyFixBtn}</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        ) : (
-          <p className="text-xs text-emerald-300">
-            {fixApplied ? t.samplePreview.compareDone : t.samplePreview.cleanLabel}
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={handleReset}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-        >
-          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{t.samplePreview.resetBtn}</span>
-        </button>
-      </div>
-    </section>
+    </TiltSpotlightCard>
   );
 }

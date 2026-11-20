@@ -1,20 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy-950: #0A0F1C;
-  --color-slate-charcoal: #111827;
+  --color-navy-950: #050914;
+  --color-slate-charcoal: #0E1526;
   --color-electric-blue: #3B82F6;
-  --color-violet-accent: #8B5CF6;
+  --color-violet-accent: #7C3AED;
   --color-warm-amber: #F59E0B;
 
-  --font-sans: "Inter", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-bn: "Hind Siliguri", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-bn: "Hind Siliguri", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @layer base {
   html {
-    background-color: #0A0F1C;
+    background-color: #050914;
     color: #F1F5F9;
     font-family: var(--font-sans);
     scroll-behavior: smooth;
@@ -25,7 +26,7 @@
   }
 
   body {
-    background-color: #0A0F1C;
+    background-color: #050914;
     color: #F1F5F9;
     overflow-x: clip;
   }
@@ -37,6 +38,10 @@
   textarea {
     outline-color: #3B82F6;
   }
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 .font-bn {
@@ -51,9 +56,110 @@
   text-wrap: balance;
 }
 
+/* 3D Acoustic Core & Orbital Rings (GPU-accelerated, compositor-only) */
+.lv-perspective {
+  perspective: 1100px;
+}
+
+.lv-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+@keyframes lv-orbit-slow {
+  from {
+    transform: rotateX(68deg) rotateY(-14deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(68deg) rotateY(-14deg) rotateZ(360deg);
+  }
+}
+
+@keyframes lv-orbit-reverse {
+  from {
+    transform: rotateX(62deg) rotateY(28deg) rotateZ(360deg);
+  }
+  to {
+    transform: rotateX(62deg) rotateY(28deg) rotateZ(0deg);
+  }
+}
+
+@keyframes lv-orbit-tilt {
+  from {
+    transform: rotateX(-54deg) rotateY(18deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(-54deg) rotateY(18deg) rotateZ(360deg);
+  }
+}
+
+@keyframes lv-core-breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.045);
+    opacity: 1;
+  }
+}
+
+.lv-ring-1 {
+  animation: lv-orbit-slow 24s linear infinite;
+}
+
+.lv-ring-2 {
+  animation: lv-orbit-reverse 18s linear infinite;
+}
+
+.lv-ring-3 {
+  animation: lv-orbit-tilt 30s linear infinite;
+}
+
+.lv-core-pulse {
+  animation: lv-core-breathe 5.5s ease-in-out infinite;
+}
+
+/* Subtle interactive spotlight card */
+.lv-tilt-card {
+  --mx: 50%;
+  --my: 50%;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease;
+  will-change: transform;
+}
+
+.lv-tilt-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  background: radial-gradient(
+    420px circle at var(--mx) var(--my),
+    rgba(59, 130, 246, 0.14),
+    rgba(124, 58, 237, 0.06) 45%,
+    transparent 75%
+  );
+}
+
+.lv-tilt-card:hover::before {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .lv-ring-1,
+  .lv-ring-2,
+  .lv-ring-3,
+  .lv-core-pulse {
+    animation: none !important;
+  }
+  .lv-tilt-card {
+    transform: none !important;
   }
   *,
   *::before,

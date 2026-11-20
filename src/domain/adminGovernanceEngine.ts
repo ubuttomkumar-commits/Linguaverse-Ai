@@ -31,10 +31,29 @@ export const DEFAULT_PRIVACY_CONSENT: PrivacyConsentSettings = {
 
 export const ROLE_PERMISSION_MATRIX: Record<AdminRole, AdminPermission[]> = {
   learner: [],
-  content_manager: ['admin:access', 'curriculum:write', 'mistakes:review', 'audit:read'],
-  ai_ops: ['admin:access', 'ai_ops:read', 'mistakes:review', 'audit:read'],
+  moderator: ['admin:access', 'overview:read', 'mistakes:review', 'audit:read'],
+  content_manager: [
+    'admin:access',
+    'overview:read',
+    'curriculum:write',
+    'mistakes:review',
+    'audit:read',
+  ],
+  ai_ops: ['admin:access', 'overview:read', 'ai_ops:read', 'mistakes:review', 'audit:read'],
   admin: [
     'admin:access',
+    'overview:read',
+    'users:manage',
+    'curriculum:write',
+    'ai_ops:read',
+    'mistakes:review',
+    'audit:read',
+    'rbac:manage',
+  ],
+  super_admin: [
+    'admin:access',
+    'overview:read',
+    'users:manage',
     'curriculum:write',
     'ai_ops:read',
     'mistakes:review',
@@ -47,23 +66,35 @@ export const ADMIN_ROLE_LABELS: Record<
   AdminRole,
   { en: string; bn: string; descEn: string; descBn: string }
 > = {
-  admin: {
+  super_admin: {
     en: 'Super Admin',
     bn: 'সুপার অ্যাডমিন',
-    descEn: 'Full governance access across Curriculum Builder, AI Ops, Mistake Queue, and Audit Logs.',
-    descBn: 'কারিকুলাম বিল্ডার, AI Ops, রিপোর্টকৃত ভুল ও অডিট লগের সম্পূর্ণ অনুমতি।',
+    descEn: 'Full platform sovereignty across Overview, User Management, Curriculum Builder, AI Ops, Mistake Queue, and Audit Logs.',
+    descBn: 'ওভারভিউ, ইউজার ম্যানেজমেন্ট, কারিকুলাম বিল্ডার, AI Ops, রিপোর্টকৃত ভুল ও অডিট লগের সম্পূর্ণ অনুমতি।',
+  },
+  admin: {
+    en: 'Admin',
+    bn: 'অ্যাডমিন',
+    descEn: 'Full governance access across Overview, User Management, Curriculum Builder, AI Ops, Mistake Queue, and Audit Logs.',
+    descBn: 'ওভারভিউ, ইউজার ম্যানেজমেন্ট, কারিকুলাম বিল্ডার, AI Ops, রিপোর্টকৃত ভুল ও অডিট লগের সম্পূর্ণ অনুমতি।',
   },
   content_manager: {
     en: 'Content Manager',
     bn: 'কন্টেন্ট ম্যানেজার',
-    descEn: 'Can create, version, and publish courses/lessons and triage flagged corrections. No AI cost controls.',
-    descBn: 'কোর্স ও লেসন তৈরি/প্রকাশ এবং ভুল যাচাই করতে পারবেন; AI খরচ মনিটরিং সীমাবদ্ধ।',
+    descEn: 'Can create, version, and publish courses/lessons and triage flagged corrections. No AI cost or user controls.',
+    descBn: 'কোর্স ও লেসন তৈরি/প্রকাশ এবং ভুল যাচাই করতে পারবেন; AI খরচ ও ইউজার নিয়ন্ত্রণ সীমাবদ্ধ।',
   },
   ai_ops: {
     en: 'AI Ops Engineer',
     bn: 'AI Ops ইঞ্জিনিয়ার',
     descEn: 'Can inspect AI latency, token cost, prompt versions, error logs, and flagged AI mistakes. Read-only curriculum.',
     descBn: 'AI ল্যাটেন্সি, টোকেন খরচ, প্রম্পট ভার্সন ও ভুল সংশোধন রিভিউ করতে পারবেন।',
+  },
+  moderator: {
+    en: 'Moderator',
+    bn: 'মডারেটর',
+    descEn: 'Can review reported false corrections and inspect platform audit records.',
+    descBn: 'রিপোর্টকৃত ভুল সংশোধন যাচাই এবং অডিট লগ পর্যবেক্ষণ করতে পারবেন।',
   },
   learner: {
     en: 'Learner (No Admin Access)',
@@ -78,7 +109,7 @@ export function hasAdminPermission(
   permission: AdminPermission
 ): boolean {
   const effective: AdminRole = role ?? 'learner';
-  return ROLE_PERMISSION_MATRIX[effective].includes(permission);
+  return ROLE_PERMISSION_MATRIX[effective]?.includes(permission) ?? false;
 }
 
 export function generateCorrelationId(prefix = 'corr'): string {

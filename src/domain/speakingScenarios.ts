@@ -6,7 +6,7 @@ import type {
 import {
   normalizePressureLevel,
   PRESSURE_LADDER_TIERS,
-} from './pressureLadder';
+} from './pressureLadder.ts';
 
 export interface SpeakingScenario {
   id: SpeakingModeId;

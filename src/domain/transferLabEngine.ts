@@ -12,9 +12,9 @@ import type {
   TransferRubricEvaluation,
   TransferScenarioId,
 } from '../types/domain';
-import { getLessonById } from './curriculumData';
-import { classifyMistakeCategory, getMistakeCategoryMeta } from './mistakeMemoryEngine';
-import { getPressureLadderTier } from './pressureLadder';
+import { getLessonById } from './curriculumData.ts';
+import { classifyMistakeCategory, getMistakeCategoryMeta } from './mistakeMemoryEngine.ts';
+import { getPressureLadderTier } from './pressureLadder.ts';
 
 export interface TransferScenarioDefinition {
   id: TransferScenarioId;

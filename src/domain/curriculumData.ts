@@ -2,7 +2,7 @@ import type { CurriculumCourse, CurriculumLesson } from '../types/domain';
 import {
   mergeCurriculumWithOverlay,
   readCustomCurriculumOverlay,
-} from '../services/curriculumStore';
+} from '../services/curriculumStore.ts';
 
 export const CURRICULUM_COURSES: CurriculumCourse[] = [
   {

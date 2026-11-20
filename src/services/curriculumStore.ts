@@ -152,7 +152,7 @@ export function upsertPublishedCourse(course: CurriculumCourse): CustomCurriculu
   const versionedCourse: CurriculumCourse = {
     ...course,
     version: nextVersion,
-    publishedStatus: 'published',
+    publishedStatus: course.publishedStatus ?? 'published',
     isCustom: true,
     updatedAt: new Date().toISOString(),
   };
@@ -197,7 +197,7 @@ export function upsertPublishedLesson(lesson: CurriculumLesson): CustomCurriculu
   const versionedLesson: CurriculumLesson = {
     ...lesson,
     version: nextVersion,
-    publishedStatus: 'published',
+    publishedStatus: lesson.publishedStatus ?? 'published',
     isCustom: true,
     updatedAt: new Date().toISOString(),
   };

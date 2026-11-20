@@ -1,9 +1,13 @@
 import type {
+  AccountStatus,
   ActivityLedgerSummary,
+  AdminOverviewStats,
   AdminRole,
+  AdminUserSummary,
   AuthSession,
   DiagnosticSkillDomain,
   DiagnosticUserAnswer,
+  EmailOtpDeliveryInfo,
   EvidenceStartingProfile,
   ExerciseAttemptRecord,
   LearnerProfile,
@@ -54,6 +58,7 @@ export interface AuthResult {
   transferAttempts: TransferAttemptRecord[];
   xpLedger: XpLedgerEntry[];
   activitySummary: ActivityLedgerSummary;
+  otpDelivery?: EmailOtpDeliveryInfo;
 }
 
 export interface UpdateProfilePayload {
@@ -161,6 +166,8 @@ export interface LinguaVerseRepository {
   login(payload: LoginPayload): Promise<AuthResult>;
   logout(): Promise<void>;
   restoreSession(): Promise<AuthResult | null>;
+  verifyEmailOtp(userId: string, code: string): Promise<{ user: UserAccount }>;
+  resendEmailOtp(userId: string): Promise<EmailOtpDeliveryInfo>;
   updateProfile(userId: string, patch: UpdateProfilePayload): Promise<{
     user: UserAccount;
     profile: LearnerProfile;
@@ -241,5 +248,15 @@ export interface LinguaVerseRepository {
     flaggedMistakes: MistakeMemoryItem[];
     userMistakes?: MistakeMemoryItem[];
   }>;
+  getAdminOverviewStats(aiCallsCount?: number): Promise<AdminOverviewStats>;
+  listAdminUsers(searchQuery?: string): Promise<AdminUserSummary[]>;
+  updateAdminUserAccount(
+    targetUserId: string,
+    patch: {
+      role?: AdminRole;
+      accountStatus?: AccountStatus;
+      emailVerified?: boolean;
+    }
+  ): Promise<AdminUserSummary>;
   clearLocalAccountData(userId: string): Promise<void>;
 }

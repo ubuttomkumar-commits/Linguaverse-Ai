@@ -48,17 +48,24 @@
 - **Privacy & Data Sovereignty (`/settings` / `/app/settings`)**:
   - Live consent switches for **Microphone Recording Storage** and **AI Evaluation Telemetry Logging** (enforced immediately in Speaking Studio & Transfer Lab).
   - One-click **Export My Learning Data (JSON)** and **Delete Stored Recordings / Delete All Recordings & Account Data** with verified IndexedDB cleanup.
-- **Cloudflare Full-Stack Blueprint**:
-  - `wrangler.toml` (Pages + Workers + D1 + R2 + KV)
-  - `schema.sql` (complete normalized D1 migration schema)
-  - `src/services/apiClient.ts` (zero-rewrite local vs. `/api/v1/*` Cloudflare Worker abstraction)
+- **Cloudflare Full-Stack Production Architecture (`worker/`)**:
+  - `wrangler.toml` (Pages + isolated `worker/index.ts` + D1 + R2 + KV)
+  - `schema.sql` (normalized PRD v5.0 D1 SQLite schema covering `users` with `email_verified`/`account_status`, `sessions`, `email_verification_tokens`, `password_reset_tokens`, `vocabulary_reviews`, `speaking_transcripts`, `speaking_assessments`, `audio_assets`, `mistake_reviews`, `skill_measurements`, `transfer_scenarios`, `user_xp_events`, `achievements`, `ai_provider_events`, `ai_usage_ledger`, `prompt_versions`, `reported_mistakes`, `system_settings`, `user_consents`, `audit_logs`)
+  - `worker/index.ts` (Hono REST API `/api/v1/*` with PBKDF2 password hashing, HTTP-only secure cookies + Bearer JWT, KV rate limiting, R2 private audio storage, bilingual Resend/Brevo OTP email delivery via native `fetch()`, server-side Gemini proxy, and strict server-side RBAC `/api/v1/admin/*`)
+  - `src/services/apiClient.ts` & `src/services/storage/d1ApiRepository.ts` (zero-rewrite local vs. `/api/v1/*` Cloudflare Worker abstraction)
+
+### PRD v5.0 Upgrades — 3D Landing Page, Real Gmail OTP Auth & Full Admin Overview/Users
+- **3D + Motion Public Landing Page (`/`)**: Deep Space Navy (`#050914`), interactive 3D Acoustic Core + Canvas frequency waveform, 3-scenario `"Interactive Sample Preview"`, Pain-Point vs. Solution Matrix, live bilingual Sentence Sandbox (`/api/landing/analyze`), 8-Step Loop + 6 Systems Bento Grid, Support Ecosystem + Floating Guide + 30s Mini-Quiz, BDT/USD Pricing, and instant `EN / বাংলা` toggle.
+- **Real Gmail 6-Digit OTP Email Verification (`/verify-email`)**: Cryptographically random 6-digit OTP stored as SHA-256 hash (`email_verification_tokens`, 10-minute expiry, max 5 attempts, 60-second resend cooldown), branded bilingual EN+বাংলা HTML emails via Resend/Brevo, and strict route protection blocking `/onboarding`, `/diagnostic`, `/app/*`, and `/admin` until `email_verified = true` (with an honest local-dev preview banner only when no email provider API key is configured).
+- **Upgraded Admin Control Center (`/admin`)**: Added **Overview** (real database counts — zero fake charts) and **User Management** (search real registered users, inspect verification/status, suspend/restore accounts, promote RBAC roles across `learner`, `moderator`, `content_manager`, `ai_ops`, `admin`, `super_admin`, all logged to `audit_logs`).
 
 ---
 
 ## Security & Privacy Verification Checklist
-- [x] API keys (`GEMINI_API_KEY`) strictly server-side (`server.ts` / Cloudflare Workers Secrets); never exposed to browser bundle.
-- [x] Role-based access control (`hasAdminPermission`) blocks `learner` role from `/admin` controls and restricts `content_manager` vs. `ai_ops` grants.
+- [x] API keys (`GEMINI_API_KEY`, `RESEND_API_KEY`, `EMAIL_PROVIDER_API_KEY`, `JWT_SIGNING_SECRET`) strictly server-side (`server.ts` / Cloudflare Workers Secrets); never exposed to browser bundle.
+- [x] Email verification OTPs hashed via SHA-256 with 10-minute expiry, max 5 attempts, and 60-second resend rate limit; protected routes blocked until `emailVerified === true`.
+- [x] Role-based access control (`hasAdminPermission` + Worker `requireAdmin`) blocks `learner` role from `/admin` controls and enforces role-scoped permissions.
 - [x] Microphone recording storage honors `privacyConsent.storeMicRecordings` before writing IndexedDB/R2 blobs.
 - [x] AI telemetry honors `privacyConsent.logAiEvaluations` before logging usage events.
-- [x] Account deletion verifies full IndexedDB audio blob purge (`clearAllAudioBlobs()`) alongside repository erasure.
+- [x] Account deletion verifies full IndexedDB/R2 audio purge alongside repository erasure.
 - [x] Idempotent XP awards enforced via unique `idempotencyKey` in both local ledger and D1 `UNIQUE(user_id, idempotency_key)`.

@@ -9,6 +9,9 @@ import {
   SpeakingApiError,
 } from './server/geminiSpeaking.ts';
 import { evaluateTransferChallengeWithGemini } from './server/geminiTransfer.ts';
+import { analyzeLandingSentenceWithGemini } from './server/geminiSampleAnalyze.ts';
+import { sendOtpEmailFromServer } from './server/emailService.ts';
+import { analyzeSampleSentence } from './src/domain/sampleAnalyzer.ts';
 import type { SpeakingEvaluationRequest } from './src/domain/speakingEvaluation.ts';
 import type { TransferEvaluationRequest } from './src/domain/transferLabEngine.ts';
 import { normalizePressureLevel } from './src/domain/pressureLadder.ts';
@@ -132,6 +135,72 @@ async function startServer() {
       res.status(500).json({
         error: fallbackMessage,
         code: 'INTERNAL_ERROR',
+      });
+    }
+  });
+
+  // Public landing page sandbox sentence analyzer (zero-signup live preview)
+  app.post('/api/landing/analyze', async (req, res) => {
+    try {
+      const body = req.body as { sentence?: unknown } | undefined;
+      const sentence = typeof body?.sentence === 'string' ? body.sentence.trim().slice(0, 300) : '';
+      if (!sentence) {
+        res.status(400).json({ error: 'Please type an English sentence to analyze.' });
+        return;
+      }
+
+      // First check instant deterministic Bangla-to-English interference rules
+      const ruleResult = analyzeSampleSentence(sentence);
+      if (ruleResult.hasDetectedMistake) {
+        res.json({ analysis: ruleResult });
+        return;
+      }
+
+      // For arbitrary custom sentences, attempt live Gemini bilingual analysis
+      const geminiResult = await analyzeLandingSentenceWithGemini(sentence);
+      if (geminiResult) {
+        res.json({ analysis: geminiResult });
+        return;
+      }
+
+      // Graceful honest fallback if server key is unavailable
+      res.json({ analysis: ruleResult });
+    } catch {
+      const fallback = analyzeSampleSentence(
+        typeof req.body?.sentence === 'string' ? req.body.sentence : ''
+      );
+      res.json({ analysis: fallback });
+    }
+  });
+
+  // Server-side transactional OTP email dispatch (Resend / Brevo via env keys; honest local preview fallback when unset)
+  app.post('/api/auth/send-otp', async (req, res) => {
+    try {
+      const body = req.body as { email?: unknown; name?: unknown; otpCode?: unknown } | undefined;
+      const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+      const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 120) : 'Learner';
+      const otpCode = typeof body?.otpCode === 'string' ? body.otpCode.replace(/\D/g, '').slice(0, 6) : '';
+      if (!email || otpCode.length !== 6) {
+        res.status(400).json({ error: 'Valid email and 6-digit OTP code are required.' });
+        return;
+      }
+
+      const result = await sendOtpEmailFromServer({
+        toEmail: email,
+        recipientName: name,
+        otpCode,
+      });
+
+      res.json({
+        delivered: result.delivered,
+        provider: result.provider,
+        deliveryMode: result.delivered ? 'email_provider' : 'local_dev_preview',
+      });
+    } catch {
+      res.json({
+        delivered: false,
+        provider: 'none',
+        deliveryMode: 'local_dev_preview',
       });
     }
   });

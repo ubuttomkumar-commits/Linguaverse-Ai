@@ -8,12 +8,16 @@ import {
   ClipboardList,
   ExternalLink,
   Flag,
+  LayoutDashboard,
   Lock,
   Plus,
   RefreshCw,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { LearnerShell } from '../../components/layout/LearnerShell';
+import { AdminOverviewTab } from '../../components/admin/AdminOverviewTab';
+import { AdminUserManagementTab } from '../../components/admin/AdminUserManagementTab';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -38,7 +42,10 @@ import {
   listAuditLogs,
 } from '../../services/governanceStore';
 import type {
+  AccountStatus,
+  AdminOverviewStats,
   AdminRole,
+  AdminUserSummary,
   AiTelemetryEvent,
   AuditLogEntry,
   AuditResourceType,
@@ -48,10 +55,17 @@ import type {
   MistakeMemoryItem,
 } from '../../types/domain';
 
-type AdminTab = 'curriculum' | 'ai_ops' | 'mistakes' | 'audit';
+type AdminTab = 'overview' | 'users' | 'curriculum' | 'ai_ops' | 'mistakes' | 'audit';
 type BuilderMode = 'lesson' | 'course' | 'module';
 
-const ADMIN_ROLES: AdminRole[] = ['learner', 'content_manager', 'ai_ops', 'admin'];
+const ADMIN_ROLES: AdminRole[] = [
+  'learner',
+  'moderator',
+  'content_manager',
+  'ai_ops',
+  'admin',
+  'super_admin',
+];
 const MISTAKE_CATEGORIES: MistakeCategory[] = [
   'Tense',
   'Preposition',
@@ -71,16 +85,21 @@ export function AdminControlCenterPage() {
     updateProfile,
     getFlaggedMistakes,
     reviewFlaggedMistake,
+    getAdminOverviewStats,
+    listAdminUsers,
+    updateAdminUserAccount,
   } = useAuth();
 
   const activeRole: AdminRole = user?.role ?? 'learner';
   const canAccessAdmin = hasAdminPermission(activeRole, 'admin:access');
+  const canReadOverview = hasAdminPermission(activeRole, 'overview:read');
+  const canManageUsers = hasAdminPermission(activeRole, 'users:manage');
   const canWriteCurriculum = hasAdminPermission(activeRole, 'curriculum:write');
   const canReadAiOps = hasAdminPermission(activeRole, 'ai_ops:read');
   const canReviewMistakes = hasAdminPermission(activeRole, 'mistakes:review');
   const canReadAudit = hasAdminPermission(activeRole, 'audit:read');
 
-  const [activeTab, setActiveTab] = useState<AdminTab>('curriculum');
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [roleUpdating, setRoleUpdating] = useState(false);
 
   // Live Curriculum State
@@ -128,7 +147,10 @@ export function AdminControlCenterPage() {
   const [lessonBanglaMeaning, setLessonBanglaMeaning] = useState('');
   const [lessonCategory, setLessonCategory] = useState<MistakeCategory>('Preposition');
 
-  // AI Ops, Mistakes Queue, and Audit Logs
+  // Overview, User Management, AI Ops, Mistakes Queue, and Audit Logs
+  const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
   const [telemetryEvents, setTelemetryEvents] = useState<AiTelemetryEvent[]>(() =>
     listAiTelemetryEvents()
   );
@@ -177,26 +199,35 @@ export function AdminControlCenterPage() {
   }, [selectedCourseForLesson, lessonModuleId]);
 
   const refreshGovernanceData = useCallback(async () => {
-    setTelemetryEvents(listAiTelemetryEvents());
+    const events = listAiTelemetryEvents();
+    setTelemetryEvents(events);
     setAuditLogs(listAuditLogs());
     setCatalogTick((t) => t + 1);
-    const flagged = await getFlaggedMistakes();
+    const [flagged, stats, usersList] = await Promise.all([
+      getFlaggedMistakes(),
+      getAdminOverviewStats(events.length),
+      listAdminUsers(userSearchQuery),
+    ]);
     setFlaggedMistakes(flagged);
-  }, [getFlaggedMistakes]);
+    setOverviewStats(stats);
+    setAdminUsers(usersList);
+  }, [getFlaggedMistakes, getAdminOverviewStats, listAdminUsers, userSearchQuery]);
 
   useEffect(() => {
     void refreshGovernanceData();
   }, [refreshGovernanceData]);
 
-  // Keep active tab valid when switching between Content Manager and AI Ops
+  // Keep active tab valid when switching between restricted admin roles
   useEffect(() => {
     if (!canAccessAdmin) return;
-    if (activeTab === 'curriculum' && !canWriteCurriculum && canReadAiOps) {
+    if (activeTab === 'users' && !canManageUsers) {
+      setActiveTab('overview');
+    } else if (activeTab === 'curriculum' && !canWriteCurriculum && canReadAiOps) {
       setActiveTab('ai_ops');
     } else if (activeTab === 'ai_ops' && !canReadAiOps && canWriteCurriculum) {
       setActiveTab('curriculum');
     }
-  }, [activeRole, activeTab, canAccessAdmin, canWriteCurriculum, canReadAiOps]);
+  }, [activeRole, activeTab, canAccessAdmin, canManageUsers, canWriteCurriculum, canReadAiOps]);
 
   const aiMetrics = useMemo(
     () => aggregateAiOpsMetrics(telemetryEvents),
@@ -227,10 +258,39 @@ export function AdminControlCenterPage() {
         summaryBn: `সক্রিয় গভর্ন্যান্স ভূমিকা ${activeRole} থেকে ${nextRole}-এ পরিবর্তন করা হয়েছে।`,
         metadata: { previousRole: activeRole, newRole: nextRole },
       });
-      setAuditLogs(listAuditLogs());
+      await refreshGovernanceData();
     } finally {
       setRoleUpdating(false);
     }
+  };
+
+  const handleAdminUserUpdate = async (
+    target: AdminUserSummary,
+    patch: { role?: AdminRole; accountStatus?: AccountStatus }
+  ) => {
+    if (!user || !canManageUsers) return;
+    await updateAdminUserAccount(target.id, patch);
+    const summaryParts: string[] = [];
+    if (patch.role) summaryParts.push(`role -> ${patch.role}`);
+    if (patch.accountStatus) summaryParts.push(`status -> ${patch.accountStatus}`);
+    appendAuditLog({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      actorRole: activeRole,
+      action: patch.accountStatus
+        ? `user.status_${patch.accountStatus}`
+        : 'user.role_updated',
+      resourceType: 'user_account',
+      resourceId: target.id,
+      summaryEn: `Updated ${target.email}: ${summaryParts.join(', ')}.`,
+      summaryBn: `${target.email} অ্যাকাউন্ট আপডেট করা হয়েছে: ${summaryParts.join(', ')}।`,
+      metadata: {
+        targetEmail: target.email,
+        ...(patch.role ? { newRole: patch.role } : {}),
+        ...(patch.accountStatus ? { accountStatus: patch.accountStatus } : {}),
+      },
+    });
+    await refreshGovernanceData();
   };
 
   const handleStartEditCourse = (course: CurriculumCourse) => {
@@ -664,6 +724,20 @@ export function AdminControlCenterPage() {
                 {(
                   [
                     {
+                      id: 'overview' as const,
+                      labelEn: 'Overview',
+                      labelBn: 'ওভারভিউ',
+                      icon: LayoutDashboard,
+                      allowed: canReadOverview,
+                    },
+                    {
+                      id: 'users' as const,
+                      labelEn: `Users (${adminUsers.length})`,
+                      labelBn: `ব্যবহারকারী (${adminUsers.length})`,
+                      icon: Users,
+                      allowed: canManageUsers,
+                    },
+                    {
                       id: 'curriculum' as const,
                       labelEn: 'Curriculum Builder',
                       labelBn: 'কারিকুলাম বিল্ডার',
@@ -728,6 +802,31 @@ export function AdminControlCenterPage() {
                 <span>{lang === 'bn' ? 'রিফ্রেশ' : 'Refresh Live Data'}</span>
               </button>
             </div>
+
+            {/* TAB 0: ADMIN OVERVIEW (REAL DB COUNTS) */}
+            {activeTab === 'overview' && (
+              <AdminOverviewTab
+                lang={lang}
+                stats={overviewStats}
+                coursesCount={courses.length}
+                modulesCount={totalModulesCount}
+                lessonsCount={totalLessonsCount}
+                storageMode={storageMode}
+              />
+            )}
+
+            {/* TAB 0B: USER MANAGEMENT */}
+            {activeTab === 'users' && user && (
+              <AdminUserManagementTab
+                lang={lang}
+                canManageUsers={canManageUsers}
+                currentUserId={user.id}
+                users={adminUsers}
+                searchQuery={userSearchQuery}
+                onSearchChange={setUserSearchQuery}
+                onUpdateUser={handleAdminUserUpdate}
+              />
+            )}
 
             {/* TAB 1: CURRICULUM BUILDER */}
             {activeTab === 'curriculum' && (

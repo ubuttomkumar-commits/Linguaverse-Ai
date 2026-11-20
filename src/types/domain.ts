@@ -21,7 +21,15 @@ export interface BilingualText {
   bn: string;
 }
 
-export type AdminRole = 'learner' | 'admin' | 'content_manager' | 'ai_ops';
+export type AdminRole =
+  | 'learner'
+  | 'moderator'
+  | 'content_manager'
+  | 'ai_ops'
+  | 'admin'
+  | 'super_admin';
+
+export type AccountStatus = 'active' | 'suspended';
 
 export interface PrivacyConsentSettings {
   storeMicRecordings: boolean;
@@ -35,6 +43,43 @@ export interface UserAccount {
   email: string;
   plan: SubscriptionPlan;
   role?: AdminRole;
+  emailVerified?: boolean;
+  accountStatus?: AccountStatus;
+  createdAt: string;
+}
+
+export interface EmailOtpDeliveryInfo {
+  email: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  deliveryMode: 'email_provider' | 'local_dev_preview';
+  /** Populated ONLY in unconfigured local development when no email provider API key is present */
+  devPreviewOtp?: string;
+}
+
+export interface AdminOverviewStats {
+  totalUsers: number;
+  verifiedUsers: number;
+  suspendedUsers: number;
+  lessonsCompleted: number;
+  speakingSessions: number;
+  transferAttempts: number;
+  aiCalls: number;
+  activeMistakes: number;
+  flaggedMistakes: number;
+}
+
+export interface AdminUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  role: AdminRole;
+  plan: SubscriptionPlan;
+  emailVerified: boolean;
+  accountStatus: AccountStatus;
+  lessonsCompleted: number;
+  speakingSessions: number;
+  activeMistakes: number;
   createdAt: string;
 }
 
@@ -347,7 +392,7 @@ export interface CurriculumLesson {
   independentExercises: IndependentExercise[];
   assessmentQuestions: AssessmentQuestion[];
   version?: number;
-  publishedStatus?: 'draft' | 'published';
+  publishedStatus?: 'draft' | 'published' | 'archived';
   isCustom?: boolean;
   updatedAt?: string;
 }
@@ -375,7 +420,7 @@ export interface CurriculumCourse {
   targetAudienceBn: string;
   modules: CurriculumModule[];
   version?: number;
-  publishedStatus?: 'draft' | 'published';
+  publishedStatus?: 'draft' | 'published' | 'archived';
   isCustom?: boolean;
   updatedAt?: string;
 }
@@ -591,6 +636,8 @@ export interface XpLedgerEntry {
 
 export type AdminPermission =
   | 'admin:access'
+  | 'overview:read'
+  | 'users:manage'
   | 'curriculum:write'
   | 'ai_ops:read'
   | 'mistakes:review'
@@ -601,7 +648,7 @@ export interface AiTelemetryEvent {
   id: string;
   correlationId: string;
   userId?: string;
-  endpoint: 'speaking_evaluate' | 'transfer_evaluate';
+  endpoint: 'speaking_evaluate' | 'transfer_evaluate' | 'landing_analyze';
   model: string;
   promptVersion: string;
   latencyMs: number;
@@ -621,7 +668,9 @@ export type AuditResourceType =
   | 'data_export'
   | 'recordings_purge'
   | 'account_deletion'
-  | 'rbac_role';
+  | 'rbac_role'
+  | 'user_account'
+  | 'email_verification';
 
 export interface AuditLogEntry {
   id: string;

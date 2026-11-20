@@ -1,26 +1,68 @@
 -- ============================================================================
--- LINGUAVERSE AI — Cloudflare D1 (SQLite) Production Migration Schema
+-- LINGUAVERSE AI — Cloudflare D1 (SQLite) Production Migration Schema (PRD v5.0)
 -- Execute via:
 --   npx wrangler d1 execute linguaverse-db --file=./schema.sql
 -- ============================================================================
 
 PRAGMA foreign_keys = ON;
 
--- 1. Core Identity & RBAC Accounts
+-- 1. Core Identity, Email Verification & RBAC Accounts
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   password_salt TEXT NOT NULL,
   password_hash TEXT NOT NULL,
+  email_verified INTEGER NOT NULL DEFAULT 0 CHECK (email_verified IN (0, 1)),
+  account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('active', 'suspended')),
   plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'institution')),
-  role TEXT NOT NULL DEFAULT 'learner' CHECK (role IN ('learner', 'content_manager', 'ai_ops', 'admin')),
+  role TEXT NOT NULL DEFAULT 'learner' CHECK (role IN ('learner', 'moderator', 'content_manager', 'ai_ops', 'admin', 'super_admin')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_verified ON users(email_verified, account_status);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  user_agent TEXT,
+  ip_hash TEXT,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, expires_at DESC);
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  otp_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_otp_user ON email_verification_tokens(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_otp_email ON email_verification_tokens(email, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id, created_at DESC);
 
 -- 2. Learner Preferences, Spaced Repetition Cadence & Privacy Sovereignty Consents
 CREATE TABLE IF NOT EXISTS learner_profiles (
@@ -39,6 +81,17 @@ CREATE TABLE IF NOT EXISTS learner_profiles (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_consents (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  consent_type TEXT NOT NULL CHECK (consent_type IN ('mic_recordings', 'ai_evaluation_logging', 'privacy_policy', 'terms_of_service')),
+  granted INTEGER NOT NULL CHECK (granted IN (0, 1)),
+  policy_version TEXT NOT NULL DEFAULT 'v5.0',
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_consents_user ON user_consents(user_id, consent_type, updated_at DESC);
+
 -- 3. Versioned Bilingual Curriculum (Admin Curriculum Builder -> Live Academy)
 CREATE TABLE IF NOT EXISTS courses (
   id TEXT PRIMARY KEY,
@@ -51,7 +104,7 @@ CREATE TABLE IF NOT EXISTS courses (
   target_audience_en TEXT NOT NULL,
   target_audience_bn TEXT NOT NULL,
   version INTEGER NOT NULL DEFAULT 1,
-  published_status TEXT NOT NULL DEFAULT 'published' CHECK (published_status IN ('draft', 'published')),
+  published_status TEXT NOT NULL DEFAULT 'published' CHECK (published_status IN ('draft', 'published', 'archived')),
   is_custom INTEGER NOT NULL DEFAULT 0 CHECK (is_custom IN (0, 1)),
   updated_at TEXT NOT NULL
 );
@@ -80,9 +133,9 @@ CREATE TABLE IF NOT EXISTS lessons (
   title_bn TEXT NOT NULL,
   summary_en TEXT NOT NULL,
   summary_bn TEXT NOT NULL,
-  payload_json TEXT NOT NULL, -- Full 7-stage structured lesson JSON (concept, contrastRows, examples, guided, independent, assessment)
+  payload_json TEXT NOT NULL,
   version INTEGER NOT NULL DEFAULT 1,
-  published_status TEXT NOT NULL DEFAULT 'published' CHECK (published_status IN ('draft', 'published')),
+  published_status TEXT NOT NULL DEFAULT 'published' CHECK (published_status IN ('draft', 'published', 'archived')),
   is_custom INTEGER NOT NULL DEFAULT 0 CHECK (is_custom IN (0, 1)),
   updated_at TEXT NOT NULL
 );
@@ -105,7 +158,7 @@ CREATE TABLE IF NOT EXISTS diagnostic_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_diagnostic_user_date ON diagnostic_attempts(user_id, completed_at DESC);
 
--- 5. Academy 7-Stage Lesson & Exercise Attempts (Spaced Repetition Evidence)
+-- 5. Academy 7-Stage Lesson, Exercise & Vocabulary Spaced Repetition Attempts
 CREATE TABLE IF NOT EXISTS lesson_attempts (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -141,7 +194,24 @@ CREATE TABLE IF NOT EXISTS exercise_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_exercise_attempts_user ON exercise_attempts(user_id, created_at DESC);
 
--- 6. AI Speaking Studio Sessions & Turn Replay (Audio Blobs in Cloudflare R2)
+CREATE TABLE IF NOT EXISTS vocabulary_reviews (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  lesson_id TEXT,
+  word_en TEXT NOT NULL,
+  meaning_bn TEXT NOT NULL,
+  context_sentence TEXT NOT NULL,
+  ease_factor REAL NOT NULL DEFAULT 2.5,
+  interval_days INTEGER NOT NULL DEFAULT 1,
+  repetitions INTEGER NOT NULL DEFAULT 0,
+  next_review_at TEXT NOT NULL,
+  last_reviewed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vocab_reviews_user_due ON vocabulary_reviews(user_id, next_review_at);
+
+-- 6. AI Speaking Studio Sessions, Transcripts, Assessments & R2 Audio Assets
 CREATE TABLE IF NOT EXISTS speaking_sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -150,13 +220,57 @@ CREATE TABLE IF NOT EXISTS speaking_sessions (
   started_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   duration_seconds INTEGER NOT NULL,
-  turns_json TEXT NOT NULL, -- Includes R2 object keys (audioBlobKey) when recording storage consent = 1
+  turns_json TEXT NOT NULL,
   total_mistakes_detected INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_speaking_sessions_user ON speaking_sessions(user_id, updated_at DESC);
 
--- 7. Mistake Memory Engine & Admin False-Correction Quality Queue
+CREATE TABLE IF NOT EXISTS speaking_transcripts (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES speaking_sessions(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  turn_number INTEGER NOT NULL,
+  input_channel TEXT NOT NULL,
+  raw_transcript TEXT NOT NULL,
+  corrected_transcript TEXT NOT NULL,
+  audio_asset_id TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_speaking_transcripts_session ON speaking_transcripts(session_id, turn_number);
+
+CREATE TABLE IF NOT EXISTS speaking_assessments (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES speaking_sessions(id) ON DELETE CASCADE,
+  transcript_id TEXT REFERENCES speaking_transcripts(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ai_reply TEXT NOT NULL,
+  ai_reply_bn_hint TEXT,
+  natural_alternative TEXT,
+  pronunciation_note TEXT,
+  mistakes_count INTEGER NOT NULL DEFAULT 0,
+  evaluation_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_speaking_assessments_user ON speaking_assessments(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audio_assets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id TEXT REFERENCES speaking_sessions(id) ON DELETE SET NULL,
+  r2_object_key TEXT NOT NULL UNIQUE,
+  mime_type TEXT NOT NULL DEFAULT 'audio/webm',
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audio_assets_user ON audio_assets(user_id, created_at DESC);
+
+-- 7. Mistake Memory Engine, Mistake Reviews, Reported Mistakes & Skill Measurements
 CREATE TABLE IF NOT EXISTS learner_mistakes (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -206,7 +320,56 @@ CREATE TABLE IF NOT EXISTS mistake_drill_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_mistake_drills_user ON mistake_drill_attempts(user_id, created_at DESC);
 
--- 8. Transfer Lab & 5-Level Pressure Ladder Attempts
+CREATE TABLE IF NOT EXISTS mistake_reviews (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mistake_id TEXT NOT NULL REFERENCES learner_mistakes(id) ON DELETE CASCADE,
+  passed INTEGER NOT NULL CHECK (passed IN (0, 1)),
+  interval_days INTEGER NOT NULL DEFAULT 1,
+  next_review_at TEXT NOT NULL,
+  reviewed_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mistake_reviews_user ON mistake_reviews(user_id, reviewed_at DESC);
+
+CREATE TABLE IF NOT EXISTS reported_mistakes (
+  id TEXT PRIMARY KEY,
+  mistake_id TEXT NOT NULL REFERENCES learner_mistakes(id) ON DELETE CASCADE,
+  reporter_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'upheld_false_positive', 'confirmed_accurate')),
+  reviewer_user_id TEXT,
+  reviewer_note TEXT,
+  reviewed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reported_mistakes_status ON reported_mistakes(review_status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS skill_measurements (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  domain TEXT NOT NULL,
+  score_percent REAL NOT NULL,
+  sample_size INTEGER NOT NULL DEFAULT 1,
+  source_type TEXT NOT NULL,
+  measured_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_measurements_user ON skill_measurements(user_id, domain, measured_at DESC);
+
+-- 8. Transfer Lab Scenarios & 5-Level Pressure Ladder Attempts
+CREATE TABLE IF NOT EXISTS transfer_scenarios (
+  id TEXT PRIMARY KEY,
+  title_en TEXT NOT NULL,
+  title_bn TEXT NOT NULL,
+  context_en TEXT NOT NULL,
+  context_bn TEXT NOT NULL,
+  min_cefr TEXT NOT NULL DEFAULT 'A2',
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS transfer_attempts (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -230,7 +393,7 @@ CREATE TABLE IF NOT EXISTS transfer_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_transfer_attempts_user ON transfer_attempts(user_id, completed_at DESC);
 
--- 9. Verified Idempotent XP Ledger (DB-Level Anti-Farming Guarantee)
+-- 9. Verified Idempotent XP Ledger & Achievements (Zero Fake Gamification)
 CREATE TABLE IF NOT EXISTS xp_events (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -248,7 +411,37 @@ CREATE TABLE IF NOT EXISTS xp_events (
 
 CREATE INDEX IF NOT EXISTS idx_xp_events_user ON xp_events(user_id, created_at DESC);
 
--- 10. Real AI Operations & Cost Telemetry (Strict Zero-Fabrication Log)
+CREATE TABLE IF NOT EXISTS user_xp_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  idempotency_key TEXT NOT NULL,
+  source_type TEXT NOT NULL CHECK (source_type IN ('lesson_completed', 'lesson_mastery_tier', 'speaking_session_completed', 'mistake_resolved', 'transfer_lab_passed')),
+  source_id TEXT NOT NULL,
+  xp_earned INTEGER NOT NULL CHECK (xp_earned > 0),
+  title_en TEXT NOT NULL,
+  title_bn TEXT NOT NULL,
+  detail_en TEXT NOT NULL,
+  detail_bn TEXT NOT NULL,
+  verified_at TEXT NOT NULL,
+  UNIQUE(user_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_xp_events_user ON user_xp_events(user_id, verified_at DESC);
+
+CREATE TABLE IF NOT EXISTS achievements (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  title_en TEXT NOT NULL,
+  title_bn TEXT NOT NULL,
+  evidence_summary TEXT NOT NULL,
+  unlocked_at TEXT NOT NULL,
+  UNIQUE(user_id, code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id, unlocked_at DESC);
+
+-- 10. Real AI Operations, Provider Events, Usage Ledger & Prompt Versions
 CREATE TABLE IF NOT EXISTS ai_telemetry_events (
   id TEXT PRIMARY KEY,
   correlation_id TEXT NOT NULL,
@@ -269,7 +462,55 @@ CREATE TABLE IF NOT EXISTS ai_telemetry_events (
 CREATE INDEX IF NOT EXISTS idx_ai_telemetry_created ON ai_telemetry_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_telemetry_status ON ai_telemetry_events(status, created_at DESC);
 
--- 11. Immutable Administrative & Privacy Audit Log
+CREATE TABLE IF NOT EXISTS ai_provider_events (
+  id TEXT PRIMARY KEY,
+  correlation_id TEXT NOT NULL,
+  provider TEXT NOT NULL DEFAULT 'gemini',
+  endpoint TEXT NOT NULL,
+  model TEXT NOT NULL,
+  prompt_version TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('success', 'error')),
+  latency_ms INTEGER NOT NULL,
+  error_code TEXT,
+  error_message TEXT,
+  user_id TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_provider_events_created ON ai_provider_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_usage_ledger (
+  id TEXT PRIMARY KEY,
+  correlation_id TEXT NOT NULL,
+  user_id TEXT,
+  endpoint TEXT NOT NULL,
+  model TEXT NOT NULL,
+  prompt_tokens INTEGER NOT NULL DEFAULT 0,
+  completion_tokens INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_usd REAL NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_ledger_created ON ai_usage_ledger(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS prompt_versions (
+  id TEXT PRIMARY KEY,
+  domain TEXT NOT NULL CHECK (domain IN ('speaking_evaluate', 'transfer_evaluate', 'landing_analyze')),
+  version_tag TEXT NOT NULL UNIQUE,
+  model_target TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- 11. System Settings & Immutable Administrative Audit Log
+CREATE TABLE IF NOT EXISTS system_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
   correlation_id TEXT NOT NULL,

@@ -9,7 +9,7 @@ import type {
   SpeakingPressureLevel,
   SpeakingTurnEvaluation,
 } from '../types/domain';
-import { getPressureLevelConfig, getSpeakingScenario } from './speakingScenarios';
+import { getPressureLevelConfig, getSpeakingScenario } from './speakingScenarios.ts';
 
 export interface ConversationHistoryEntry {
   role: 'ai' | 'user';

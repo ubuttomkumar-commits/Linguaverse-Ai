@@ -40,11 +40,15 @@ export function AuthPage({ mode }: AuthPageProps) {
     setIsSubmitting(true);
     try {
       if (mode === 'register') {
-        await register({ name, email, password, plan: selectedPlan });
-        navigate('/onboarding', { replace: true });
+        const created = await register({ name, email, password, plan: selectedPlan });
+        navigate(created.emailVerified === false ? '/verify-email' : '/onboarding', {
+          replace: true,
+        });
       } else {
-        await login({ email, password });
-        navigate('/app', { replace: true });
+        const loggedIn = await login({ email, password });
+        navigate(loggedIn.emailVerified === false ? '/verify-email' : '/app', {
+          replace: true,
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');

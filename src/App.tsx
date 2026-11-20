@@ -4,6 +4,7 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { DiagnosticPage } from './pages/DiagnosticPage';
 import { LearnerHomePage } from './pages/learner/LearnerHomePage';
@@ -35,6 +36,9 @@ function RequireAuth({
 
   if (isHydrating) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.emailVerified === false) {
+    return <Navigate to="/verify-email" replace />;
+  }
   if (requireOnboarding && profile && !profile.onboardingCompleted) {
     return <Navigate to="/onboarding" replace />;
   }
@@ -46,6 +50,9 @@ function PublicOnlyAuth({ children }: { children: React.ReactNode }) {
 
   if (isHydrating) return <LoadingScreen />;
   if (user) {
+    if (user.emailVerified === false) {
+      return <Navigate to="/verify-email" replace />;
+    }
     if (profile && !profile.onboardingCompleted) {
       return <Navigate to="/onboarding" replace />;
     }
@@ -75,6 +82,7 @@ function AppRoutes() {
           </PublicOnlyAuth>
         }
       />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       {/* Authenticated Onboarding & Diagnostic */}
       <Route

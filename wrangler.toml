@@ -1,8 +1,8 @@
-# LINGUAVERSE AI — Cloudflare Pages + Workers + D1 + R2 + KV Configuration
+# LINGUAVERSE AI — Cloudflare Pages + Workers + D1 + R2 + KV Configuration (PRD v5.0)
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
 
 name = "linguaverse-ai-api"
-main = "workers/index.ts"
+main = "worker/index.ts"
 compatibility_date = "2026-03-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -12,12 +12,13 @@ pages_build_output_dir = "dist"
 [vars]
 APP_ENV = "development"
 DEFAULT_UI_LANGUAGE = "en"
-GEMINI_PRIMARY_MODEL = "gemini-4-hydrogen"
-GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite"
-SPEAKING_PROMPT_VERSION = "speaking-eval-v3.2"
+GEMINI_PRIMARY_MODEL = "gemini-2.5-flash"
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
+SPEAKING_PROMPT_VERSION = "speaking-eval-v5.0"
 TRANSFER_PROMPT_VERSION = "transfer-rubric-v5.1"
 AUDIO_RETENTION_DAYS = "30"
 RATE_LIMIT_REQUESTS_PER_MINUTE = "30"
+EMAIL_FROM = "LINGUAVERSE AI <noreply@linguaverse.ai>"
 
 # Normalized Relational Database (Cloudflare D1 — SQLite)
 # Apply schema via: npx wrangler d1 execute linguaverse-db --file=./schema.sql
@@ -31,22 +32,28 @@ migrations_dir = "migrations"
 # Stores learner self-review audio clips only when store_mic_recordings consent = 1
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
-bucket_name = "linguaverse-voice-recordings"
-preview_bucket_name = "linguaverse-voice-recordings-preview"
+bucket_name = "linguaverse-audio"
+preview_bucket_name = "linguaverse-audio-preview"
 
-# Session Store & Edge Rate-Limiting (Cloudflare KV)
+# Session Store, OTP Cooldown & Edge Rate-Limiting (Cloudflare KV)
 [[kv_namespaces]]
-binding = "SESSION_KV"
+binding = "LINGUAVERSE_KV"
 id = "00000000000000000000000000000001"
 preview_id = "00000000000000000000000000000002"
 
 [[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
+binding = "SESSION_KV"
 id = "00000000000000000000000000000003"
 preview_id = "00000000000000000000000000000004"
 
-# Secrets (NEVER commit real keys; set via `wrangler secret put <NAME>`):
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000005"
+preview_id = "00000000000000000000000000000006"
+
+# Secrets (NEVER commit real keys; set via `npx wrangler secret put <NAME>`):
 # - GEMINI_API_KEY
+# - RESEND_API_KEY (or EMAIL_PROVIDER_API_KEY for Brevo)
 # - JWT_SIGNING_SECRET
 # - ADMIN_BOOTSTRAP_SECRET
 

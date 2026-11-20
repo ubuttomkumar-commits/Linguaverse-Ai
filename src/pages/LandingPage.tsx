@@ -3,15 +3,21 @@ import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { PublicHeader } from '../components/layout/PublicHeader';
 import { PublicFooter } from '../components/layout/PublicFooter';
 import { HeroSamplePreview } from '../components/landing/HeroSamplePreview';
+import { PainPointMatrixSection } from '../components/landing/PainPointMatrixSection';
+import { LiveSandboxSection } from '../components/landing/LiveSandboxSection';
 import { ImprovementLoopSection } from '../components/landing/ImprovementLoopSection';
+import { SupportEcosystemSection } from '../components/landing/SupportEcosystemSection';
 import { PricingSection } from '../components/landing/PricingSection';
-import { FaqSection } from '../components/landing/FaqSection';
+import { FloatingGuideWidget } from '../components/landing/FloatingGuideWidget';
+import { RevealBlock } from '../components/landing/TiltSpotlightCard';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { LANDING_COPY } from '../domain/landingContent';
 
 export function LandingPage() {
-  const { lang, t } = useLanguage();
+  const { lang } = useLanguage();
   const { user, profile } = useAuth();
+  const copy = LANDING_COPY[lang];
 
   const primaryCtaTarget = user
     ? !profile?.onboardingCompleted
@@ -19,193 +25,136 @@ export function LandingPage() {
       : '/app'
     : '/register';
 
-  const primaryCtaLabel = user ? t.nav.openWorkspace : t.hero.primaryCta;
+  const primaryCtaLabel = user ? copy.nav.openWorkspace : copy.hero.primaryCta;
 
   return (
-    <div className="min-h-screen bg-[#0A0F1C] text-slate-100">
+    <div className="min-h-screen bg-[#050914] text-slate-100">
       <PublicHeader />
 
       <main>
-        {/* Hero Section */}
-        <section className="mx-auto max-w-7xl px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:px-8 lg:pb-24 lg:pt-20">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-stretch">
-            {/* Left Copy Column */}
-            <div className="flex flex-col justify-between lg:col-span-6 lg:pr-4">
-              <div>
-                <p className="text-xs font-medium text-slate-400 sm:text-sm">
-                  {t.hero.kicker}
-                </p>
-                <h1
-                  className={`mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-[3.25rem] text-balance ${
-                    lang === 'bn' ? 'leading-[1.25] lg:leading-[1.24]' : 'lg:leading-[1.1]'
-                  }`}
-                >
-                  {t.hero.headline}
-                </h1>
-                <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                  {t.hero.subheadline}
+        {/* 1. Problem-Solving Hero Section with 3D Acoustic Core & Interactive Sample Preview */}
+        <section className="relative overflow-hidden pb-16 pt-8 sm:pt-12 lg:pb-20 lg:pt-12">
+          {/* Subtle atmospheric radial depth — disciplined 60-30-10 dark navy field */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-[540px] bg-[radial-gradient(ellipse_70%_55%_at_68%_22%,rgba(59,130,246,0.14),rgba(124,58,237,0.06)_48%,transparent_75%)]"
+          />
+
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
+              {/* Left Editorial Copy Column */}
+              <div className="flex flex-col justify-center lg:col-span-5 lg:pr-2">
+                <p className="font-bn text-xs font-semibold tracking-wide text-[#F59E0B] sm:text-sm">
+                  {copy.hero.badge}
                 </p>
 
-                <div className="mt-8 flex flex-wrap items-center gap-4">
+                <h1
+                  className={`font-display mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-[3.5rem] text-balance ${
+                    lang === 'bn' ? 'leading-[1.24] lg:leading-[1.22]' : 'leading-[1.1] lg:leading-[1.08]'
+                  }`}
+                >
+                  {copy.hero.headline}
+                </h1>
+
+                <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+                  {copy.hero.subheadline}
+                </p>
+
+                {/* Dual CTAs */}
+                <div className="mt-8 flex flex-wrap items-center gap-3.5">
                   <Link
                     to={primaryCtaTarget}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-6 py-3 text-sm font-semibold text-white hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0"
+                    className="inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-[#3B82F6] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_28px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0"
                   >
                     <span>{primaryCtaLabel}</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                   <a
-                    href="#how-it-works"
-                    className="inline-flex items-center rounded-lg border border-slate-700 bg-[#111827] px-5 py-3 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-white transition-colors whitespace-nowrap shrink-0"
+                    href="#live-demo"
+                    className="inline-flex min-h-[48px] items-center rounded-xl border border-white/[0.12] bg-[#0E1526] px-5 py-3 text-sm font-semibold text-slate-200 hover:border-[#3B82F6]/60 hover:text-white transition-colors whitespace-nowrap shrink-0"
                   >
-                    {t.hero.secondaryCta}
+                    {copy.hero.secondaryCta}
                   </a>
                 </div>
-              </div>
 
-              <div className="mt-10 border-t border-slate-800/80 pt-5">
-                <p className="flex items-start gap-2.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
-                  <ShieldCheck
-                    className="mt-0.5 h-4 w-4 shrink-0 text-[#F59E0B]"
-                    aria-hidden="true"
-                  />
-                  <span>{t.hero.honestyNote}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Right Interactive Live Product Preview Widget */}
-            <div className="lg:col-span-6">
-              <HeroSamplePreview />
-            </div>
-          </div>
-        </section>
-
-        {/* Why Traditional Learning Fails */}
-        <section
-          id="why-traditional-fails"
-          className="border-t border-slate-800/80 bg-[#0D1322] py-20 sm:py-24"
-        >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold text-[#F59E0B]">{t.whyFails.kicker}</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-4xl text-balance">
-                {t.whyFails.title}
-              </h2>
-              <p className="mt-3 text-base leading-relaxed text-slate-400">
-                {t.whyFails.subtitle}
-              </p>
-            </div>
-
-            <div className="mt-12 divide-y divide-slate-800 border-y border-slate-800">
-              <div className="hidden grid-cols-12 gap-6 py-3 text-xs font-semibold text-slate-400 md:grid">
-                <div className="col-span-1">#</div>
-                <div className="col-span-5">{t.whyFails.columns.oldWay}</div>
-                <div className="col-span-6 text-[#3B82F6]">{t.whyFails.columns.newWay}</div>
-              </div>
-
-              {t.whyFails.items.map((row) => (
-                <div
-                  key={row.index}
-                  className="grid grid-cols-1 gap-6 py-7 md:grid-cols-12 md:items-start"
-                >
-                  <div className="font-mono text-xs font-semibold text-slate-500 tabular-nums md:col-span-1">
-                    {row.index}
-                  </div>
-                  <div className="md:col-span-5">
-                    <p className="text-xs font-medium text-rose-300 md:hidden">
-                      {t.whyFails.columns.oldWay}
-                    </p>
-                    <h3 className="mt-1 text-base font-semibold text-slate-200 md:mt-0">
-                      {row.problemTitle}
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                      {row.problemDesc}
-                    </p>
-                  </div>
-                  <div className="md:col-span-6">
-                    <p className="text-xs font-medium text-[#3B82F6] md:hidden">
-                      {t.whyFails.columns.newWay}
-                    </p>
-                    <h3 className="mt-1 text-base font-semibold text-white md:mt-0">
-                      {row.solutionTitle}
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                      {row.solutionDesc}
-                    </p>
-                  </div>
+                {/* Radical Honesty Note */}
+                <div className="mt-9 border-t border-white/[0.08] pt-5">
+                  <p className="flex items-start gap-2.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
+                    <ShieldCheck
+                      className="mt-0.5 h-4 w-4 shrink-0 text-[#F59E0B]"
+                      aria-hidden="true"
+                    />
+                    <span>{copy.hero.honestyNote}</span>
+                  </p>
                 </div>
-              ))}
+              </div>
+
+              {/* Right 3D Acoustic Core + Interactive Scenario Sample Preview */}
+              <div className="lg:col-span-7">
+                <HeroSamplePreview />
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 8-Step Communication Improvement Loop */}
+        {/* 2. "Why You Still Can't Speak" — Pain-Point vs. Solution Matrix */}
+        <PainPointMatrixSection />
+
+        {/* 3. Interactive "Test Your English Sentence" Live Sandbox (Zero Signup Required) */}
+        <LiveSandboxSection />
+
+        {/* 4. Interactive 8-Step Loop Visualizer & 6 Differentiation Systems 3D Bento Grid */}
         <ImprovementLoopSection />
 
-        {/* 6 Differentiation Systems (Asymmetric Editorial Grid) */}
-        <section
-          id="features"
-          className="border-t border-slate-800/80 bg-[#0D1322] py-20 sm:py-24"
-        >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold text-[#8B5CF6]">{t.systemsSection.kicker}</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-4xl text-balance">
-                {t.systemsSection.title}
-              </h2>
-              <p className="mt-3 text-base leading-relaxed text-slate-400">
-                {t.systemsSection.subtitle}
-              </p>
-            </div>
+        {/* 5. Always-Supported Learner Ecosystem & Beginner FAQ */}
+        <SupportEcosystemSection />
 
-            <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-12">
-              {t.systemsSection.systems.map((sys, idx) => {
-                // Asymmetric editorial rhythm: marquee items span 7 + 5, alternating per row
-                const spanClass =
-                  idx === 0 || idx === 3 || idx === 4 ? 'md:col-span-7' : 'md:col-span-5';
-                const accentText =
-                  idx % 3 === 0
-                    ? 'text-[#3B82F6]'
-                    : idx % 3 === 1
-                      ? 'text-[#8B5CF6]'
-                      : 'text-[#F59E0B]';
-
-                return (
-                  <article
-                    key={sys.id}
-                    className={`${spanClass} flex flex-col justify-between rounded-xl border border-slate-800 bg-[#111827] p-6 sm:p-7`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2.5 text-xs">
-                        <span className={`font-mono font-semibold tabular-nums ${accentText}`}>
-                          {sys.index}
-                        </span>
-                        <span aria-hidden="true" className="text-slate-600">
-                          ·
-                        </span>
-                        <span className="text-slate-400">{sys.tagline}</span>
-                      </div>
-                      <h3 className="mt-3 text-xl font-bold text-white">{sys.name}</h3>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-300">
-                        {sys.description}
-                      </p>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
+        {/* 6. Transparent Pricing (BDT ৳ / USD $ Toggle) */}
         <PricingSection />
 
-        {/* FAQ */}
-        <FaqSection />
+        {/* 7. Bold Final CTA Banner */}
+        <section className="border-t border-white/[0.06] bg-[#080E1D] py-20 sm:py-24">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <RevealBlock>
+              <div className="relative overflow-hidden rounded-3xl border border-[#3B82F6]/30 bg-gradient-to-br from-[#0E1526] via-[#0B1325] to-[#13112B] p-8 text-center sm:p-14 shadow-[0_24px_70px_rgba(0,0,0,0.45)]">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -top-24 left-1/2 h-64 w-96 -translate-x-1/2 rounded-full bg-[#3B82F6]/15 blur-3xl"
+                />
+                <div className="relative">
+                  <h2 className="font-display mx-auto max-w-3xl text-2xl font-extrabold tracking-tight text-white sm:text-4xl text-balance">
+                    {copy.finalCta.title}
+                  </h2>
+                  <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
+                    {copy.finalCta.subtitle}
+                  </p>
+
+                  <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
+                    <Link
+                      to={primaryCtaTarget}
+                      className="inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-[#3B82F6] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_28px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0"
+                    >
+                      <span>{user ? copy.nav.openWorkspace : copy.finalCta.primaryBtn}</span>
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <a
+                      href="#live-demo"
+                      className="inline-flex min-h-[48px] items-center rounded-xl border border-white/[0.14] bg-[#050914]/80 px-6 py-3 text-sm font-semibold text-slate-200 hover:border-[#3B82F6]/60 hover:text-white transition-colors whitespace-nowrap shrink-0"
+                    >
+                      {copy.finalCta.secondaryBtn}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </RevealBlock>
+          </div>
+        </section>
       </main>
 
       <PublicFooter />
+
+      {/* Bottom-Right Floating Guide & 30-Second Level Finder */}
+      <FloatingGuideWidget />
     </div>
   );
 }

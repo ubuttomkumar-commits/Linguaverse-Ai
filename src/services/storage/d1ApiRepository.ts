@@ -1,6 +1,11 @@
 import type {
+  AccountStatus,
   ActivityLedgerSummary,
+  AdminOverviewStats,
+  AdminRole,
+  AdminUserSummary,
   DiagnosticUserAnswer,
+  EmailOtpDeliveryInfo,
   EvidenceStartingProfile,
   ExerciseAttemptRecord,
   LearnerProfile,
@@ -122,6 +127,19 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
       this.setToken(null);
       return null;
     }
+  }
+
+  async verifyEmailOtp(_userId: string, code: string): Promise<{ user: UserAccount }> {
+    return this.request<{ user: UserAccount }>('/api/v1/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async resendEmailOtp(_userId: string): Promise<EmailOtpDeliveryInfo> {
+    return this.request<EmailOtpDeliveryInfo>('/api/v1/auth/resend-otp', {
+      method: 'POST',
+    });
   }
 
   async updateProfile(
@@ -295,6 +313,38 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
       {
         method: 'POST',
         body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async getAdminOverviewStats(): Promise<AdminOverviewStats> {
+    return this.request<AdminOverviewStats>('/api/v1/admin/overview', {
+      method: 'GET',
+    });
+  }
+
+  async listAdminUsers(searchQuery = ''): Promise<AdminUserSummary[]> {
+    const qs = searchQuery.trim()
+      ? `?q=${encodeURIComponent(searchQuery.trim())}`
+      : '';
+    return this.request<AdminUserSummary[]>(`/api/v1/admin/users${qs}`, {
+      method: 'GET',
+    });
+  }
+
+  async updateAdminUserAccount(
+    targetUserId: string,
+    patch: {
+      role?: AdminRole;
+      accountStatus?: AccountStatus;
+      emailVerified?: boolean;
+    }
+  ): Promise<AdminUserSummary> {
+    return this.request<AdminUserSummary>(
+      `/api/v1/admin/users/${encodeURIComponent(targetUserId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       }
     );
   }
