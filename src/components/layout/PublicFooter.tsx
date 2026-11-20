@@ -1,105 +1,140 @@
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { LanguageToggle } from '../common/LanguageToggle';
-import { LANDING_COPY } from '../../domain/landingContent';
+import {
+  PLACEHOLDER_CONTACT_EMAIL,
+  SUPPLIED_LANDING_COPY,
+} from '../../domain/suppliedLandingCopy';
 
 export function PublicFooter() {
   const { lang } = useLanguage();
-  const copy = LANDING_COPY[lang];
+  const { footer } = SUPPLIED_LANDING_COPY[lang];
+  const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-white/[0.07] bg-[#050914]">
-      <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pb-24 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
-          {/* Brand & Bilingual Toggle */}
-          <div className="md:col-span-4">
+    <footer className="border-t border-[#b0c8ff]/[0.12] bg-[#060b18] pb-10 pt-14 text-[13px] text-[#9eb0cf]">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+          {/* Brand Column */}
+          <div>
             <Link
               to="/"
-              className="font-display inline-flex items-center gap-2.5 text-base font-bold tracking-tight text-white"
+              className="inline-flex items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#4f8bff]"
             >
               <span
                 aria-hidden="true"
-                className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#7C3AED] text-xs font-extrabold text-white"
+                className="grid h-8 w-8 place-items-center rounded-[10px] bg-gradient-to-br from-[#4f8bff] to-[#8b6dff] text-sm font-black text-[#060b18]"
               >
-                LV
+                L
               </span>
-              <span>LINGUAVERSE AI</span>
+              <span className="font-display text-[15px] font-extrabold tracking-[-0.01em] text-[#f3f6ff]">
+                LINGUAVERSE AI
+              </span>
             </Link>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
-              {copy.footer.tagline}
+            <p className="mt-3.5 max-w-[300px] text-[14px] leading-relaxed text-[#9eb0cf]">
+              {footer.tagline}
             </p>
             <div className="mt-5">
               <LanguageToggle />
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <div className="md:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-200">{copy.footer.navTitle}</h2>
-            <ul className="mt-3.5 space-y-2.5 text-sm text-slate-400">
-              <li>
-                <a href="#why-it-works" className="hover:text-white transition-colors">
-                  {copy.nav.whyItWorks}
-                </a>
-              </li>
-              <li>
-                <a href="#live-demo" className="hover:text-white transition-colors">
-                  {copy.nav.liveDemo}
-                </a>
-              </li>
-              <li>
-                <a href="#how-it-works" className="hover:text-white transition-colors">
-                  {copy.nav.loop}
-                </a>
-              </li>
-              <li>
-                <a href="#support" className="hover:text-white transition-colors">
-                  {copy.nav.support}
-                </a>
-              </li>
-              <li>
-                <a href="#pricing" className="hover:text-white transition-colors">
-                  {copy.nav.pricing}
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Privacy & Data Sovereignty Summary */}
-          <div className="md:col-span-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-              <ShieldCheck className="h-4 w-4 text-[#F59E0B]" aria-hidden="true" />
-              <span>{copy.footer.privacyTitle}</span>
+          {/* Product */}
+          <div>
+            <h2 className="text-[13px] font-bold text-[#f3f6ff]">
+              {footer.productTitle}
             </h2>
-            <ul className="mt-3.5 space-y-2.5 text-xs leading-relaxed text-slate-400">
-              {copy.footer.privacyPoints.map((pt) => (
-                <li key={pt}>{pt}</li>
-              ))}
+            <ul className="mt-3.5 space-y-2.5">
+              <li>
+                <a href="#live-demo" className="transition-colors hover:text-white">
+                  {footer.links.liveDemo}
+                </a>
+              </li>
+              <li>
+                <a href="#intelligence" className="transition-colors hover:text-white">
+                  {footer.links.intelligence}
+                </a>
+              </li>
+              <li>
+                <a href="#speaking" className="transition-colors hover:text-white">
+                  {footer.links.speakingStudio}
+                </a>
+              </li>
+              <li>
+                <a href="#scenarios" className="transition-colors hover:text-white">
+                  {footer.links.transferLab}
+                </a>
+              </li>
             </ul>
           </div>
 
-          {/* Account Links */}
-          <div className="md:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-200">{copy.footer.accountTitle}</h2>
-            <ul className="mt-3.5 space-y-2.5 text-sm text-slate-400">
+          {/* Learning & Trust */}
+          <div>
+            <h2 className="text-[13px] font-bold text-[#f3f6ff]">
+              {footer.learningTitle}
+            </h2>
+            <ul className="mt-3.5 space-y-2.5">
               <li>
-                <Link to="/register" className="hover:text-white transition-colors">
-                  {copy.nav.startFree}
+                <a href="#bangla-first" className="transition-colors hover:text-white">
+                  {footer.links.banglaMethod}
+                </a>
+              </li>
+              <li>
+                <a href="#how" className="transition-colors hover:text-white">
+                  {footer.links.journey}
+                </a>
+              </li>
+              <li>
+                <a href="#privacy" className="transition-colors hover:text-white">
+                  {footer.links.privacy}
+                </a>
+              </li>
+              <li>
+                <a href="#pricing" className="transition-colors hover:text-white">
+                  {footer.links.pricing}
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Account & Info */}
+          <div>
+            <h2 className="text-[13px] font-bold text-[#f3f6ff]">
+              {footer.infoTitle}
+            </h2>
+            <ul className="mt-3.5 space-y-2.5">
+              <li>
+                <a href="#faq" className="transition-colors hover:text-white">
+                  {footer.links.faq}
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${PLACEHOLDER_CONTACT_EMAIL}`}
+                  className="transition-colors hover:text-white"
+                >
+                  {footer.links.contactPlaceholder}
+                </a>
+              </li>
+              <li>
+                <Link to="/login" className="transition-colors hover:text-white">
+                  {footer.links.login}
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-white transition-colors">
-                  {copy.nav.login}
+                <Link to="/register" className="transition-colors hover:text-white">
+                  {footer.links.createAccount}
                 </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-white/[0.07] pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>{copy.footer.copyright}</p>
-          <p>{copy.footer.subline}</p>
+        <div className="mt-10 flex flex-col justify-between gap-2 border-t border-[#b0c8ff]/[0.1] pt-6 text-[12px] text-[#7f93b5] sm:flex-row sm:items-center">
+          <span>
+            © {currentYear} {footer.copyrightSuffix}
+          </span>
+          <span>{footer.subline}</span>
         </div>
       </div>
     </footer>

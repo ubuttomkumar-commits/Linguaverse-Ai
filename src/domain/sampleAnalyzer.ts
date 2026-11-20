@@ -194,6 +194,7 @@ const SAMPLE_RULES: RuleDefinition[] = [
       const spanMatch = original.match(
         /\b(I\s+am|He\s+is|She\s+is|We\s+are|They\s+are|You\s+are)\s+(not\s+)?agree\b/i
       );
+      const finalCorrected = ensureTerminalPunctuation(corrected, original);
       return {
         originalSentence: original,
         hasDetectedMistake: true,
@@ -201,7 +202,7 @@ const SAMPLE_RULES: RuleDefinition[] = [
         errorCategoryBn: 'Sentence Structure (বাক্য গঠন)',
         errorSpan: spanMatch?.[0] ?? 'I am agree',
         correctionSpan: corrected.match(/\b(I|He|She|We|They|You)\s+(don't\s+|doesn't\s+)?agrees?\b/i)?.[0] ?? 'I agree',
-        correctedSentence: ensureTerminalPunctuation(corrected, original),
+        correctedSentence: finalCorrected,
         patternNameEn: 'Extra "Be" Verb Before Action/State Verb ("Agree")',
         patternNameBn: '"Agree"-এর আগে অপ্রয়োজনীয় am/is/are ব্যবহার',
         l1TriggerEn:
@@ -209,9 +210,9 @@ const SAMPLE_RULES: RuleDefinition[] = [
         l1TriggerBn:
           'বাংলায় "আমি একমত" বা "আমি রাজি" বলার সময় "একমত" শব্দটিকে Adjective মনে হয়, তাই ইংরেজিতে অনেকেই ভুল করে "am/is/are" বসিয়ে "I am agree" বলেন।',
         explanationEn:
-          '"Agree" is already a full verb, not an adjective. Say "I agree with your decision" directly without "am".',
+          `"Agree" is already a full verb, not an adjective. Say "${finalCorrected}" directly without "am/is/are".`,
         explanationBn:
-          'ইংরেজিতে "agree" নিজেই একটি মূল Verb (ক্রিয়া), Adjective নয়। তাই এর আগে "am/is/are" বসবে না—সরাসরি "I agree with your decision" বলুন।',
+          `ইংরেজিতে "agree" নিজেই একটি মূল Verb (ক্রিয়া), Adjective নয়। তাই এর আগে "am/is/are" বসবে না—সরাসরি "${finalCorrected}" বলুন।`,
         memoryTag: 'L1-STRUCT-AGREE-07',
         analysisSource: 'rule',
       };
@@ -328,16 +329,18 @@ const SAMPLE_RULES: RuleDefinition[] = [
   {
     id: 'discuss_about',
     memoryTag: 'L1-PREP-TRANSITIVE-04',
-    test: (s) => /\bdiscuss\s+about\b/.test(s),
+    test: (s) => /\bdiscuss(?:ed|es|ing)?\s+about\b/.test(s),
     build: (original) => {
-      const corrected = original.replace(/\bdiscuss\s+about\b/i, 'discuss');
+      const match = original.match(/\b(discuss(?:ed|es|ing)?)\s+about\b/i);
+      const verb = match?.[1] ?? 'discuss';
+      const corrected = original.replace(/\b(discuss(?:ed|es|ing)?)\s+about\b/i, verb);
       return {
         originalSentence: original,
         hasDetectedMistake: true,
         errorCategory: 'Preposition',
         errorCategoryBn: 'Preposition (অতিরিক্ত অব্যয়)',
-        errorSpan: 'discuss about',
-        correctionSpan: 'discuss',
+        errorSpan: match?.[0] ?? 'discuss about',
+        correctionSpan: verb,
         correctedSentence: ensureTerminalPunctuation(corrected, original),
         patternNameEn: 'Redundant Preposition After Transitive Verb',
         patternNameBn: 'Transitive Verb-এর পর অতিরিক্ত Preposition ("about")',

@@ -1,160 +1,156 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { ArrowDown, ArrowUpRight, Check } from 'lucide-react';
 import { PublicHeader } from '../components/layout/PublicHeader';
 import { PublicFooter } from '../components/layout/PublicFooter';
-import { HeroSamplePreview } from '../components/landing/HeroSamplePreview';
-import { PainPointMatrixSection } from '../components/landing/PainPointMatrixSection';
-import { LiveSandboxSection } from '../components/landing/LiveSandboxSection';
-import { ImprovementLoopSection } from '../components/landing/ImprovementLoopSection';
-import { SupportEcosystemSection } from '../components/landing/SupportEcosystemSection';
-import { PricingSection } from '../components/landing/PricingSection';
-import { FloatingGuideWidget } from '../components/landing/FloatingGuideWidget';
-import { RevealBlock } from '../components/landing/TiltSpotlightCard';
+import { HeroCommunicationCore } from '../components/landing/HeroCommunicationCore';
+import { LandingStorySections } from '../components/landing/LandingStorySections';
+import { LandingDemoSection } from '../components/landing/LandingDemoSection';
+import { CommunicationLoop3D } from '../components/landing/CommunicationLoop3D';
+import { LandingIntelligenceSection } from '../components/landing/LandingIntelligenceSection';
+import { LandingPracticeSection } from '../components/landing/LandingPracticeSection';
+import { LandingJourneyTrustSection } from '../components/landing/LandingJourneyTrustSection';
+import { LandingConversionSection } from '../components/landing/LandingConversionSection';
+import { MagneticWrap } from '../components/landing/MotionPrimitives';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { LANDING_COPY } from '../domain/landingContent';
+import {
+  SUPPLIED_LANDING_COPY,
+  resolveLandingRoutes,
+} from '../domain/suppliedLandingCopy';
 
 export function LandingPage() {
   const { lang } = useLanguage();
   const { user, profile } = useAuth();
-  const copy = LANDING_COPY[lang];
-
-  const primaryCtaTarget = user
-    ? !profile?.onboardingCompleted
-      ? '/onboarding'
-      : '/app'
-    : '/register';
-
-  const primaryCtaLabel = user ? copy.nav.openWorkspace : copy.hero.primaryCta;
+  const prefersReduced = useReducedMotion();
+  const { hero } = SUPPLIED_LANDING_COPY[lang];
+  const routes = resolveLandingRoutes(user, profile);
 
   return (
-    <div className="min-h-screen bg-[#050914] text-slate-100">
+    <div
+      id="home"
+      className="relative min-h-screen bg-[radial-gradient(ellipse_70%_42%_at_76%_0%,rgba(56,189,248,0.14),rgba(139,109,255,0.08)_44%,rgba(217,70,239,0.04)_64%,transparent_80%),#060b18] text-[#f3f6ff]"
+    >
       <PublicHeader />
 
       <main>
-        {/* 1. Problem-Solving Hero Section with 3D Acoustic Core & Interactive Sample Preview */}
-        <section className="relative overflow-hidden pb-16 pt-8 sm:pt-12 lg:pb-20 lg:pt-12">
-          {/* Subtle atmospheric radial depth — disciplined 60-30-10 dark navy field */}
+        {/* SECTION A — CINEMATIC 3D HERO PRODUCT EXPERIENCE */}
+        <section className="relative overflow-x-clip pb-16 pt-10 sm:pb-24 sm:pt-14 lg:pb-24 lg:pt-[64px]">
+          {/* Soft ambient illumination aura (purely decorative, pointer-events-none) */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-[540px] bg-[radial-gradient(ellipse_70%_55%_at_68%_22%,rgba(59,130,246,0.14),rgba(124,58,237,0.06)_48%,transparent_75%)]"
+            className="lv-ambient-aura pointer-events-none absolute -top-24 right-[8%] h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.16)_0%,rgba(139,109,255,0.1)_46%,transparent_72%)] blur-3xl"
           />
 
-          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
-              {/* Left Editorial Copy Column */}
-              <div className="flex flex-col justify-center lg:col-span-5 lg:pr-2">
-                <p className="font-bn text-xs font-semibold tracking-wide text-[#F59E0B] sm:text-sm">
-                  {copy.hero.badge}
-                </p>
+          <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:gap-12">
+            {/* Left Editorial Value Column (Framer Motion staggered entrance) */}
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <p className="flex flex-col gap-y-0.5 text-[13px] font-medium text-[#8ab4ff] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+                <span className="font-semibold text-[#38bdf8]">
+                  {hero.categoryLabel}
+                </span>
+                <span aria-hidden="true" className="hidden text-[#4f648c] sm:inline">
+                  ·
+                </span>
+                <span className="text-[#a8b8d6]">{hero.audienceLabel}</span>
+              </p>
 
-                <h1
-                  className={`font-display mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-[3.5rem] text-balance ${
-                    lang === 'bn' ? 'leading-[1.24] lg:leading-[1.22]' : 'leading-[1.1] lg:leading-[1.08]'
-                  }`}
-                >
-                  {copy.hero.headline}
-                </h1>
+              <h1
+                className={`font-display mt-5 max-w-[640px] text-[38px] font-extrabold tracking-[-0.04em] text-[#f3f6ff] sm:text-[52px] lg:text-[62px] text-balance ${
+                  lang === 'bn' ? 'leading-[1.18]' : 'leading-[1.04]'
+                }`}
+              >
+                {hero.headlineLine1}
+                <br />
+                <span className="bg-gradient-to-r from-[#38bdf8] via-[#8b6dff] to-[#e879f9] bg-clip-text text-transparent">
+                  {hero.headlineAccent}
+                </span>
+              </h1>
 
-                <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                  {copy.hero.subheadline}
-                </p>
+              <p className="mt-5 max-w-[540px] text-[17px] font-medium leading-relaxed text-[#dbe5f9]">
+                {hero.positioningQuote}
+              </p>
 
-                {/* Dual CTAs */}
-                <div className="mt-8 flex flex-wrap items-center gap-3.5">
+              <p className="mt-2.5 max-w-[540px] text-[15px] leading-[1.65] text-[#a5b5d4] sm:text-[16px]">
+                {hero.subcopy}
+              </p>
+
+              {/* Magnetic Glowing Primary CTA + Secondary Experience CTA */}
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <MagneticWrap className="w-full sm:w-auto">
                   <Link
-                    to={primaryCtaTarget}
-                    className="inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-[#3B82F6] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_28px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0"
+                    to={routes.primaryAuthRoute}
+                    className="lv-glow-cta inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[12px] px-6 py-3 text-[14px] font-bold text-[#060b18] active:scale-[0.99] sm:w-auto whitespace-nowrap"
                   >
-                    <span>{primaryCtaLabel}</span>
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <span>
+                      {routes.isSignedIn ? hero.primaryCtaSignedIn : hero.primaryCta}
+                    </span>
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
-                  <a
-                    href="#live-demo"
-                    className="inline-flex min-h-[48px] items-center rounded-xl border border-white/[0.12] bg-[#0E1526] px-5 py-3 text-sm font-semibold text-slate-200 hover:border-[#3B82F6]/60 hover:text-white transition-colors whitespace-nowrap shrink-0"
-                  >
-                    {copy.hero.secondaryCta}
-                  </a>
-                </div>
+                </MagneticWrap>
 
-                {/* Radical Honesty Note */}
-                <div className="mt-9 border-t border-white/[0.08] pt-5">
-                  <p className="flex items-start gap-2.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
-                    <ShieldCheck
-                      className="mt-0.5 h-4 w-4 shrink-0 text-[#F59E0B]"
+                <a
+                  href="#live-demo"
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[12px] border border-[#b0c8ff]/[0.18] bg-[#0d1528]/85 px-5 py-3 text-[14px] font-semibold text-[#f3f6ff] transition-all duration-150 hover:-translate-y-0.5 hover:border-[#38bdf8]/60 hover:shadow-[0_0_24px_rgba(56,189,248,0.16)] whitespace-nowrap"
+                >
+                  <span>{hero.secondaryCta}</span>
+                  <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+
+              {/* Honest Trust & Privacy Microcopy */}
+              <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-[#98aac9]">
+                {hero.trustItems.map((item) => (
+                  <li key={item} className="inline-flex items-center gap-1.5">
+                    <Check
+                      className="h-3.5 w-3.5 shrink-0 text-[#34d399]"
                       aria-hidden="true"
                     />
-                    <span>{copy.hero.honestyNote}</span>
-                  </p>
-                </div>
-              </div>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
 
-              {/* Right 3D Acoustic Core + Interactive Scenario Sample Preview */}
-              <div className="lg:col-span-7">
-                <HeroSamplePreview />
-              </div>
-            </div>
+            {/* Right Interactive 3D Product Experience (Three.js Globe + Layered Workspace Deck) */}
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <HeroCommunicationCore />
+            </motion.div>
           </div>
         </section>
 
-        {/* 2. "Why You Still Can't Speak" — Pain-Point vs. Solution Matrix */}
-        <PainPointMatrixSection />
+        {/* SECTION B & C — The Real Problem & The Transformation */}
+        <LandingStorySections />
 
-        {/* 3. Interactive "Test Your English Sentence" Live Sandbox (Zero Signup Required) */}
-        <LiveSandboxSection />
+        {/* SECTION D — Interactive Product Dashboard Demonstration */}
+        <LandingDemoSection />
 
-        {/* 4. Interactive 8-Step Loop Visualizer & 6 Differentiation Systems 3D Bento Grid */}
-        <ImprovementLoopSection />
+        {/* SECTION E — 3D Orbital Communication Improvement Loop (7 Connected Stages) */}
+        <CommunicationLoop3D />
 
-        {/* 5. Always-Supported Learner Ecosystem & Beginner FAQ */}
-        <SupportEcosystemSection />
+        {/* SECTION F — Six Interactive 3D Intelligence Feature Cards */}
+        <LandingIntelligenceSection />
 
-        {/* 6. Transparent Pricing (BDT ৳ / USD $ Toggle) */}
-        <PricingSection />
+        {/* SECTION G & H — Speaking Studio Preview & Real-World Transfer Lab */}
+        <LandingPracticeSection />
 
-        {/* 7. Bold Final CTA Banner */}
-        <section className="border-t border-white/[0.06] bg-[#080E1D] py-20 sm:py-24">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-            <RevealBlock>
-              <div className="relative overflow-hidden rounded-3xl border border-[#3B82F6]/30 bg-gradient-to-br from-[#0E1526] via-[#0B1325] to-[#13112B] p-8 text-center sm:p-14 shadow-[0_24px_70px_rgba(0,0,0,0.45)]">
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -top-24 left-1/2 h-64 w-96 -translate-x-1/2 rounded-full bg-[#3B82F6]/15 blur-3xl"
-                />
-                <div className="relative">
-                  <h2 className="font-display mx-auto max-w-3xl text-2xl font-extrabold tracking-tight text-white sm:text-4xl text-balance">
-                    {copy.finalCta.title}
-                  </h2>
-                  <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-                    {copy.finalCta.subtitle}
-                  </p>
+        {/* SECTION I, J & K — Bangla-First Advantage, Learning Journey & Trust/Privacy */}
+        <LandingJourneyTrustSection />
 
-                  <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-                    <Link
-                      to={primaryCtaTarget}
-                      className="inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-[#3B82F6] px-7 py-3 text-sm font-semibold text-white shadow-[0_0_28px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] transition-colors whitespace-nowrap shrink-0"
-                    >
-                      <span>{user ? copy.nav.openWorkspace : copy.finalCta.primaryBtn}</span>
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <a
-                      href="#live-demo"
-                      className="inline-flex min-h-[48px] items-center rounded-xl border border-white/[0.14] bg-[#050914]/80 px-6 py-3 text-sm font-semibold text-slate-200 hover:border-[#3B82F6]/60 hover:text-white transition-colors whitespace-nowrap shrink-0"
-                    >
-                      {copy.finalCta.secondaryBtn}
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </RevealBlock>
-          </div>
-        </section>
+        {/* SECTION L, M & N — 3D Illuminated Pricing, Smooth FAQ & Final Conversion */}
+        <LandingConversionSection />
       </main>
 
+      {/* Quiet Structured Footer */}
       <PublicFooter />
-
-      {/* Bottom-Right Floating Guide & 30-Second Level Finder */}
-      <FloatingGuideWidget />
     </div>
   );
 }
