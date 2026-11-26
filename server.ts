@@ -87,7 +87,7 @@ import {
   verifyServerEmailOtp,
 } from './server/authStore.ts';
 import { SlidingWindowRateLimiter } from './src/domain/authSecurityEngine.ts';
-import { isTrustedMutationOrigin } from './src/domain/securityPolicy.ts';
+import { isTrustedMutationOrigin, resolveClientIp, shouldExposeDevPreviewOtp } from './src/domain/securityPolicy.ts';
 import {
   deleteUploadedMedia,
   getAdminCmsState,
@@ -225,9 +225,12 @@ async function startServer() {
   const SESSION_COOKIE = 'lv_session_token';
 
   const getClientIp = (req: express.Request): string =>
-    String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local')
-      .split(',')[0]
-      .trim();
+    resolveClientIp({
+      socketIp: req.socket.remoteAddress,
+      forwardedFor: req.header('x-forwarded-for'),
+      cfConnectingIp: req.header('cf-connecting-ip'),
+      trustProxy: process.env.TRUST_PROXY === 'true',
+    });
 
   const resolveRequestSession = (req: express.Request) => {
     const cookies = parseCookieHeader(req.headers.cookie);
@@ -397,7 +400,9 @@ async function startServer() {
         expiresAt: result.otpExpiresAt,
         resendAvailableAt: result.otpResendAvailableAt,
         deliveryMode: emailDispatch.delivered ? 'email_provider' : 'local_dev_preview',
-        devPreviewOtp: emailDispatch.delivered ? undefined : result.otpCode,
+        devPreviewOtp: shouldExposeDevPreviewOtp({ delivered: emailDispatch.delivered, isProduction: IS_PROD })
+          ? result.otpCode
+          : undefined,
       },
     });
   });
@@ -524,7 +529,9 @@ async function startServer() {
       expiresAt: issued.otpExpiresAt,
       resendAvailableAt: issued.otpResendAvailableAt,
       deliveryMode: emailDispatch.delivered ? 'email_provider' : 'local_dev_preview',
-      devPreviewOtp: emailDispatch.delivered ? undefined : issued.otpCode,
+      devPreviewOtp: shouldExposeDevPreviewOtp({ delivered: emailDispatch.delivered, isProduction: IS_PROD })
+        ? issued.otpCode
+        : undefined,
     });
   });
 

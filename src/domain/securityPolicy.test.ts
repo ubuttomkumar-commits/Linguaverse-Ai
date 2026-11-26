@@ -4,6 +4,8 @@ import {
   JwtSecretConfigError,
   MAX_AUDIO_UPLOAD_BYTES,
   isTrustedMutationOrigin,
+  resolveClientIp,
+  shouldExposeDevPreviewOtp,
   resolveAllowedCorsOrigin,
   resolveWorkerJwtSecret,
   validateAudioUploadConstraints,
@@ -193,5 +195,38 @@ describe('P1 Security Policy — S10 Audio MIME, Size, and Consent Validation', 
       assert.equal(ok.normalizedMime, 'audio/webm');
       assert.equal(ok.extension, 'webm');
     }
+  });
+});
+
+describe('resolveClientIp (rate-limit key integrity)', () => {
+  it('ignores spoofable X-Forwarded-For / CF-Connecting-IP unless proxy trust is enabled', () => {
+    assert.equal(
+      resolveClientIp({ socketIp: '203.0.113.5', forwardedFor: '1.2.3.4', cfConnectingIp: '9.9.9.9', trustProxy: false }),
+      '203.0.113.5'
+    );
+  });
+
+  it('uses the right-most forwarded entry (added by the trusted proxy) when trusted', () => {
+    assert.equal(
+      resolveClientIp({ socketIp: '10.0.0.1', forwardedFor: '6.6.6.6, 198.51.100.7', trustProxy: true }),
+      '198.51.100.7'
+    );
+  });
+
+  it('prefers CF-Connecting-IP when trusted and falls back to the socket address', () => {
+    assert.equal(resolveClientIp({ socketIp: '10.0.0.1', cfConnectingIp: '198.51.100.9', trustProxy: true }), '198.51.100.9');
+    assert.equal(resolveClientIp({ socketIp: '10.0.0.1', trustProxy: true }), '10.0.0.1');
+    assert.equal(resolveClientIp({ trustProxy: false }), 'local');
+  });
+});
+
+describe('shouldExposeDevPreviewOtp (OTP leak guard)', () => {
+  it('never exposes the OTP in production, even when email delivery failed', () => {
+    assert.equal(shouldExposeDevPreviewOtp({ delivered: false, isProduction: true }), false);
+    assert.equal(shouldExposeDevPreviewOtp({ delivered: true, isProduction: true }), false);
+  });
+  it('exposes it only for undelivered mail in non-production', () => {
+    assert.equal(shouldExposeDevPreviewOtp({ delivered: false, isProduction: false }), true);
+    assert.equal(shouldExposeDevPreviewOtp({ delivered: true, isProduction: false }), false);
   });
 });

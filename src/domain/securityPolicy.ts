@@ -363,3 +363,38 @@ export function isTrustedMutationOrigin(input: {
 
   return false;
 }
+
+/**
+ * Resolves the client IP used as a rate-limit key.
+ *
+ * `X-Forwarded-For` is client-controlled unless a trusted reverse proxy overwrites it, so it is
+ * ignored by default (otherwise rotating the header yields a fresh rate-limit bucket per request
+ * and defeats login lockout). Set TRUST_PROXY=true only when the server sits behind a proxy that
+ * sets the header. `CF-Connecting-IP` is likewise only honoured when proxy trust is enabled.
+ */
+export function resolveClientIp(input: {
+  socketIp?: string | null;
+  forwardedFor?: string | null;
+  cfConnectingIp?: string | null;
+  trustProxy: boolean;
+}): string {
+  const socketIp = input.socketIp?.trim() || 'local';
+  if (!input.trustProxy) return socketIp;
+  const cf = input.cfConnectingIp?.trim();
+  if (cf) return cf;
+  // The right-most entry is the one appended by our own trusted proxy; earlier entries are client-supplied.
+  const parts = (input.forwardedFor ?? '')
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : socketIp;
+}
+
+/**
+ * Whether an OTP may be echoed back in an API response for local development.
+ * Never true in production: returning the code to the requester would let anyone "verify" an
+ * email address they do not own whenever the mail provider is unconfigured or failing.
+ */
+export function shouldExposeDevPreviewOtp(input: { delivered: boolean; isProduction: boolean }): boolean {
+  return !input.delivered && !input.isProduction;
+}
