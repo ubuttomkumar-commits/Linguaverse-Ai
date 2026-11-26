@@ -432,3 +432,12 @@
   - `LOCALLY VERIFIED`: `173 / 173` automated tests passing across 11 suites (including `0001->0004` & `ROLLBACK_0004->0002` vs `schema.sql` and full PRD v6.1 Worker parity), `tsc --noEmit` (`0` errors), `npm run build` (clean `dist/`), `bun audit` (`0` vulnerabilities across 569 packages), `dist/` secret scan (`0` leaked keys), `24 / 24` + `16 / 16` live Express HTTP security/RBAC/CSRF/Admin PoCs, and headless Chromium desktop (`1440×900`) + mobile (`390×844`) verification across `/app/ielts`, `/app/writing`, `/app/progress`, `/app/settings`, and `/admin` (`overflowPx: 0`, `0` app console errors).
   - `REMOTELY VERIFIED`: None (`BLOCKED` — no `.git`, `gh`, or GitHub token in container).
   - `PRODUCTION VERIFIED`: None (`BLOCKED` — Cloudflare deployment explicitly prohibited by user directive; manual runbook ready in `DEPLOYMENT.md`).
+
+---
+
+## Audit & Security Pass (2026-11-26, base 0c3a8c3)
+- Verified: lint 0 errors; 178/178 tests (lines 86.67%, branches 63.23%); build OK; `npm audit --omit=dev` 0 vulns.
+- Fixed: npm ERESOLVE (esbuild); rate-limit bypass via spoofed `X-Forwarded-For` (now gated by `TRUST_PROXY`); `devPreviewOtp` leak in production.
+- Not verified: AI/Gemini calls and model IDs, Worker over live HTTP, browser E2E, any deployment.
+- See `docs/SECURITY_AUDIT.md`, `docs/TESTING_REPORT.md`, `docs/KNOWN_LIMITATIONS.md`, `docs/IMPLEMENTATION_STATUS.md`.
+- Earlier entries saying `.git` is absent / GitHub push is blocked are stale.
