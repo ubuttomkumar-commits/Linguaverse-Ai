@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, CalendarClock, RotateCcw } from 'lucide-reac
 import { useLanguage } from '../../i18n/LanguageContext';
 import { SPACED_REPETITION_INTERVALS } from '../../domain/spacedRepetition';
 import type {
+  CurriculumLesson,
   LessonAttemptRecord,
   LessonMasteryRecord,
   SpacedRepetitionPreset,
@@ -15,6 +16,8 @@ interface LessonMasteryStageProps {
   schedulePreset: SpacedRepetitionPreset;
   onChangePreset: (preset: SpacedRepetitionPreset) => Promise<void>;
   onPracticeAgain: () => void;
+  courseId?: string;
+  nextLesson?: CurriculumLesson | null;
 }
 
 const PRESET_OPTIONS: {
@@ -34,6 +37,8 @@ export function LessonMasteryStage({
   schedulePreset,
   onChangePreset,
   onPracticeAgain,
+  courseId,
+  nextLesson,
 }: LessonMasteryStageProps) {
   const { lang } = useLanguage();
 
@@ -277,13 +282,38 @@ export function LessonMasteryStage({
           )}
         </div>
 
-        <Link
-          to="/app/learn"
-          className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB] transition-colors"
-        >
-          <span>{lang === 'bn' ? 'একাডেমিতে ফিরে যান' : 'Return to Academy'}</span>
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {courseId && (
+            <Link
+              to={`/app/learn/course/${courseId}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-[#05091F] px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-[#00D9FF]/60 hover:text-white transition-colors"
+            >
+              <span>{lang === 'bn' ? 'কোর্স কারিকুলাম' : 'Course Outline'}</span>
+            </Link>
+          )}
+
+          {nextLesson ? (
+            <Link
+              to={`/app/learn/${nextLesson.id}`}
+              className="lv-portal-btn inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+            >
+              <span>
+                {lang === 'bn'
+                  ? `পরবর্তী লেসন: ${nextLesson.titleBn}`
+                  : `Next Lesson: ${nextLesson.titleEn}`}
+              </span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <Link
+              to="/app/learn"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB] transition-colors"
+            >
+              <span>{lang === 'bn' ? 'একাডেমিতে ফিরে যান' : 'Return to Academy'}</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

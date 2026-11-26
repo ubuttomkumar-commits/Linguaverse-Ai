@@ -25,4 +25,5 @@ export type {
   ReportFalseCorrectionPayload,
   ReviewFlaggedMistakePayload,
   SaveSpeakingSessionPayload,
+  SubmitDiagnosticOptions,
 } from './repository';

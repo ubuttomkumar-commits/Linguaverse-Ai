@@ -167,3 +167,35 @@ export async function clearAllAudioBlobs(): Promise<{ deletedCount: number }> {
   return { deletedCount: existingKeys.length };
 }
 
+export const MAX_AUDIO_BLOB_BYTES = 10 * 1024 * 1024; // 10 MB safety cap
+export const MAX_RECORDING_SECONDS = 120; // 2 minute single-turn safety cap
+
+export function validateAudioBlob(blob: Blob, durationSeconds: number): {
+  valid: boolean;
+  reason?: 'empty' | 'too_large' | 'too_long' | 'invalid_type';
+} {
+  if (!blob || blob.size <= 0) {
+    return { valid: false, reason: 'empty' };
+  }
+  if (blob.size > MAX_AUDIO_BLOB_BYTES) {
+    return { valid: false, reason: 'too_large' };
+  }
+  if (durationSeconds > MAX_RECORDING_SECONDS + 5) {
+    return { valid: false, reason: 'too_long' };
+  }
+  if (blob.type && !blob.type.toLowerCase().startsWith('audio/')) {
+    return { valid: false, reason: 'invalid_type' };
+  }
+  return { valid: true };
+}
+
+export async function deleteAudioBlobsByPrefix(prefix: string): Promise<number> {
+  const keys = await listAudioBlobKeys();
+  const matching = keys.filter((k) => k.startsWith(prefix));
+  for (const key of matching) {
+    await deleteAudioBlob(key);
+  }
+  return matching.length;
+}
+
+

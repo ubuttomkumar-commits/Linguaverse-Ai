@@ -1,0 +1,2235 @@
+{
+  "version": 1,
+  "users": {
+    "usr_b7c1f8da9a6b36": {
+      "id": "usr_b7c1f8da9a6b36",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795252408@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "78c211082e2f804537be3a10f719bc0b",
+      "passwordHash": "df31c38873a6668b4b4618c5e8c57a46e36d6f26d0361231d81b63284fcee2d7febac4e07cdcd52f2b8220654adc40377696923f16c7e1ce639444cc1ffed0a4",
+      "createdAt": "2026-11-21T09:13:29.931Z",
+      "updatedAt": "2026-11-21T09:13:29.931Z"
+    },
+    "usr_b4d65b907379e8": {
+      "id": "usr_b4d65b907379e8",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795252472@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "69e94f7afd4e85bda2a190c40edc87a3",
+      "passwordHash": "e76b95dfbefcb26ab637e70c42c6f684b8e06f210c48b11d72f707a363350c8aec9166bf58bebde8e6b2cf3d49aed89ed61231846404b0b9e73452c030131915",
+      "createdAt": "2026-11-21T09:14:33.343Z",
+      "updatedAt": "2026-11-21T09:14:33.343Z"
+    },
+    "usr_705a092556c8bc": {
+      "id": "usr_705a092556c8bc",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795252655@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "d9b6b1220d56abd00db61021c41111df",
+      "passwordHash": "cc424a52cdbb7e3a6cc1991248b5a0a6f5c5d01a4b3a91dc8f981fc9deeec7d6c7951b0d86174edf8693ff633746169507b56f088fedcf6517c9f747edc978cd",
+      "createdAt": "2026-11-21T09:17:36.511Z",
+      "updatedAt": "2026-11-21T09:17:36.511Z"
+    },
+    "usr_4585df0a4e606b": {
+      "id": "usr_4585df0a4e606b",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795253025@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "0aa63199201fd84d28ef13ed0cfceacd",
+      "passwordHash": "5b9f60e70991a132807ca50eb311f8fceeb9c4824096d7bae6b4a789110eed04e264ef9cd5a143844d094b1108d0e01c77204fb8223c6eb3f46990744ea2f926",
+      "createdAt": "2026-11-21T09:23:46.527Z",
+      "updatedAt": "2026-11-21T09:23:46.527Z"
+    },
+    "usr_4da7e68b27ed66": {
+      "id": "usr_4da7e68b27ed66",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795253190@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "6184ad85d01ed5d8b5148620ca574298",
+      "passwordHash": "a851baac3b786084476ca906c98ad27fe8c460dc74b7e5ec7e53f2129ad3efcc007d79af610656ac8ed26194ea3aa80eaf796fcbd016c7d1ffca66136382af4e",
+      "createdAt": "2026-11-21T09:26:32.396Z",
+      "updatedAt": "2026-11-21T09:26:32.396Z"
+    },
+    "usr_8b493621403cbb": {
+      "id": "usr_8b493621403cbb",
+      "name": "Nadia QA",
+      "email": "qa_part04_1795253674@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "04607a0c69069accafd38ab3dfd5e838",
+      "passwordHash": "6c9842d9ee91f401983b6d586a232f3b24f781d55a227de435f92565336e012456b18fef7e74bcb8a0d24d6c3363cf47086a97105f91551100331aaa81988c27",
+      "createdAt": "2026-11-21T09:34:35.863Z",
+      "updatedAt": "2026-11-21T09:34:35.863Z"
+    },
+    "usr_cb0df53596f34d": {
+      "id": "usr_cb0df53596f34d",
+      "name": "Nadia Rahman",
+      "email": "qa.part05.1795278152102@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "0f7a11803c0c66dbffdddf9c8c5b89b3",
+      "passwordHash": "13841399078bc9985dcd2eae1e27715a625a3fc0accd883166834c0ba0553c96a64422adf91a7da05c7e2c6d1a7ec320efb4269a197ca4f0469fbf5f91d80973",
+      "createdAt": "2026-11-21T16:22:32.604Z",
+      "updatedAt": "2026-11-21T16:22:32.604Z"
+    },
+    "usr_e351b3cb7e17fc": {
+      "id": "usr_e351b3cb7e17fc",
+      "name": "Nadia Rahman",
+      "email": "qa.part05.1795278223686@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "ab6356282d86bc99cafa8d7569b5e93c",
+      "passwordHash": "84c757f685a4a455416f2fd59e4fee902ad476408cdcdccc78e81900e649c3e606482f22a6dec8e44eed8c472f24a28a359410085bdb4dcb25efdf640f00ed24",
+      "createdAt": "2026-11-21T16:23:44.123Z",
+      "updatedAt": "2026-11-21T16:23:44.123Z"
+    },
+    "usr_0ed86673f044f1": {
+      "id": "usr_0ed86673f044f1",
+      "name": "Nadia Rahman",
+      "email": "qa.part05.1795278374280@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "2a36167246c4d0b5d10b358d94276fcb",
+      "passwordHash": "f1f2cb3ea73b8ba5d172e6ed6781c873e248eeeb3b0db9e5c781ea3b8888b1646f2b70c4e325ecf1d9c5d9f1ff722795d78d4a766b28faedcb24c39c4173a2ad",
+      "createdAt": "2026-11-21T16:26:14.735Z",
+      "updatedAt": "2026-11-21T16:26:14.735Z"
+    },
+    "usr_77d00c3b7d8193": {
+      "id": "usr_77d00c3b7d8193",
+      "name": "Nadia Rahman",
+      "email": "qa.part05.1795278434569@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "70b9fb9db22f56c97c73ed6a260546f2",
+      "passwordHash": "276bb72faa34913e589781d7dfb94f671e24ed86bc78c013f22956ed6e155dc9cf58a29a7bc4e2b6e12e13e20832a1becf838f0ad7a820c6893cc5e9658a7b03",
+      "createdAt": "2026-11-21T16:27:14.998Z",
+      "updatedAt": "2026-11-21T16:27:14.998Z"
+    },
+    "usr_e13fe6b74c88d7": {
+      "id": "usr_e13fe6b74c88d7",
+      "name": "Nadia Rahman",
+      "email": "qa.r2.1795278657865@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "d8829a3c8f38d591c46428b619154b1b",
+      "passwordHash": "a35d26601d12e1f73f72f50b37377f99e063a113f0e3dca0dacef734ff77c5220504202a2d7230b66f595d7b1a6b874c444026996be8d742500cac235b927da9",
+      "createdAt": "2026-11-21T16:30:58.310Z",
+      "updatedAt": "2026-11-21T16:30:58.310Z"
+    },
+    "usr_cf0b2e5f9214c4": {
+      "id": "usr_cf0b2e5f9214c4",
+      "name": "Nadia Rahman",
+      "email": "qa.r2.1795278783098@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "58c81a2104b9b1118044595312e5c39d",
+      "passwordHash": "1537d0614f17e95257ef27f6b7056e6f1d54787a3a4f00ce51b6a2c9fc9d7c74154b95edac573fe045159110e6e7bd0c7fdc15a491b815378bf50ae8dce2689e",
+      "createdAt": "2026-11-21T16:33:03.538Z",
+      "updatedAt": "2026-11-21T16:33:03.538Z"
+    },
+    "usr_c8b2a470a196b0": {
+      "id": "usr_c8b2a470a196b0",
+      "name": "Nadia Rahman",
+      "email": "qa.r2.1795278876705@linguaverse.ai",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "4050fd06ccdb158114505eac642ac36a",
+      "passwordHash": "5b1b48e29a21059e27db1f4e557b76d9bd8555c363f7c72068a4efc1fc1c80c3f662affe471197f554015a53f033d3936065f081243fe2d6d68e3eb2e8b16b31",
+      "createdAt": "2026-11-21T16:34:37.174Z",
+      "updatedAt": "2026-11-21T16:34:37.174Z"
+    },
+    "usr_ba907344aec4f1": {
+      "id": "usr_ba907344aec4f1",
+      "name": "Audit User",
+      "email": "sec_audit_p7_1795320828751@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "d82e984cfd7706edc77a589b3ace9c3d",
+      "passwordHash": "d5e40114bdbea1dc156e715ef1b6ac0f58a4251c41ffd96dfb07026958a090e70992c2e61c4758abf77cac83f3a3804e4b14aeb5ffb5696495a9fdb628b3e481",
+      "createdAt": "2026-11-22T04:13:48.908Z",
+      "updatedAt": "2026-11-22T04:13:48.908Z"
+    },
+    "usr_9432fd87def365": {
+      "id": "usr_9432fd87def365",
+      "name": "Part07 Learner",
+      "email": "e2e_p7_1795321241318@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "b27d473667cd31f3b3e0040768909184",
+      "passwordHash": "427019062880d6238fd8ea6cbd0a6ec08121cc26a01f0db1e51d025cb7b8b260342147cab970e212f67e8899e329387a02d16bdbd6667e549c4761ee9a353a1d",
+      "createdAt": "2026-11-22T04:20:41.861Z",
+      "updatedAt": "2026-11-22T04:20:41.861Z"
+    },
+    "usr_8a8a5c744fbe91": {
+      "id": "usr_8a8a5c744fbe91",
+      "name": "Replay Master Tester",
+      "email": "replay_e2e_1795588847268@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "897119fe6920102f38b57d053c0cfa1a",
+      "passwordHash": "93da85a67cd10d3a27701ced4724a3ad0413711073fe7e2fd8bc9bd00e23a751fb6c912fbd9d84e5f2c7f301c94f0e44587fc3a16ec82c8a888de26859831d02",
+      "createdAt": "2026-11-25T06:40:50.351Z",
+      "updatedAt": "2026-11-25T06:40:50.351Z"
+    },
+    "usr_e71fe6d657fa7c": {
+      "id": "usr_e71fe6d657fa7c",
+      "name": "Replay Master Tester",
+      "email": "replay_e2e_1795588954545@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "881048d258f4430cb2ad8e8ad293b70b",
+      "passwordHash": "cfd630b8849764b5835e142d03c8ea4e99cd5f0c3cade3a4370f1b998a71112693cc57b1dfa98f24da0012a6910657d5bfb972ed9abf176d2a52d3d8657c769c",
+      "createdAt": "2026-11-25T06:42:35.097Z",
+      "updatedAt": "2026-11-25T06:42:35.097Z"
+    },
+    "usr_3eebd35da318ae": {
+      "id": "usr_3eebd35da318ae",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795589452660@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "a96782c5e58226d87ac6daa1a6da8f0a",
+      "passwordHash": "dc9c4859ff68061db6bdf5c55cb69f6db63cef5a0093af978bcbc3830eca0bb432f309bccf1c8cc0f39f04b87b0c06b10580265fd9ca06d175480c4b7f0cdcd2",
+      "createdAt": "2026-11-25T06:50:53.081Z",
+      "updatedAt": "2026-11-25T06:50:53.081Z"
+    },
+    "usr_05739565cec8c2": {
+      "id": "usr_05739565cec8c2",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795589594581@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "98fa7a51541a2e649befa17849e9dbfe",
+      "passwordHash": "4f4fe46d6b2ec37c448e4f50a885e09f6a640215aec6aa4e996660d379f3a391ab944791b92ccdfe19b0ae2efd6d69e5086e1253dc39b50a4faa388b6604cd7d",
+      "createdAt": "2026-11-25T06:53:14.990Z",
+      "updatedAt": "2026-11-25T06:53:14.990Z"
+    },
+    "usr_c416a31f25f61e": {
+      "id": "usr_c416a31f25f61e",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795589667854@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "f6ddf1f54e482480ff95d8bb521c4499",
+      "passwordHash": "48ee3bc1f565416956209139093920238f05dad49003b9b14a9f49db5fa97cd858a8a2bc0b5a1718a0bb32d5d0a28ed4b28b02ac70ef26c67dcd7b86a5ee7a9c",
+      "createdAt": "2026-11-25T06:54:28.303Z",
+      "updatedAt": "2026-11-25T06:54:28.303Z"
+    },
+    "usr_d58854869c65fc": {
+      "id": "usr_d58854869c65fc",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795589795174@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "29e2ba96bbb04e3af975cb25259be2da",
+      "passwordHash": "b57e926c9ef9cba6425b33161ba40b326d23b1d5eb380a44a39a38f47df51b1afd8cf7213d47f69e9cad4c8524233e00cfe821b86b4e51c16dba16cee9c8037f",
+      "createdAt": "2026-11-25T06:56:35.614Z",
+      "updatedAt": "2026-11-25T06:56:35.614Z"
+    },
+    "usr_566da86def95af": {
+      "id": "usr_566da86def95af",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795589880196@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "4399d12af0cf67383a7cfb6144dfa5c2",
+      "passwordHash": "9133e5d6a6b645d3fb68d627a28df886ae58271df349c532706e9db3535a98b493660fb52a817ea5eb2eb314c5d84bd1034a181a8750d91e4209d2fe81aace44",
+      "createdAt": "2026-11-25T06:58:00.592Z",
+      "updatedAt": "2026-11-25T06:58:00.592Z"
+    },
+    "usr_14c854a1fcb8bb": {
+      "id": "usr_14c854a1fcb8bb",
+      "name": "Diag User",
+      "email": "diag_1795589918680@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "c533eec44cacaee881588caa825f2132",
+      "passwordHash": "569feb0691be08cef49a63031803e4cd5c9411033a1d8b8b85b674b5e6da8e9ae9363816e624ac18ebcbbdb8c38511a8e611d38aadfd3cd0b022e9b9974118c9",
+      "createdAt": "2026-11-25T06:58:39.034Z",
+      "updatedAt": "2026-11-25T06:58:39.034Z"
+    },
+    "usr_900c7760d1b4f8": {
+      "id": "usr_900c7760d1b4f8",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795590011521@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "488b8e514e075f55b8d10761a996a9da",
+      "passwordHash": "822f1d1140edf5481b70694c6befcadeffe3b161d289d9000f4625b5347ef0bbcfff96996dcc295e7a471150eb0f4833b13af3baec15f74620d5f3e377c40fe3",
+      "createdAt": "2026-11-25T07:00:11.940Z",
+      "updatedAt": "2026-11-25T07:00:11.940Z"
+    },
+    "usr_d54b6d1b3b7d08": {
+      "id": "usr_d54b6d1b3b7d08",
+      "name": "Diag User",
+      "email": "diag2_1795590060897@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "f0746d392bdf2d0c043cb3de38506a69",
+      "passwordHash": "c0771f7a2f0e13e6833cfc5f8e41cb8a43850fe23f100ec64ad38a2faeb446a1c0f28bab256e3764c5bf144720d38cf55d83dec3c21a819d130844b831ae14f8",
+      "createdAt": "2026-11-25T07:01:01.212Z",
+      "updatedAt": "2026-11-25T07:01:01.212Z"
+    },
+    "usr_166f7c9fa3681f": {
+      "id": "usr_166f7c9fa3681f",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795593618437@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "e73d69d5918e13f81b138b7137103b33",
+      "passwordHash": "f2f492cfc30bdda9d740cabdc11f4e8b61f27d0cf685a06c5f5a2123c789204ac5d86e3f23657a96fd5f1c0d057c3b42180b73c101bfd9bf4da10c2525d17ac5",
+      "createdAt": "2026-11-25T08:00:18.856Z",
+      "updatedAt": "2026-11-25T08:00:18.856Z"
+    },
+    "usr_1f2d5aa88de633": {
+      "id": "usr_1f2d5aa88de633",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795593830513@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "534f74c4883c5ac74fac02aed0a0bdb9",
+      "passwordHash": "bdff8a43b82172c60aba5999f7809a50e3f0c09e78b7d1559032b2035f2ea70bfb054a65f4173bee7f411605ac6cb532a2b90fdf4dd1cbbd28c9ba1877b07ad0",
+      "createdAt": "2026-11-25T08:03:50.931Z",
+      "updatedAt": "2026-11-25T08:03:50.931Z"
+    },
+    "usr_b2ff81dde1ad51": {
+      "id": "usr_b2ff81dde1ad51",
+      "name": "Curl QA",
+      "email": "curl_qa_1795593991@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "e85300fd0f6a410b65a1ade2c6254480",
+      "passwordHash": "ba237212eb555a4673405fd864f18462411f6740f553b5c5dc73e89209da855064bc4a6be9087a36eb60e287b03bf57be017a04230554ea6dd05f51ad89be5dc",
+      "createdAt": "2026-11-25T08:06:31.481Z",
+      "updatedAt": "2026-11-25T08:06:31.481Z"
+    },
+    "usr_740229729e49c2": {
+      "id": "usr_740229729e49c2",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795594128303@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "74939cc0fd4ad5ecad8718590c39cb78",
+      "passwordHash": "bac5ed63839ba9c8fcb6bf757fb5b6186a88ba06f5e011844653acb7a4a3819733758802e74016093b1bd9f2c020062e4c58ffc6206b4afd2204c8025d32aa09",
+      "createdAt": "2026-11-25T08:08:48.722Z",
+      "updatedAt": "2026-11-25T08:08:48.722Z"
+    },
+    "usr_d61b063f229706": {
+      "id": "usr_d61b063f229706",
+      "name": "Replay QA Learner",
+      "email": "replay_qa_1795594267683@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "d7d700ffc54ecbc26d0078ed415f2822",
+      "passwordHash": "867f0b20f3fa56cf4dfe931b95212489ee36fefe3a3914b940a238e908879e01cb86a4adaeb8f3903398b716b9557886cfc9502ee112d683d535707ca0fa4dcc",
+      "createdAt": "2026-11-25T08:11:08.104Z",
+      "updatedAt": "2026-11-25T08:11:08.104Z"
+    },
+    "usr_c993bbca4e971f": {
+      "id": "usr_c993bbca4e971f",
+      "name": "Audit User",
+      "email": "audit_1795597608@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "6b34d51640c9e2b8bb0e34bb2630adfe",
+      "passwordHash": "8d58d13710fc96188d59f5272e50cbd06c63c44d374eda5a8386e47779455e0eea72e95afe59d8867c6e2cbd7152b693b3d0b0cf99ef56323d2df1312911d64a",
+      "createdAt": "2026-11-25T09:06:48.713Z",
+      "updatedAt": "2026-11-25T09:06:48.713Z"
+    },
+    "usr_dd06edb153ee2e": {
+      "id": "usr_dd06edb153ee2e",
+      "name": "Audit QA User",
+      "email": "audit_e2e_1795597880921@linguaverse.test",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "2920d581eb53049e184f37b0f72591cb",
+      "passwordHash": "fa2f61733926ee5b914561be0254217b85ba5612da897627f4586b222dd2fd1d96bd3d8e407d9829990bdab2b1a79914f5fd7ccb76d68cee821713f2abc137f3",
+      "createdAt": "2026-11-25T09:11:21.311Z",
+      "updatedAt": "2026-11-25T09:11:21.311Z"
+    },
+    "usr_5daa4742de9fd2": {
+      "id": "usr_5daa4742de9fd2",
+      "name": "P1 Security Test",
+      "email": "p1verify_1795630189808@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "950f51c912d58e0469f318c1d548197b",
+      "passwordHash": "d8814f55dc3f554b89155c1e55cb45edc90c6598a34eab5169e036306734afeada53772fe266215cafbd2ea9c15389895dbdf7587e5c4c3d8caaad71cf5d9b2e",
+      "createdAt": "2026-11-25T18:09:49.813Z",
+      "updatedAt": "2026-11-25T18:09:49.813Z"
+    },
+    "usr_64ad3db71fbe74": {
+      "id": "usr_64ad3db71fbe74",
+      "name": "Sec Tester",
+      "email": "p3sec_1795634762@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "dc328b7b43fbcd8e27fa6f938da42e30",
+      "passwordHash": "ee66b2e18402c4458c97b73d055a8ab9d3499c18f21d3172ed8c15215f00aa749224843edb542b915f1662620d87713a597761dc9bf0b11de26e293c35d60cdf",
+      "createdAt": "2026-11-25T19:26:02.371Z",
+      "updatedAt": "2026-11-25T19:26:02.371Z"
+    },
+    "usr_eb2e097fb684b6": {
+      "id": "usr_eb2e097fb684b6",
+      "name": "Rafiul Hasan",
+      "email": "p3browser_1795634940877@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "817c7812b0d071fdc1428a199c4bf62f",
+      "passwordHash": "5a1875c8eb95c68bf38ff3581ec4a62f6ed6b0818ce1a106d8da0c087eab0d454f7cb05940381e1ec65570790d8cd48b4fddc7024e2320388ffc69bdf717930e",
+      "createdAt": "2026-11-25T19:29:01.252Z",
+      "updatedAt": "2026-11-25T19:29:01.252Z"
+    },
+    "usr_22ebd678544403": {
+      "id": "usr_22ebd678544403",
+      "name": "Rafiul Hasan",
+      "email": "p3browser_1795635016280@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "e08b8967e800181f4bc05ceb87f7b580",
+      "passwordHash": "36a746af952ff705f7260f4057279a947b440eb86d5e97d4e4fdb2a4fa1af4ef78bb1cd2f803cd7f9649b05b9fabb285e0ab2fe73f9b5fb6855f38d77d005b70",
+      "createdAt": "2026-11-25T19:30:16.675Z",
+      "updatedAt": "2026-11-25T19:30:16.675Z"
+    },
+    "usr_3fb074af43dc0c": {
+      "id": "usr_3fb074af43dc0c",
+      "name": "Rafiul Hasan",
+      "email": "p3diag_1795635056790@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "c01eb37fe6391f9f6e38c41174714e53",
+      "passwordHash": "bf6318c64bf916424b57c4464520711ee362412c97da835ffbd2bcc8962a5801cc0e733ba2da93b0f68a3be8d7b01a8c1eb0908971ef2fcf5514183ff6fee7f1",
+      "createdAt": "2026-11-25T19:30:57.178Z",
+      "updatedAt": "2026-11-25T19:30:57.178Z"
+    },
+    "usr_fb7d4b9bbf1c72": {
+      "id": "usr_fb7d4b9bbf1c72",
+      "name": "Rafiul Hasan",
+      "email": "p3e2e_1795635102194@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "d3c298baae830854f3be2f997feb8e58",
+      "passwordHash": "9cd7f4b5e49b6a3d69f4c312f3ca85f9d4d19618bce2b65545e452f0ef1b2779fdc587dc2ef29e563570c933b3d75f15ae8322b8ed04812d5511fd7995805df3",
+      "createdAt": "2026-11-25T19:31:42.553Z",
+      "updatedAt": "2026-11-25T19:31:42.553Z"
+    },
+    "usr_945734713ae4cc": {
+      "id": "usr_945734713ae4cc",
+      "name": "Rafiul Hasan",
+      "email": "p3e2e_1795635212635@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "a414b172b059fa97519256a01efd2dcb",
+      "passwordHash": "810aa7429b22f58f72d78b0e59f07d83af79d6f242b94424f8135e30f8cae07e92f2b3145a761a3bfdb774ecadca1ac1e13a5be9336b6083044cf2e8cceca0a3",
+      "createdAt": "2026-11-25T19:33:33.072Z",
+      "updatedAt": "2026-11-25T19:33:33.072Z"
+    },
+    "usr_751defcb2e32cf": {
+      "id": "usr_751defcb2e32cf",
+      "name": "Rafiul Hasan",
+      "email": "p3e2e_1795635305849@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "cc861c3a5d07fe305dfb7e7e1c785315",
+      "passwordHash": "9ec987b23d0a322f6712048bea0efd7768a5500e4efedb8aa590a07e1506ce4747eded043982d2590b0ce42d4d94d638e153af549e52811a766e149fc3bd1445",
+      "createdAt": "2026-11-25T19:35:06.226Z",
+      "updatedAt": "2026-11-25T19:35:06.226Z"
+    },
+    "usr_f8b20edd29016c": {
+      "id": "usr_f8b20edd29016c",
+      "name": "P3 Round2 Learner",
+      "email": "p3r2_1795635554@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "ce221554407786fc8ab780cfb63db9bf",
+      "passwordHash": "52bd347669df31bfe88591e7593e7252f69e00145cf24046252b4044145a117cd27ca1832d2212d0c12a8cffbd9a758b321abac93dccc021e82d4e31c186bb04",
+      "createdAt": "2026-11-25T19:39:21.349Z",
+      "updatedAt": "2026-11-25T19:39:21.349Z"
+    },
+    "usr_cb999e0cce6dc3": {
+      "id": "usr_cb999e0cce6dc3",
+      "name": "Nadia Rahman",
+      "email": "ui.verify.1795638148@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "e6b6137d8a4c4a5d550e10ce45e46cc6",
+      "passwordHash": "8e03e42bb4abb1d62b2f71153499e00ed306a5b128d82c5861c3b3dba2be6e77065c155eb116862b773e8cc514c6b6bf9270f8a5768dd8a9315b7fad33db46c1",
+      "createdAt": "2026-11-25T20:22:34.237Z",
+      "updatedAt": "2026-11-25T20:22:34.237Z"
+    },
+    "usr_30b7f363a3f96e": {
+      "id": "usr_30b7f363a3f96e",
+      "name": "Nadia Rahman",
+      "email": "ui.verify.1795638229@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "daf035cb3800adf6e9a4848726d9a798",
+      "passwordHash": "b0b4e60bddda83ce6eaa4d5d738a238764b95fb3968c420d9787cd9b006a4217975346b14282b6f9b8708ba637b59bbd770941914322cae26fca1e54616ae0f8",
+      "createdAt": "2026-11-25T20:23:54.476Z",
+      "updatedAt": "2026-11-25T20:23:54.476Z"
+    },
+    "usr_ad1a984da10874": {
+      "id": "usr_ad1a984da10874",
+      "name": "PoC Learner",
+      "email": "poc.prd61.1795688292233@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "df4f07cba850fb790822f09d827c1940",
+      "passwordHash": "471e1cef5504a4425949b95d181e3a8cca72eb025621edce1725500ed278eb043c51ad52fe5cd299f9f3668faf5d5d112a98183d02fe323fa37244f47b789bf9",
+      "createdAt": "2026-11-26T10:18:12.239Z",
+      "updatedAt": "2026-11-26T10:18:12.239Z"
+    },
+    "usr_69eab49a6d7855": {
+      "id": "usr_69eab49a6d7855",
+      "name": "PoC Learner",
+      "email": "poc.prd61.1795688385787@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": true,
+      "accountStatus": "active",
+      "passwordSalt": "43b7eba73391aa3f1886340eaad5188e",
+      "passwordHash": "df9b670e76a8b8fe4009ff32a80c6766d8b089af884f618bfe9ee34030af5e4791b4ff2fdf66b692f532d45a5896c817b7d41644b368e7443a0c165e4bb77820",
+      "createdAt": "2026-11-26T10:19:45.791Z",
+      "updatedAt": "2026-11-26T10:19:45.878Z"
+    },
+    "usr_c9b7817896d3c1": {
+      "id": "usr_c9b7817896d3c1",
+      "name": "Browser Verify",
+      "email": "browser.verify.1795688458783@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": true,
+      "accountStatus": "active",
+      "passwordSalt": "d92f54f983e06b9375774cee1d8c9028",
+      "passwordHash": "a581095bdc4cc02649437959b175dc5360debaa8426468d98df9390de5dc88a3fd584a12190541a2c06496b8e7bab935d5e59ff739fdcf9675aa452238157247",
+      "createdAt": "2026-11-26T10:20:58.786Z",
+      "updatedAt": "2026-11-26T10:20:58.895Z"
+    },
+    "usr_6b82b5cba8c9fb": {
+      "id": "usr_6b82b5cba8c9fb",
+      "name": "UI Verify Learner",
+      "email": "ui.verify.1795688607@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "927837a32efb6ce0cb4414c43eb12ec2",
+      "passwordHash": "6c5d31d2ac6d13fc9ffd1d2c69d2318c15312a4fd6d5e593a7a6828650e536a876bd6020a58bec549f943fdbdb7202c7bcef42d1f7d20d2afebf9da84e73fa37",
+      "createdAt": "2026-11-26T10:23:35.476Z",
+      "updatedAt": "2026-11-26T10:23:35.476Z"
+    },
+    "usr_9c95cb994cd3b5": {
+      "id": "usr_9c95cb994cd3b5",
+      "name": "PRD61 Full Verify",
+      "email": "prd61.full.1795688895@example.com",
+      "plan": "free",
+      "role": "learner",
+      "emailVerified": false,
+      "accountStatus": "active",
+      "passwordSalt": "1457f2379c8b57fb3897d9e87d961b87",
+      "passwordHash": "01d73740581401ead3e7fbd12673a4823e2c7ab818dc3efa8321874ac81270be849342c0baf6c5ac28277f648aae4bd22ccf87d13428d827a53921598298be2c",
+      "createdAt": "2026-11-26T10:28:21.971Z",
+      "updatedAt": "2026-11-26T10:28:21.971Z"
+    }
+  },
+  "sessions": {
+    "sess_f73b90463c53428c": {
+      "id": "sess_f73b90463c53428c",
+      "tokenHash": "fdfe3f3f25ca4c88891571680ac7c856debd94fa8aad4908ea3c7e5c1f19fa34",
+      "userId": "usr_b7c1f8da9a6b36",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:13:30.020Z",
+      "expiresAt": "2026-12-21T09:13:30.020Z"
+    },
+    "sess_e496028cbad69871": {
+      "id": "sess_e496028cbad69871",
+      "tokenHash": "294ed9ab66c4203d71c7223dd3b7f1213d3a2c33b8cdc09989972232ba7d8474",
+      "userId": "usr_b4d65b907379e8",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:14:33.422Z",
+      "expiresAt": "2026-12-21T09:14:33.422Z"
+    },
+    "sess_2930a992d6254177": {
+      "id": "sess_2930a992d6254177",
+      "tokenHash": "399df846996ed076df5411d907ea990e618b1e12be446fec4384d75a6b138b30",
+      "userId": "usr_705a092556c8bc",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:17:36.578Z",
+      "expiresAt": "2026-12-21T09:17:36.578Z"
+    },
+    "sess_621185c8e44e2df3": {
+      "id": "sess_621185c8e44e2df3",
+      "tokenHash": "227271a0e0bf08559bea46363e0da75b410d00f94af09623d22307bc5d2b8932",
+      "userId": "usr_4585df0a4e606b",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:23:46.610Z",
+      "expiresAt": "2026-12-21T09:23:46.610Z"
+    },
+    "sess_7cc34e742d70f344": {
+      "id": "sess_7cc34e742d70f344",
+      "tokenHash": "dab078bdde212b30a5628a71480d94ab2b2dfea053fb5d6bb04d1295b763810e",
+      "userId": "usr_4da7e68b27ed66",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:26:32.477Z",
+      "expiresAt": "2026-12-21T09:26:32.477Z"
+    },
+    "sess_5addda837a887af0": {
+      "id": "sess_5addda837a887af0",
+      "tokenHash": "7c52eb2b7814a7e2cd143d794d991a7d5dd5f733fb0b98d4b4957ed684584001",
+      "userId": "usr_8b493621403cbb",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T09:34:35.946Z",
+      "expiresAt": "2026-12-21T09:34:35.946Z"
+    },
+    "sess_f599479a5e183cbf": {
+      "id": "sess_f599479a5e183cbf",
+      "tokenHash": "77dd47d3d59416381d1ee8906ee9ad9d26a1e3a9f5133596767c992501354ed6",
+      "userId": "usr_cb0df53596f34d",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:22:32.698Z",
+      "expiresAt": "2026-12-21T16:22:32.698Z"
+    },
+    "sess_055abad48d20e94f": {
+      "id": "sess_055abad48d20e94f",
+      "tokenHash": "025e60d2c7df12748cec049bd5bb1501998228fd2249bef1d19269e82cf6bf1e",
+      "userId": "usr_e351b3cb7e17fc",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:23:44.199Z",
+      "expiresAt": "2026-12-21T16:23:44.199Z"
+    },
+    "sess_e9a1b6d20736e3a5": {
+      "id": "sess_e9a1b6d20736e3a5",
+      "tokenHash": "7b0671d87a67c87dbdb6f2c5f8a0a66533da3bec369b4fced4e80ac88a3bca8e",
+      "userId": "usr_0ed86673f044f1",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:26:14.792Z",
+      "expiresAt": "2026-12-21T16:26:14.792Z"
+    },
+    "sess_9461d40d9a29018d": {
+      "id": "sess_9461d40d9a29018d",
+      "tokenHash": "7e13a54ecee472a60f46ae7151231b79c5b8a1b2fd7ddea119d68961690b1a0d",
+      "userId": "usr_77d00c3b7d8193",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:27:15.053Z",
+      "expiresAt": "2026-12-21T16:27:15.053Z"
+    },
+    "sess_3d79b8952bcad532": {
+      "id": "sess_3d79b8952bcad532",
+      "tokenHash": "0f3f6fc5588928ab77ebc79e1f74b81678a201f50c3516ca25dc47800dde8df1",
+      "userId": "usr_e13fe6b74c88d7",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:30:58.403Z",
+      "expiresAt": "2026-12-21T16:30:58.403Z"
+    },
+    "sess_633e128aa8310d23": {
+      "id": "sess_633e128aa8310d23",
+      "tokenHash": "1593cd310e5b22b356868e15444c8d697cc63b66e63870b4d92183607ab0e451",
+      "userId": "usr_cf0b2e5f9214c4",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:33:03.633Z",
+      "expiresAt": "2026-12-21T16:33:03.633Z"
+    },
+    "sess_d1dfa5e97c4a0aa2": {
+      "id": "sess_d1dfa5e97c4a0aa2",
+      "tokenHash": "1740faea8c88a0a4acc0f57a0a3f8eaee11d5b10806743faf6ed1131374eb9c6",
+      "userId": "usr_c8b2a470a196b0",
+      "rememberMe": true,
+      "createdAt": "2026-11-21T16:34:37.263Z",
+      "expiresAt": "2026-12-21T16:34:37.263Z"
+    },
+    "sess_0515d4ab24c33b00": {
+      "id": "sess_0515d4ab24c33b00",
+      "tokenHash": "c6071d68c05ca736b9b0d9c5b0c33b9ae19429b4edfa8e773d873ea9cd634ef8",
+      "userId": "usr_ba907344aec4f1",
+      "rememberMe": true,
+      "createdAt": "2026-11-22T04:13:48.991Z",
+      "expiresAt": "2026-12-22T04:13:48.991Z",
+      "revokedAt": "2026-11-22T04:13:55.373Z"
+    },
+    "sess_7ac4fd3be25d6caa": {
+      "id": "sess_7ac4fd3be25d6caa",
+      "tokenHash": "abf4634bcf8772e5f1838eb0163aa51a74784fd6dd5c04b8764d06d0366d8a7f",
+      "userId": "usr_9432fd87def365",
+      "rememberMe": true,
+      "createdAt": "2026-11-22T04:20:41.955Z",
+      "expiresAt": "2026-12-22T04:20:41.955Z"
+    },
+    "sess_331840c41e763ab6": {
+      "id": "sess_331840c41e763ab6",
+      "tokenHash": "cd5a431e73a7aee831ffede64e9a6d82870b3404b2bfd270748981c7f8db13bc",
+      "userId": "usr_a6e75ac9ea0625",
+      "rememberMe": true,
+      "createdAt": "2026-11-24T02:26:24.012Z",
+      "expiresAt": "2026-12-24T02:26:24.012Z"
+    },
+    "sess_82dfe9eb023a7015": {
+      "id": "sess_82dfe9eb023a7015",
+      "tokenHash": "73aa951569ba2069718e866fa2dd682acd94663e828217ab90768e0be28a1507",
+      "userId": "usr_c8250854bd8725",
+      "rememberMe": true,
+      "createdAt": "2026-11-24T02:27:41.483Z",
+      "expiresAt": "2026-12-24T02:27:41.483Z"
+    },
+    "sess_c650f6ad40e9cfa0": {
+      "id": "sess_c650f6ad40e9cfa0",
+      "tokenHash": "d8fd559dfe1b1f93a4481353532d8cf82662a927394ef2a901584c90128768c2",
+      "userId": "usr_f9121d75c02468",
+      "rememberMe": true,
+      "createdAt": "2026-11-24T02:42:34.274Z",
+      "expiresAt": "2026-12-24T02:42:34.274Z"
+    },
+    "sess_fb6ffda00848a05b": {
+      "id": "sess_fb6ffda00848a05b",
+      "tokenHash": "e251455c1ec881cedf1e2608d945aa0fa5f84b91792ab725f6d0b08667092c85",
+      "userId": "usr_8a8a5c744fbe91",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:40:50.449Z",
+      "expiresAt": "2026-12-25T06:40:50.449Z"
+    },
+    "sess_80533c8fef07b47e": {
+      "id": "sess_80533c8fef07b47e",
+      "tokenHash": "f95962d4f33f36807542f67099d583b971c16d97acaf5bd5b8184d190767503b",
+      "userId": "usr_e71fe6d657fa7c",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:42:35.204Z",
+      "expiresAt": "2026-12-25T06:42:35.204Z"
+    },
+    "sess_16f2296d6ae6a219": {
+      "id": "sess_16f2296d6ae6a219",
+      "tokenHash": "759befa80a99fc69cc05a4bc462b233f7b7325a86de3dacffce6bc9ac025baf9",
+      "userId": "usr_3eebd35da318ae",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:50:53.164Z",
+      "expiresAt": "2026-12-25T06:50:53.164Z"
+    },
+    "sess_2c8e05d475b5ab34": {
+      "id": "sess_2c8e05d475b5ab34",
+      "tokenHash": "1ee468dfff1faf6a2d0dfe1dca11cbbc4d991e8069c7db52cbdf4d31793aa5fa",
+      "userId": "usr_05739565cec8c2",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:53:15.046Z",
+      "expiresAt": "2026-12-25T06:53:15.046Z"
+    },
+    "sess_c1d57ac2c15b53c0": {
+      "id": "sess_c1d57ac2c15b53c0",
+      "tokenHash": "20344bd8c1e1622ab41b18d2ccef1fa6454194a22467ae8ca7baceefecafb0ba",
+      "userId": "usr_c416a31f25f61e",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:54:28.355Z",
+      "expiresAt": "2026-12-25T06:54:28.355Z"
+    },
+    "sess_5507a0cca8507f97": {
+      "id": "sess_5507a0cca8507f97",
+      "tokenHash": "9072fd8a3a77b03ea196cb416ba345ea740ba811e5498e611ca7f22ea1277ae2",
+      "userId": "usr_d58854869c65fc",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:56:35.666Z",
+      "expiresAt": "2026-12-25T06:56:35.666Z"
+    },
+    "sess_ccf063ece04a1141": {
+      "id": "sess_ccf063ece04a1141",
+      "tokenHash": "a79bfb9b8696d0d6b7b0fb8a13385cb71c6010faafe2c3be5eed1d5d5b40f628",
+      "userId": "usr_566da86def95af",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:58:00.649Z",
+      "expiresAt": "2026-12-25T06:58:00.649Z"
+    },
+    "sess_867de3eda90c677c": {
+      "id": "sess_867de3eda90c677c",
+      "tokenHash": "a7664652d406a125050ee2b5684fdb9a41e45c34ba1c0971ed95e7d374f1b1d9",
+      "userId": "usr_14c854a1fcb8bb",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T06:58:39.087Z",
+      "expiresAt": "2026-12-25T06:58:39.087Z"
+    },
+    "sess_da64b61388bb92e8": {
+      "id": "sess_da64b61388bb92e8",
+      "tokenHash": "502467bbb676048e90857e2fc18337ab8d22ed9824e28b287616f58dc3b73eb2",
+      "userId": "usr_900c7760d1b4f8",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T07:00:11.990Z",
+      "expiresAt": "2026-12-25T07:00:11.990Z"
+    },
+    "sess_951acd471834e338": {
+      "id": "sess_951acd471834e338",
+      "tokenHash": "32a919dc433035b2990ffcf5897694b462f26f5442188501a289c46aaa84072a",
+      "userId": "usr_d54b6d1b3b7d08",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T07:01:01.267Z",
+      "expiresAt": "2026-12-25T07:01:01.267Z"
+    },
+    "sess_734d12fc57462942": {
+      "id": "sess_734d12fc57462942",
+      "tokenHash": "a02663fcc4e36010db358ec4796ceda6d549e75646773cd2f5100d62c22a588f",
+      "userId": "usr_166f7c9fa3681f",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T08:00:18.924Z",
+      "expiresAt": "2026-12-25T08:00:18.924Z"
+    },
+    "sess_a08527ed4d4f8614": {
+      "id": "sess_a08527ed4d4f8614",
+      "tokenHash": "c80b488a7c0a94b3e561e6dd77f7b2214b9d0f8b7693caadd21d451a7a9fb769",
+      "userId": "usr_1f2d5aa88de633",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T08:03:51.021Z",
+      "expiresAt": "2026-12-25T08:03:51.021Z"
+    },
+    "sess_827d23520e0892a0": {
+      "id": "sess_827d23520e0892a0",
+      "tokenHash": "f9c749f8e5f8544b0b35617fc54fe0414895e40f51d76f361af825d95e8c025f",
+      "userId": "usr_b2ff81dde1ad51",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T08:06:31.533Z",
+      "expiresAt": "2026-12-25T08:06:31.533Z"
+    },
+    "sess_557e3a09add5c325": {
+      "id": "sess_557e3a09add5c325",
+      "tokenHash": "a3a62a64c7b65d783f702af7667599e6db0fe3e2d44527ef8ec4bf9b3c60ce2f",
+      "userId": "usr_740229729e49c2",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T08:08:48.808Z",
+      "expiresAt": "2026-12-25T08:08:48.808Z"
+    },
+    "sess_1c36fb148332a586": {
+      "id": "sess_1c36fb148332a586",
+      "tokenHash": "245ab4a080a7bb3e73c4e91df2df8c0451edbff8df069bfb4f35dc3aea39c9f7",
+      "userId": "usr_d61b063f229706",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T08:11:08.158Z",
+      "expiresAt": "2026-12-25T08:11:08.158Z"
+    },
+    "sess_413965cc4fc916bb": {
+      "id": "sess_413965cc4fc916bb",
+      "tokenHash": "5ead47b177929c15e9106da3821bfe636ad8b7568a7d5aeca6c1a644ec577dd6",
+      "userId": "usr_c993bbca4e971f",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T09:06:48.801Z",
+      "expiresAt": "2026-12-25T09:06:48.801Z"
+    },
+    "sess_e5470bb1dec87e33": {
+      "id": "sess_e5470bb1dec87e33",
+      "tokenHash": "457735ec8f19d5a9c84033434e3b3f72469f7bff2bcd9da9f590a8e678c73681",
+      "userId": "usr_dd06edb153ee2e",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T09:11:21.384Z",
+      "expiresAt": "2026-12-25T09:11:21.384Z"
+    },
+    "sess_cde7dd07bd259fdf": {
+      "id": "sess_cde7dd07bd259fdf",
+      "tokenHash": "bd186e33904f0e9f17cb011c5a716a7887040b0fa23c8b626b493a311617f470",
+      "userId": "usr_5daa4742de9fd2",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T18:09:49.914Z",
+      "expiresAt": "2026-12-25T18:09:49.914Z",
+      "revokedAt": "2026-11-25T18:09:49.952Z"
+    },
+    "sess_4d4919e08970a897": {
+      "id": "sess_4d4919e08970a897",
+      "tokenHash": "648da9d2498fe08eb784efaca053d245b31d8775340970e1d709f212f32cc1b2",
+      "userId": "usr_64ad3db71fbe74",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:26:02.459Z",
+      "expiresAt": "2026-12-25T19:26:02.459Z"
+    },
+    "sess_3b7c0f1b35446017": {
+      "id": "sess_3b7c0f1b35446017",
+      "tokenHash": "996eb65f6da3112b2c1936cac2e0d4f77d57b74e6320803decbfc4d4631cbd1a",
+      "userId": "usr_eb2e097fb684b6",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:29:01.331Z",
+      "expiresAt": "2026-12-25T19:29:01.331Z"
+    },
+    "sess_736f7af02257a0a8": {
+      "id": "sess_736f7af02257a0a8",
+      "tokenHash": "51eb91bdcf0b56395606de29d0a321ae233cc985ecf305b1ef94919b10b08e1d",
+      "userId": "usr_22ebd678544403",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:30:16.725Z",
+      "expiresAt": "2026-12-25T19:30:16.725Z"
+    },
+    "sess_d48777020c9270f5": {
+      "id": "sess_d48777020c9270f5",
+      "tokenHash": "b94149d927611833f3054d3b5fc5fbdbee75650cbcae77abfe7df3980c23b0e0",
+      "userId": "usr_3fb074af43dc0c",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:30:57.230Z",
+      "expiresAt": "2026-12-25T19:30:57.230Z"
+    },
+    "sess_bfb66ad06cd67b3a": {
+      "id": "sess_bfb66ad06cd67b3a",
+      "tokenHash": "570a04170b99e115501ee28d7818497e4b209dc4022a7848d21897c6d9fc3f26",
+      "userId": "usr_fb7d4b9bbf1c72",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:31:42.604Z",
+      "expiresAt": "2026-12-25T19:31:42.604Z"
+    },
+    "sess_f6285ce11ad8424d": {
+      "id": "sess_f6285ce11ad8424d",
+      "tokenHash": "1f67351999e5a78df6db926609d188ac9d0e0d6bf40255e8a91ade9378794157",
+      "userId": "usr_945734713ae4cc",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:33:33.127Z",
+      "expiresAt": "2026-12-25T19:33:33.127Z"
+    },
+    "sess_358857aee9e4e4a1": {
+      "id": "sess_358857aee9e4e4a1",
+      "tokenHash": "58c203db66779ec712d6052dac03d174f4564d9733917a974b187c4054bc808c",
+      "userId": "usr_751defcb2e32cf",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:35:06.277Z",
+      "expiresAt": "2026-12-25T19:35:06.277Z"
+    },
+    "sess_ce474f4a659b838a": {
+      "id": "sess_ce474f4a659b838a",
+      "tokenHash": "ab077f3621c8fa3dbcabd46e9aa390a1f2fad7c42c5099f0e5640f882f3005bf",
+      "userId": "usr_f8b20edd29016c",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T19:39:21.425Z",
+      "expiresAt": "2026-12-25T19:39:21.425Z"
+    },
+    "sess_8b576aafa4d4281d": {
+      "id": "sess_8b576aafa4d4281d",
+      "tokenHash": "3d05f128624adcde117ba9783d7d18b863a0cc2e30a801c7ca32b5945ee57341",
+      "userId": "usr_cb999e0cce6dc3",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T20:22:34.287Z",
+      "expiresAt": "2026-12-25T20:22:34.287Z"
+    },
+    "sess_cfe2f648dd6cf7f8": {
+      "id": "sess_cfe2f648dd6cf7f8",
+      "tokenHash": "34d079c459cc228d9387ee659c30b22b2b090baa04bb1c8c9cbb3b726f01b9e2",
+      "userId": "usr_30b7f363a3f96e",
+      "rememberMe": true,
+      "createdAt": "2026-11-25T20:23:54.527Z",
+      "expiresAt": "2026-12-25T20:23:54.527Z"
+    },
+    "sess_377e474b343f0a94": {
+      "id": "sess_377e474b343f0a94",
+      "tokenHash": "995a59efdfbcda16b4018f0e2a1f53ac039e761a07eb195e772e976a526cad04",
+      "userId": "usr_ad1a984da10874",
+      "rememberMe": true,
+      "createdAt": "2026-11-26T10:18:12.394Z",
+      "expiresAt": "2026-12-26T10:18:12.394Z"
+    },
+    "sess_4dc3f5deab23e106": {
+      "id": "sess_4dc3f5deab23e106",
+      "tokenHash": "83a6224c77b85bba8242f1f271826c0c21aecf3eb1ff2e8eee1610c4e4c9ed57",
+      "userId": "usr_69eab49a6d7855",
+      "rememberMe": true,
+      "createdAt": "2026-11-26T10:19:45.869Z",
+      "expiresAt": "2026-12-26T10:19:45.869Z"
+    },
+    "sess_5c15c23e5ce2a36e": {
+      "id": "sess_5c15c23e5ce2a36e",
+      "tokenHash": "7e5770b7dc6576127bb6b0cc618b8de10eeb3a6b1cb776c5276c6a0448242276",
+      "userId": "usr_c9b7817896d3c1",
+      "rememberMe": true,
+      "createdAt": "2026-11-26T10:20:58.889Z",
+      "expiresAt": "2026-12-26T10:20:58.889Z"
+    },
+    "sess_976c6bf129933490": {
+      "id": "sess_976c6bf129933490",
+      "tokenHash": "c9d7654598bacb0b14a5d05f262681866a5dbb990c72f0c0b5b33cc55e6dfdb6",
+      "userId": "usr_6b82b5cba8c9fb",
+      "rememberMe": true,
+      "createdAt": "2026-11-26T10:23:35.531Z",
+      "expiresAt": "2026-12-26T10:23:35.531Z"
+    },
+    "sess_8b2afeb3207d5827": {
+      "id": "sess_8b2afeb3207d5827",
+      "tokenHash": "9787de9d96400d3f58c9362601cc8b60abe854ba14a3f04e22cc3a2d4d81836c",
+      "userId": "usr_9c95cb994cd3b5",
+      "rememberMe": true,
+      "createdAt": "2026-11-26T10:28:22.021Z",
+      "expiresAt": "2026-12-26T10:28:22.021Z"
+    }
+  },
+  "resetTokens": [],
+  "otpTokens": {
+    "usr_b7c1f8da9a6b36": [
+      {
+        "id": "otp_e215df9a175f",
+        "userId": "usr_b7c1f8da9a6b36",
+        "email": "qa_part04_1795252408@example.com",
+        "otpHash": "abec806de147754bb7e8db25a1b459a2ca966c1b3e4d3ed906d4ef4388be8ff8",
+        "expiresAt": "2026-11-21T09:23:30.016Z",
+        "resendAvailableAt": "2026-11-21T09:14:30.016Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:13:29.931Z"
+      }
+    ],
+    "usr_b4d65b907379e8": [
+      {
+        "id": "otp_64a3449bdad3",
+        "userId": "usr_b4d65b907379e8",
+        "email": "qa_part04_1795252472@example.com",
+        "otpHash": "fe2d648619079d4ccc301d8d36845378dee9b29d83ba3978c526950e33f1a126",
+        "expiresAt": "2026-11-21T09:24:33.421Z",
+        "resendAvailableAt": "2026-11-21T09:15:33.421Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:14:33.343Z"
+      }
+    ],
+    "usr_705a092556c8bc": [
+      {
+        "id": "otp_e10077135ad7",
+        "userId": "usr_705a092556c8bc",
+        "email": "qa_part04_1795252655@example.com",
+        "otpHash": "8b7a3d31ffe0a1496b1c805874ec2a55ccb9c4c0ba2e98208fdc718ced9f5ce0",
+        "expiresAt": "2026-11-21T09:27:36.577Z",
+        "resendAvailableAt": "2026-11-21T09:18:36.577Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:17:36.511Z"
+      }
+    ],
+    "usr_4585df0a4e606b": [
+      {
+        "id": "otp_7e29ccb4a3e0",
+        "userId": "usr_4585df0a4e606b",
+        "email": "qa_part04_1795253025@example.com",
+        "otpHash": "12d32909460ddc73738476e8255e67f2b05a6469b1e3028fdc8f7ccde66c77a5",
+        "expiresAt": "2026-11-21T09:33:46.607Z",
+        "resendAvailableAt": "2026-11-21T09:24:46.607Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:23:46.527Z"
+      }
+    ],
+    "usr_4da7e68b27ed66": [
+      {
+        "id": "otp_1896f7537ea9",
+        "userId": "usr_4da7e68b27ed66",
+        "email": "qa_part04_1795253190@example.com",
+        "otpHash": "9ccab238565aad7a8f0ebfb768e60dce627eb889118764ec20721ab81a2c2cbb",
+        "expiresAt": "2026-11-21T09:36:32.476Z",
+        "resendAvailableAt": "2026-11-21T09:27:32.476Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:26:32.396Z"
+      }
+    ],
+    "usr_8b493621403cbb": [
+      {
+        "id": "otp_9ea73d72fb55",
+        "userId": "usr_8b493621403cbb",
+        "email": "qa_part04_1795253674@example.com",
+        "otpHash": "8c19b1aff6f7b8e0d648cd83aaaebe2fabcf26365512cf393523c6d412c57cec",
+        "expiresAt": "2026-11-21T09:44:35.944Z",
+        "resendAvailableAt": "2026-11-21T09:35:35.944Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T09:34:35.863Z"
+      }
+    ],
+    "usr_cb0df53596f34d": [
+      {
+        "id": "otp_f4a39264dd93",
+        "userId": "usr_cb0df53596f34d",
+        "email": "qa.part05.1795278152102@linguaverse.ai",
+        "otpHash": "599d76374f2d52a27a056ab32d8e9249fedfbf429eddc4d807ef15d1ad1b8674",
+        "expiresAt": "2026-11-21T16:32:32.692Z",
+        "resendAvailableAt": "2026-11-21T16:23:32.692Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:22:32.604Z"
+      }
+    ],
+    "usr_e351b3cb7e17fc": [
+      {
+        "id": "otp_cd3464215b02",
+        "userId": "usr_e351b3cb7e17fc",
+        "email": "qa.part05.1795278223686@linguaverse.ai",
+        "otpHash": "2f2c11183a94c16a0469da3cf93e3efbc4e0b044b4be88c30f0b47183d04d87a",
+        "expiresAt": "2026-11-21T16:33:44.198Z",
+        "resendAvailableAt": "2026-11-21T16:24:44.198Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:23:44.123Z"
+      }
+    ],
+    "usr_0ed86673f044f1": [
+      {
+        "id": "otp_dab2968a0414",
+        "userId": "usr_0ed86673f044f1",
+        "email": "qa.part05.1795278374280@linguaverse.ai",
+        "otpHash": "fb9ca6c19e9d124cb4c905e20bc8ad43a73b5675d6ecb34d32f21004b683adde",
+        "expiresAt": "2026-11-21T16:36:14.791Z",
+        "resendAvailableAt": "2026-11-21T16:27:14.791Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:26:14.735Z"
+      }
+    ],
+    "usr_77d00c3b7d8193": [
+      {
+        "id": "otp_7c8d12b7c0b3",
+        "userId": "usr_77d00c3b7d8193",
+        "email": "qa.part05.1795278434569@linguaverse.ai",
+        "otpHash": "9f4799f28e980b852335d1c99d24881b9f65ba2d1ffc6b2ce1a003db0ef2c8ff",
+        "expiresAt": "2026-11-21T16:37:15.050Z",
+        "resendAvailableAt": "2026-11-21T16:28:15.050Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:27:14.998Z"
+      }
+    ],
+    "usr_e13fe6b74c88d7": [
+      {
+        "id": "otp_b6188eac087f",
+        "userId": "usr_e13fe6b74c88d7",
+        "email": "qa.r2.1795278657865@linguaverse.ai",
+        "otpHash": "19addd484ea853fc020c67d9a03012dda72f7d3ebab466b00576f5db1dd55569",
+        "expiresAt": "2026-11-21T16:40:58.400Z",
+        "resendAvailableAt": "2026-11-21T16:31:58.400Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:30:58.310Z"
+      }
+    ],
+    "usr_cf0b2e5f9214c4": [
+      {
+        "id": "otp_fb6f37800728",
+        "userId": "usr_cf0b2e5f9214c4",
+        "email": "qa.r2.1795278783098@linguaverse.ai",
+        "otpHash": "7a5c49c3390dcd40d6318e48a492978a22e10696a91c11bc80f04442e87c7eca",
+        "expiresAt": "2026-11-21T16:43:03.631Z",
+        "resendAvailableAt": "2026-11-21T16:34:03.631Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:33:03.538Z"
+      }
+    ],
+    "usr_c8b2a470a196b0": [
+      {
+        "id": "otp_611a5711026f",
+        "userId": "usr_c8b2a470a196b0",
+        "email": "qa.r2.1795278876705@linguaverse.ai",
+        "otpHash": "a5a9e25467e0cb704df49a36eed44b4650b29d285d0e824d4761257a9162ad6c",
+        "expiresAt": "2026-11-21T16:44:37.262Z",
+        "resendAvailableAt": "2026-11-21T16:35:37.262Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T16:34:37.174Z"
+      }
+    ],
+    "usr_37eb6000f7e566": [
+      {
+        "id": "otp_e031e96c987c",
+        "userId": "usr_37eb6000f7e566",
+        "email": "qa.audit.1795280770678@example.com",
+        "otpHash": "b4b205f8e420ae6ba6ef1187ec681477c5f5f9e9da9a855cd2a4fe2150536222",
+        "expiresAt": "2026-11-21T17:16:19.371Z",
+        "resendAvailableAt": "2026-11-21T17:07:19.371Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T17:06:19.238Z"
+      }
+    ],
+    "usr_6f5d77b173a2d4": [
+      {
+        "id": "otp_418b0b2b4600",
+        "userId": "usr_6f5d77b173a2d4",
+        "email": "qa.audit.1795280834036@example.com",
+        "otpHash": "16979c1121694c5ede91f15f438cd243c64e5f340e12064ad8ff20da430dda59",
+        "expiresAt": "2026-11-21T17:17:21.764Z",
+        "resendAvailableAt": "2026-11-21T17:08:21.764Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T17:07:21.657Z"
+      }
+    ],
+    "usr_39a0802726933b": [
+      {
+        "id": "otp_15ac73a7f010",
+        "userId": "usr_39a0802726933b",
+        "email": "qa.audit.1795280927410@example.com",
+        "otpHash": "cf95817f4e11635a1d336b68c146ff7c1182aee112068e626e95ac6507231fff",
+        "expiresAt": "2026-11-21T17:18:56.620Z",
+        "resendAvailableAt": "2026-11-21T17:09:56.620Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T17:08:56.535Z"
+      }
+    ],
+    "usr_88f67146f148e9": [
+      {
+        "id": "otp_9feddffd238c",
+        "userId": "usr_88f67146f148e9",
+        "email": "qa.audit.1795280973007@example.com",
+        "otpHash": "6520f1b95f0871c4f7bad6f5bb680c45c1a2075c55842ee2833ae24aac9ec502",
+        "expiresAt": "2026-11-21T17:19:39.601Z",
+        "resendAvailableAt": "2026-11-21T17:10:39.601Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T17:09:39.477Z"
+      }
+    ],
+    "usr_57ca4824b73d05": [
+      {
+        "id": "otp_d8533a3e7d8d",
+        "userId": "usr_57ca4824b73d05",
+        "email": "redteam.audit.1795284632120@example.com",
+        "otpHash": "9d3cce21853a595fca1c93e23ffcb3e8ff8e50658bd9e1041b004b05c023d8f5",
+        "expiresAt": "2026-11-21T18:20:32.211Z",
+        "resendAvailableAt": "2026-11-21T18:11:32.211Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:10:32.125Z"
+      }
+    ],
+    "usr_2874ad3c437d6f": [
+      {
+        "id": "otp_319ced550c99",
+        "userId": "usr_2874ad3c437d6f",
+        "email": "audit.u1.1795284832750@example.com",
+        "otpHash": "c018cd9ef050d974d739dc97c07d7008048620ede6e6fa84b3eefd76789f7fb4",
+        "expiresAt": "2026-11-21T18:23:57.953Z",
+        "resendAvailableAt": "2026-11-21T18:14:57.953Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:13:57.898Z"
+      }
+    ],
+    "usr_1f0fb09a11e410": [
+      {
+        "id": "otp_b016dd9a9541",
+        "userId": "usr_1f0fb09a11e410",
+        "email": "audit.u1.1795285050742@example.com",
+        "otpHash": "21cbefcd51f3fa1729ca59b8ac6f37cb325e8f787a20e28a8139120331e0a1d7",
+        "expiresAt": "2026-11-21T18:27:37.021Z",
+        "resendAvailableAt": "2026-11-21T18:18:37.021Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:17:36.948Z"
+      }
+    ],
+    "usr_0a39b5bd2909ed": [
+      {
+        "id": "otp_bc08339998d2",
+        "userId": "usr_0a39b5bd2909ed",
+        "email": "audit.u1.1795285176404@example.com",
+        "otpHash": "9a780c6599ec94f2cb2f21f314b5188075cb7b9ffefa4091ec01a6c364e88489",
+        "expiresAt": "2026-11-21T18:29:40.388Z",
+        "resendAvailableAt": "2026-11-21T18:20:40.388Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:19:40.322Z"
+      }
+    ],
+    "usr_3d51e6615f7b61": [
+      {
+        "id": "otp_27b7f0a83aab",
+        "userId": "usr_3d51e6615f7b61",
+        "email": "audit.u1.1795285361021@example.com",
+        "otpHash": "e973d6de5c4e4edf395092c3135a1a6598c613ddb34a9cd34059e4226cbee530",
+        "expiresAt": "2026-11-21T18:32:46.385Z",
+        "resendAvailableAt": "2026-11-21T18:23:46.385Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:22:46.322Z"
+      }
+    ],
+    "usr_067672fdbdb702": [
+      {
+        "id": "otp_8b721cdcfd7d",
+        "userId": "usr_067672fdbdb702",
+        "email": "audit.u1.1795285590065@example.com",
+        "otpHash": "c54d493895f7d3ebdbb13ea25ab96735acbca8ff80d699f27dd8c0b44e1dbaff",
+        "expiresAt": "2026-11-21T18:36:37.723Z",
+        "resendAvailableAt": "2026-11-21T18:27:37.723Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:26:37.645Z"
+      }
+    ],
+    "usr_3cb9e5dac5bdae": [
+      {
+        "id": "otp_16290927f36c",
+        "userId": "usr_3cb9e5dac5bdae",
+        "email": "audit.u1.1795285878759@example.com",
+        "otpHash": "dc1a35321b4aab16f46f90ef79307773fceb2c99ecb61a0a798f397392f561f4",
+        "expiresAt": "2026-11-21T18:41:26.391Z",
+        "resendAvailableAt": "2026-11-21T18:32:26.391Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:31:26.312Z"
+      }
+    ],
+    "usr_373cae63912a04": [
+      {
+        "id": "otp_b6fb29a764bc",
+        "userId": "usr_373cae63912a04",
+        "email": "audit.u1.1795286210160@example.com",
+        "otpHash": "845ad374c60201562910ed26018e35fcbf8178249e6f4b1fd173fed26975fd2b",
+        "expiresAt": "2026-11-21T18:46:55.475Z",
+        "resendAvailableAt": "2026-11-21T18:37:55.475Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:36:55.422Z"
+      }
+    ],
+    "usr_9554d3bd67b0cb": [
+      {
+        "id": "otp_4d019f7d58d0",
+        "userId": "usr_9554d3bd67b0cb",
+        "email": "audit.u1.1795286411507@example.com",
+        "otpHash": "2e010aead59e965f29a4624315be57de6da1c16e5469158be4f8bd493a0244bb",
+        "expiresAt": "2026-11-21T18:50:16.806Z",
+        "resendAvailableAt": "2026-11-21T18:41:16.806Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:40:16.734Z"
+      }
+    ],
+    "usr_4d5a47f29266be": [
+      {
+        "id": "otp_ea843623d7bc",
+        "userId": "usr_4d5a47f29266be",
+        "email": "audit.u2.1795286494700@example.com",
+        "otpHash": "749be0042ab0068c8ba25a8986ca3ef0f86d54cfa365d79246144983709e1797",
+        "expiresAt": "2026-11-21T18:51:38.019Z",
+        "resendAvailableAt": "2026-11-21T18:42:38.019Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:41:37.954Z"
+      }
+    ],
+    "usr_2c6fbacfeaf157": [
+      {
+        "id": "otp_f5e46e85bb23",
+        "userId": "usr_2c6fbacfeaf157",
+        "email": "audit.iso1.1795286733719@example.com",
+        "otpHash": "3eb7201b4c5e921c577f3549336ecb38853bcab2db8fa3db41210f4fa509fe8e",
+        "expiresAt": "2026-11-21T18:55:37.652Z",
+        "resendAvailableAt": "2026-11-21T18:46:37.652Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:45:37.600Z"
+      }
+    ],
+    "usr_06845d2892cb3d": [
+      {
+        "id": "otp_f02e0f1f9704",
+        "userId": "usr_06845d2892cb3d",
+        "email": "audit.iso2.1795286733719@example.com",
+        "otpHash": "62d1a5c3d592df05d6fc2e36bdbff9f12628d6274416e8fd5a47c63a0f27febe",
+        "expiresAt": "2026-11-21T18:56:23.509Z",
+        "resendAvailableAt": "2026-11-21T18:47:23.509Z",
+        "attempts": 0,
+        "createdAt": "2026-11-21T18:46:23.439Z"
+      }
+    ],
+    "usr_ba907344aec4f1": [
+      {
+        "id": "otp_ec3a6ee9bcec",
+        "userId": "usr_ba907344aec4f1",
+        "email": "sec_audit_p7_1795320828751@linguaverse.test",
+        "otpHash": "0aa833e6e1fe8ea05f6c5d4c6af1e8bebadc15bc9806ab941c4c164e0e2034bb",
+        "expiresAt": "2026-11-22T04:23:48.989Z",
+        "resendAvailableAt": "2026-11-22T04:14:48.989Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T04:13:48.908Z"
+      }
+    ],
+    "usr_9432fd87def365": [
+      {
+        "id": "otp_907f4e86aae5",
+        "userId": "usr_9432fd87def365",
+        "email": "e2e_p7_1795321241318@linguaverse.test",
+        "otpHash": "9f2e8e8ed4c2ef1f8328489d317897b53102e41523d586cea12bfc3bb5315020",
+        "expiresAt": "2026-11-22T04:30:41.953Z",
+        "resendAvailableAt": "2026-11-22T04:21:41.953Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T04:20:41.861Z"
+      }
+    ],
+    "usr_706ca3cdcbc844": [
+      {
+        "id": "otp_f71f76c9a539",
+        "userId": "usr_706ca3cdcbc844",
+        "email": "part08_api_check_1795331903@example.com",
+        "otpHash": "4e7e771bd4153abf9ac082acd1d4c80deada49af9204df800ff7b97f77e407a7",
+        "expiresAt": "2026-11-22T07:28:23.441Z",
+        "resendAvailableAt": "2026-11-22T07:19:23.441Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T07:18:23.358Z"
+      }
+    ],
+    "usr_ac521f526bb30f": [
+      {
+        "id": "otp_b409ec598584",
+        "userId": "usr_ac521f526bb30f",
+        "email": "part08_e2e_1795331954171@example.com",
+        "otpHash": "d03d4480f0c86d23e402cfab55335b6055e0b3d5ddb98ec4dc31f13d72f749da",
+        "expiresAt": "2026-11-22T07:29:14.753Z",
+        "resendAvailableAt": "2026-11-22T07:20:14.753Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T07:19:14.692Z"
+      }
+    ],
+    "usr_690f3e37edeed0": [
+      {
+        "id": "otp_eb43a48c5b7b",
+        "userId": "usr_690f3e37edeed0",
+        "email": "part08_e2e_1795332077825@example.com",
+        "otpHash": "dbd777ba41742904884299a89072957a55df924b4c293e71954341f5331fab23",
+        "expiresAt": "2026-11-22T07:31:18.359Z",
+        "resendAvailableAt": "2026-11-22T07:22:18.359Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T07:21:18.288Z"
+      }
+    ],
+    "usr_ef66964b07477d": [
+      {
+        "id": "otp_f3585e769610",
+        "userId": "usr_ef66964b07477d",
+        "email": "part08_e2e_1795332165179@example.com",
+        "otpHash": "b7592e72464c37838fdb150c1894f33a8dcc1a4251597c72b02aa275e744e268",
+        "expiresAt": "2026-11-22T07:32:45.768Z",
+        "resendAvailableAt": "2026-11-22T07:23:45.768Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T07:22:45.714Z"
+      }
+    ],
+    "usr_ef6a74419538fb": [
+      {
+        "id": "otp_29c18f69b177",
+        "userId": "usr_ef6a74419538fb",
+        "email": "part08_mob_1795332258130@example.com",
+        "otpHash": "92ae00b0a08de8cd3aa6ccc684faf5b3583f7491149259a10c0e110073241538",
+        "expiresAt": "2026-11-22T07:34:18.750Z",
+        "resendAvailableAt": "2026-11-22T07:25:18.750Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T07:24:18.697Z"
+      }
+    ],
+    "usr_a051d414399d94": [
+      {
+        "id": "otp_3d2971d35db5",
+        "userId": "usr_a051d414399d94",
+        "email": "audit_api_p08_1795369100145@example.com",
+        "otpHash": "51a2254839585cafbbd4a9ca15f86ca6de80c501ec530053b949d6cecf9900e9",
+        "expiresAt": "2026-11-22T17:48:20.238Z",
+        "resendAvailableAt": "2026-11-22T17:39:20.238Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:38:20.155Z"
+      }
+    ],
+    "usr_b40f2af3c42aa5": [
+      {
+        "id": "otp_71bda2f6b854",
+        "userId": "usr_b40f2af3c42aa5",
+        "email": "audit_api_p08_1795369176420@example.com",
+        "otpHash": "4f0cfcb430141e0b50aa4f1078b685bda3480772c33ea35552f97618af94d31e",
+        "expiresAt": "2026-11-22T17:49:36.506Z",
+        "resendAvailableAt": "2026-11-22T17:40:36.506Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:39:36.427Z"
+      }
+    ],
+    "usr_864e0542338043": [
+      {
+        "id": "otp_39a3ebdda0cf",
+        "userId": "usr_864e0542338043",
+        "email": "audit_api_p08_1795369358834@example.com",
+        "otpHash": "e6e6ed01cd578cc0e896d69e87578d5bf41ed563ab862e0d9eb049f9c28d191e",
+        "expiresAt": "2026-11-22T17:52:38.895Z",
+        "resendAvailableAt": "2026-11-22T17:43:38.895Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:42:38.842Z"
+      }
+    ],
+    "usr_bc45e59eaffc99": [
+      {
+        "id": "otp_4a5acd869a1d",
+        "userId": "usr_bc45e59eaffc99",
+        "email": "audit_e2e_a_1795369635556@example.com",
+        "otpHash": "37482adbe3b15dca59d9bea3174620ad5a35d1318c4657491d3ff6114b96650c",
+        "expiresAt": "2026-11-22T17:57:26.828Z",
+        "resendAvailableAt": "2026-11-22T17:48:26.828Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:47:26.756Z"
+      }
+    ],
+    "usr_da982f35b2e3ca": [
+      {
+        "id": "otp_892161dcd882",
+        "userId": "usr_da982f35b2e3ca",
+        "email": "audit_e2e_a_1795369831852@example.com",
+        "otpHash": "ccde2c3f8b298e7b23fa6d839a62aca56753c86272507362e4fa6d8ca65df462",
+        "expiresAt": "2026-11-22T18:00:42.311Z",
+        "resendAvailableAt": "2026-11-22T17:51:42.311Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:50:42.251Z"
+      }
+    ],
+    "usr_4a5699203a79da": [
+      {
+        "id": "otp_0d8a2bed5082",
+        "userId": "usr_4a5699203a79da",
+        "email": "audit_e2e_a_1795370080267@example.com",
+        "otpHash": "1c9ebde3060578210bfe9c2b252998729134d440204f73e0c30f3dbb33cb03ed",
+        "expiresAt": "2026-11-22T18:04:51.011Z",
+        "resendAvailableAt": "2026-11-22T17:55:51.011Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:54:50.957Z"
+      }
+    ],
+    "usr_d834cdc0abb44d": [
+      {
+        "id": "otp_721227b599bf",
+        "userId": "usr_d834cdc0abb44d",
+        "email": "audit_e2e_b_1795370150273@example.com",
+        "otpHash": "24cee3410a40e5534cb86830527b36d6da660fdbc746b528033a94bc90d4f921",
+        "expiresAt": "2026-11-22T18:05:52.975Z",
+        "resendAvailableAt": "2026-11-22T17:56:52.975Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:55:52.922Z"
+      }
+    ],
+    "usr_35c99ed7c849ef": [
+      {
+        "id": "otp_fc6c20d6d3a3",
+        "userId": "usr_35c99ed7c849ef",
+        "email": "audit_e2e_a_1795370283146@example.com",
+        "otpHash": "328d02c65be6993ad568fd62ca9e43fe0bc8f1279b47c0c9a73bbdcaa4834073",
+        "expiresAt": "2026-11-22T18:08:14.280Z",
+        "resendAvailableAt": "2026-11-22T17:59:14.280Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:58:14.198Z"
+      }
+    ],
+    "usr_ace4347dd74d4e": [
+      {
+        "id": "otp_a2d50a1d7f45",
+        "userId": "usr_ace4347dd74d4e",
+        "email": "audit_e2e_b_1795370337249@example.com",
+        "otpHash": "9978c8282f3b1d55d7038aec23893e7cdfa123837a5e824767cba901dba35791",
+        "expiresAt": "2026-11-22T18:09:00.048Z",
+        "resendAvailableAt": "2026-11-22T18:00:00.048Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T17:58:59.963Z"
+      }
+    ],
+    "usr_af104d9c05a92c": [
+      {
+        "id": "otp_a573e2d35848",
+        "userId": "usr_af104d9c05a92c",
+        "email": "audit_sc_1795370510176@example.com",
+        "otpHash": "afd9e1d77a37eb9c2c23c18f18715b71ce43804e658c7d3b30f9c0738224ad60",
+        "expiresAt": "2026-11-22T18:11:50.690Z",
+        "resendAvailableAt": "2026-11-22T18:02:50.690Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T18:01:50.620Z"
+      }
+    ],
+    "usr_f3de94298129ab": [
+      {
+        "id": "otp_034184f8033f",
+        "userId": "usr_f3de94298129ab",
+        "email": "p09_api_verify_1795373727@example.com",
+        "otpHash": "230cfa3493d4d22409dbc864a834a9b81ee26db966c899543af5c2b9330072ce",
+        "expiresAt": "2026-11-22T19:05:27.308Z",
+        "resendAvailableAt": "2026-11-22T18:56:27.308Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T18:55:27.212Z"
+      }
+    ],
+    "usr_dcebf9494be276": [
+      {
+        "id": "otp_0976da37f067",
+        "userId": "usr_dcebf9494be276",
+        "email": "p09_browser_verify_1795373860262@example.com",
+        "otpHash": "0ee8f96639740d1cb1adcd48282403fe331483588390bfd4a42b7a74fb7af8d8",
+        "expiresAt": "2026-11-22T19:07:40.409Z",
+        "resendAvailableAt": "2026-11-22T18:58:40.409Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T18:57:40.288Z"
+      }
+    ],
+    "usr_015f4c4447b98d": [
+      {
+        "id": "otp_8612b6158a28",
+        "userId": "usr_015f4c4447b98d",
+        "email": "p09_browser_verify_1795373979930@example.com",
+        "otpHash": "89fb373d5e7f1cb8419b2c34e340305e8eb9d9f2ee4ee3004e15382735b1272a",
+        "expiresAt": "2026-11-22T19:09:40.011Z",
+        "resendAvailableAt": "2026-11-22T19:00:40.011Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T18:59:39.951Z"
+      }
+    ],
+    "usr_39a10abc14145f": [
+      {
+        "id": "otp_646ace9e397b",
+        "userId": "usr_39a10abc14145f",
+        "email": "p09_browser_verify_1795374904377@example.com",
+        "otpHash": "61b5e4bc599c571f10eaa4c58196439030493b394a1e82b758ba9fb23683abd3",
+        "expiresAt": "2026-11-22T19:25:08.715Z",
+        "resendAvailableAt": "2026-11-22T19:16:08.715Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T19:15:08.662Z"
+      }
+    ],
+    "usr_a7be89c8b779bf": [
+      {
+        "id": "otp_31a59cf5461e",
+        "userId": "usr_a7be89c8b779bf",
+        "email": "p09_final_verify_1795376908@example.com",
+        "otpHash": "115caa696dd70df515a29cf25ed39569a8c32ece6fa0fc95896ab674aab989ab",
+        "expiresAt": "2026-11-22T19:58:28.986Z",
+        "resendAvailableAt": "2026-11-22T19:49:28.986Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T19:48:28.905Z"
+      }
+    ],
+    "usr_c0338088016dab": [
+      {
+        "id": "otp_4c72bc9be5cf",
+        "userId": "usr_c0338088016dab",
+        "email": "p09_final_v3_1795377079@example.com",
+        "otpHash": "e3180ba09c864152c245107bbb294f122f7249eef6de890a942e083631db4e79",
+        "expiresAt": "2026-11-22T20:01:20.164Z",
+        "resendAvailableAt": "2026-11-22T19:52:20.164Z",
+        "attempts": 0,
+        "createdAt": "2026-11-22T19:51:20.083Z"
+      }
+    ],
+    "usr_a6e75ac9ea0625": [
+      {
+        "id": "otp_177433c03fc7",
+        "userId": "usr_a6e75ac9ea0625",
+        "email": "dna.verify.1795487183440@linguaverse.test",
+        "otpHash": "59e8f3dfc75beda54419f28761afba9bd9270665975481ab0dbd1fec61f54c5f",
+        "expiresAt": "2026-11-24T02:36:24.008Z",
+        "resendAvailableAt": "2026-11-24T02:27:24.008Z",
+        "attempts": 0,
+        "createdAt": "2026-11-24T02:26:23.931Z"
+      }
+    ],
+    "usr_c8250854bd8725": [
+      {
+        "id": "otp_938b3f82ba81",
+        "userId": "usr_c8250854bd8725",
+        "email": "dna.empty.1795487261000@linguaverse.test",
+        "otpHash": "37dd21f83b64174c63aa3c3db6afb3c1ccaea219b6ce13f962cb052289aa7214",
+        "expiresAt": "2026-11-24T02:37:41.482Z",
+        "resendAvailableAt": "2026-11-24T02:28:41.482Z",
+        "attempts": 0,
+        "createdAt": "2026-11-24T02:27:41.433Z"
+      }
+    ],
+    "usr_f9121d75c02468": [
+      {
+        "id": "otp_a34bef42a549",
+        "userId": "usr_f9121d75c02468",
+        "email": "dna.r2.1795488153746@linguaverse.test",
+        "otpHash": "c86bb9c2b0175d0b7ac6338c5d4f1a9e6234af887d90a38f38e72a494a0abb30",
+        "expiresAt": "2026-11-24T02:52:34.271Z",
+        "resendAvailableAt": "2026-11-24T02:43:34.271Z",
+        "attempts": 0,
+        "createdAt": "2026-11-24T02:42:34.196Z"
+      }
+    ],
+    "usr_eb4816a8a01bc5": [
+      {
+        "id": "otp_22f57910e567",
+        "userId": "usr_eb4816a8a01bc5",
+        "email": "part11_verify_1795564677610@example.com",
+        "otpHash": "9a1a9a71b141d0ce0a1e20a4cc2e28537ed86f671c1304ed48df7d9b43af2670",
+        "expiresAt": "2026-11-25T00:07:58.145Z",
+        "resendAvailableAt": "2026-11-24T23:58:58.145Z",
+        "attempts": 0,
+        "createdAt": "2026-11-24T23:57:58.080Z"
+      }
+    ],
+    "usr_6338072715371e": [
+      {
+        "id": "otp_f0c909bae6cc",
+        "userId": "usr_6338072715371e",
+        "email": "part11_r2_1795564994198@example.com",
+        "otpHash": "73709e72f31372cd1b5b2e684c4422ada60c08a479c874f41e7ce714d740d99a",
+        "expiresAt": "2026-11-25T00:13:14.659Z",
+        "resendAvailableAt": "2026-11-25T00:04:14.659Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:03:14.607Z"
+      }
+    ],
+    "usr_1540abe9811fa5": [
+      {
+        "id": "otp_e236beb8f6d0",
+        "userId": "usr_1540abe9811fa5",
+        "email": "part11_r2_1795565029575@example.com",
+        "otpHash": "d27cf216f362db5974653839c763cc39220bbd45c412ee284de03abb350c2e0b",
+        "expiresAt": "2026-11-25T00:13:49.971Z",
+        "resendAvailableAt": "2026-11-25T00:04:49.971Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:03:49.905Z"
+      }
+    ],
+    "usr_ba1627810bbe0c": [
+      {
+        "id": "otp_3862731361a2",
+        "userId": "usr_ba1627810bbe0c",
+        "email": "part11_r2_1795565093849@example.com",
+        "otpHash": "640117e3eedd4963cad8b21999bd89d43fad6868a3e328b12dcd255f830186e4",
+        "expiresAt": "2026-11-25T00:14:54.277Z",
+        "resendAvailableAt": "2026-11-25T00:05:54.277Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:04:54.230Z"
+      }
+    ],
+    "usr_066e1f9b0b4a06": [
+      {
+        "id": "otp_44e159819331",
+        "userId": "usr_066e1f9b0b4a06",
+        "email": "part11_r2_1795565173390@example.com",
+        "otpHash": "4264505a3128627031515bf61bddc6914ce28f03eb5a1e79f7a190a48dd197e3",
+        "expiresAt": "2026-11-25T00:16:13.834Z",
+        "resendAvailableAt": "2026-11-25T00:07:13.834Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:06:13.763Z"
+      }
+    ],
+    "usr_7438e689ee33bd": [
+      {
+        "id": "otp_314bda901b9c",
+        "userId": "usr_7438e689ee33bd",
+        "email": "part11_r2_1795565319290@example.com",
+        "otpHash": "6e3b898d1381d6cee22b34d9bd6736cfce613ac421907fb5daab96640685f811",
+        "expiresAt": "2026-11-25T00:18:39.775Z",
+        "resendAvailableAt": "2026-11-25T00:09:39.775Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:08:39.692Z"
+      }
+    ],
+    "usr_98052e2fc068bc": [
+      {
+        "id": "otp_951bd31ad90b",
+        "userId": "usr_98052e2fc068bc",
+        "email": "part11_r2b_1795565439703@example.com",
+        "otpHash": "d37146fdf53f8b2b025f2a3612e0c33018ae06f186bb4cb8781545d5535d6069",
+        "expiresAt": "2026-11-25T00:20:40.131Z",
+        "resendAvailableAt": "2026-11-25T00:11:40.131Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:10:40.083Z"
+      }
+    ],
+    "usr_1a046cd4dd8e9c": [
+      {
+        "id": "otp_28f701d9faf9",
+        "userId": "usr_1a046cd4dd8e9c",
+        "email": "part11_r2c_1795565562166@example.com",
+        "otpHash": "cc718bdbc66f910c04d3303578fbc4e02da080ba76ffb04540cee5587001c3f8",
+        "expiresAt": "2026-11-25T00:22:42.702Z",
+        "resendAvailableAt": "2026-11-25T00:13:42.702Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:12:42.644Z"
+      }
+    ],
+    "usr_861a46c33cdeff": [
+      {
+        "id": "otp_bce67d4a5c35",
+        "userId": "usr_861a46c33cdeff",
+        "email": "part11_api_verify_1795566050322@example.com",
+        "otpHash": "9e4552afde65f610b8b9941d9e66615186fc3a68797074dad78715c3dbd098d0",
+        "expiresAt": "2026-11-25T00:30:50.420Z",
+        "resendAvailableAt": "2026-11-25T00:21:50.420Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T00:20:50.331Z"
+      }
+    ],
+    "usr_3a5d7329b22d02": [
+      {
+        "id": "otp_63dc144e30c4",
+        "userId": "usr_3a5d7329b22d02",
+        "email": "verify_final_1795571813572@example.com",
+        "otpHash": "b195bff7496ffb99918cbe4692a1c1ab75bc8e58559866fbc9f3876847b28d54",
+        "expiresAt": "2026-11-25T02:06:54.025Z",
+        "resendAvailableAt": "2026-11-25T01:57:54.025Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T01:56:53.951Z"
+      }
+    ],
+    "usr_bcc7a81fdda32e": [
+      {
+        "id": "otp_6928f8af31d8",
+        "userId": "usr_bcc7a81fdda32e",
+        "email": "verify_api_eval_1795571934834@example.com",
+        "otpHash": "9b8341e168163b367c9ac43cd9e445ddb195d666ac88fac79eb9a3084f917653",
+        "expiresAt": "2026-11-25T02:08:54.891Z",
+        "resendAvailableAt": "2026-11-25T01:59:54.891Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T01:58:54.841Z"
+      }
+    ],
+    "usr_8a8a5c744fbe91": [
+      {
+        "id": "otp_3ebd288afcb2",
+        "userId": "usr_8a8a5c744fbe91",
+        "email": "replay_e2e_1795588847268@example.com",
+        "otpHash": "e08acdc11e2df6e5f695b0a00184d3ae0080e9565bb39ed8bace3545cc4f9b49",
+        "expiresAt": "2026-11-25T06:50:50.415Z",
+        "resendAvailableAt": "2026-11-25T06:41:50.415Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:40:50.351Z"
+      }
+    ],
+    "usr_e71fe6d657fa7c": [
+      {
+        "id": "otp_8b258a1ed17b",
+        "userId": "usr_e71fe6d657fa7c",
+        "email": "replay_e2e_1795588954545@example.com",
+        "otpHash": "f9e6b2f5dd4b375d830687db1180571f01318f0ed1ad259a9cca1b58b5cd14e9",
+        "expiresAt": "2026-11-25T06:52:35.200Z",
+        "resendAvailableAt": "2026-11-25T06:43:35.200Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:42:35.097Z"
+      }
+    ],
+    "usr_3eebd35da318ae": [
+      {
+        "id": "otp_fa21fd91a0b1",
+        "userId": "usr_3eebd35da318ae",
+        "email": "replay_qa_1795589452660@linguaverse.test",
+        "otpHash": "135fc55a9b23238a3d171c35fdc4cc034619d6a64355acf2e4202df67d117b6a",
+        "expiresAt": "2026-11-25T07:00:53.161Z",
+        "resendAvailableAt": "2026-11-25T06:51:53.161Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:50:53.081Z"
+      }
+    ],
+    "usr_05739565cec8c2": [
+      {
+        "id": "otp_d5304beff026",
+        "userId": "usr_05739565cec8c2",
+        "email": "replay_qa_1795589594581@linguaverse.test",
+        "otpHash": "72e96233e19526288adc7044a1587d8aeb2b3f47fcb7b5013288f56d1b941e91",
+        "expiresAt": "2026-11-25T07:03:15.045Z",
+        "resendAvailableAt": "2026-11-25T06:54:15.045Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:53:14.990Z"
+      }
+    ],
+    "usr_c416a31f25f61e": [
+      {
+        "id": "otp_10a04ad0e2a6",
+        "userId": "usr_c416a31f25f61e",
+        "email": "replay_qa_1795589667854@linguaverse.test",
+        "otpHash": "7df7e9e7eec4a45ced28ac6f107463deb97a2307c273f8f579d6651b04be37bc",
+        "expiresAt": "2026-11-25T07:04:28.354Z",
+        "resendAvailableAt": "2026-11-25T06:55:28.354Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:54:28.303Z"
+      }
+    ],
+    "usr_d58854869c65fc": [
+      {
+        "id": "otp_eb76e44b3f4b",
+        "userId": "usr_d58854869c65fc",
+        "email": "replay_qa_1795589795174@linguaverse.test",
+        "otpHash": "8c87f69089de47348b1b379e40f6345dfd7a77f038dc7d2ef26b9c09ccf19630",
+        "expiresAt": "2026-11-25T07:06:35.665Z",
+        "resendAvailableAt": "2026-11-25T06:57:35.665Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:56:35.614Z"
+      }
+    ],
+    "usr_566da86def95af": [
+      {
+        "id": "otp_ed0d96518873",
+        "userId": "usr_566da86def95af",
+        "email": "replay_qa_1795589880196@linguaverse.test",
+        "otpHash": "b639b6a8210503f62cded84bbe7f3561342ed52097eb5af931b14fc04992424c",
+        "expiresAt": "2026-11-25T07:08:00.648Z",
+        "resendAvailableAt": "2026-11-25T06:59:00.648Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:58:00.592Z"
+      }
+    ],
+    "usr_14c854a1fcb8bb": [
+      {
+        "id": "otp_1bac4ea98f68",
+        "userId": "usr_14c854a1fcb8bb",
+        "email": "diag_1795589918680@linguaverse.test",
+        "otpHash": "aaba610458dcc0f7d232bd15df348ae53d370bd589ebcbfc13558bca36412c57",
+        "expiresAt": "2026-11-25T07:08:39.085Z",
+        "resendAvailableAt": "2026-11-25T06:59:39.085Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T06:58:39.034Z"
+      }
+    ],
+    "usr_900c7760d1b4f8": [
+      {
+        "id": "otp_af1aeb482a92",
+        "userId": "usr_900c7760d1b4f8",
+        "email": "replay_qa_1795590011521@linguaverse.test",
+        "otpHash": "5d56b4fc07bafff9993654064d0df0b7d8ae934d64fe2d791e193e2663098a29",
+        "expiresAt": "2026-11-25T07:10:11.989Z",
+        "resendAvailableAt": "2026-11-25T07:01:11.989Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T07:00:11.940Z"
+      }
+    ],
+    "usr_d54b6d1b3b7d08": [
+      {
+        "id": "otp_6be304df79c7",
+        "userId": "usr_d54b6d1b3b7d08",
+        "email": "diag2_1795590060897@linguaverse.test",
+        "otpHash": "1d00adcde3a7dd399ddd175d8676eebd4cd0ce40ed6c440b7f8cb1ca7c79ee76",
+        "expiresAt": "2026-11-25T07:11:01.266Z",
+        "resendAvailableAt": "2026-11-25T07:02:01.266Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T07:01:01.212Z"
+      }
+    ],
+    "usr_166f7c9fa3681f": [
+      {
+        "id": "otp_1698eb60cd47",
+        "userId": "usr_166f7c9fa3681f",
+        "email": "replay_qa_1795593618437@linguaverse.test",
+        "otpHash": "3da6247979b00e968bd2441525799820b4333e22315d29d1753759734c7b85d0",
+        "expiresAt": "2026-11-25T08:10:18.922Z",
+        "resendAvailableAt": "2026-11-25T08:01:18.922Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T08:00:18.856Z"
+      }
+    ],
+    "usr_1f2d5aa88de633": [
+      {
+        "id": "otp_dfcaea002b43",
+        "userId": "usr_1f2d5aa88de633",
+        "email": "replay_qa_1795593830513@linguaverse.test",
+        "otpHash": "222b838e0de973b7ace14b1a7db56eacf23cc8992287012262da3672846fc62d",
+        "expiresAt": "2026-11-25T08:13:51.018Z",
+        "resendAvailableAt": "2026-11-25T08:04:51.018Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T08:03:50.931Z"
+      }
+    ],
+    "usr_b2ff81dde1ad51": [
+      {
+        "id": "otp_82d74c16985a",
+        "userId": "usr_b2ff81dde1ad51",
+        "email": "curl_qa_1795593991@linguaverse.test",
+        "otpHash": "d75ac3d800bfcdc12c1ccd27ddb0457098950c569532e378007eafa8f91e2968",
+        "expiresAt": "2026-11-25T08:16:31.531Z",
+        "resendAvailableAt": "2026-11-25T08:07:31.531Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T08:06:31.481Z"
+      }
+    ],
+    "usr_740229729e49c2": [
+      {
+        "id": "otp_a025167045ae",
+        "userId": "usr_740229729e49c2",
+        "email": "replay_qa_1795594128303@linguaverse.test",
+        "otpHash": "24c7c383a38776c5a67e324cffd5488efbe7a348af3184ec1b2fcb851f117ec9",
+        "expiresAt": "2026-11-25T08:18:48.805Z",
+        "resendAvailableAt": "2026-11-25T08:09:48.805Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T08:08:48.722Z"
+      }
+    ],
+    "usr_d61b063f229706": [
+      {
+        "id": "otp_426b10118a1b",
+        "userId": "usr_d61b063f229706",
+        "email": "replay_qa_1795594267683@linguaverse.test",
+        "otpHash": "9e31235d0461eeee78e9a7fea0abb519288a7fbf4f1ccbfb0e3b98ce532e775f",
+        "expiresAt": "2026-11-25T08:21:08.157Z",
+        "resendAvailableAt": "2026-11-25T08:12:08.157Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T08:11:08.104Z"
+      }
+    ],
+    "usr_c993bbca4e971f": [
+      {
+        "id": "otp_264908562a33",
+        "userId": "usr_c993bbca4e971f",
+        "email": "audit_1795597608@linguaverse.test",
+        "otpHash": "8c0a4b02a54b84259d85879b7471a1fca54fe5be7082ff3b405127ebbe7d34e1",
+        "expiresAt": "2026-11-25T09:16:48.799Z",
+        "resendAvailableAt": "2026-11-25T09:07:48.799Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T09:06:48.713Z"
+      }
+    ],
+    "usr_dd06edb153ee2e": [
+      {
+        "id": "otp_af8e6c9ddc02",
+        "userId": "usr_dd06edb153ee2e",
+        "email": "audit_e2e_1795597880921@linguaverse.test",
+        "otpHash": "ee79b841fbd359f2887ee81059dbbe93982354dad206eb8de29c9c3026a19eb8",
+        "expiresAt": "2026-11-25T09:21:21.382Z",
+        "resendAvailableAt": "2026-11-25T09:12:21.382Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T09:11:21.311Z"
+      }
+    ],
+    "usr_5daa4742de9fd2": [
+      {
+        "id": "otp_4ce661b4a244",
+        "userId": "usr_5daa4742de9fd2",
+        "email": "p1verify_1795630189808@example.com",
+        "otpHash": "3c29d51aa569d86c00ac89b5db61d9ab27562878a407ec134ecb5fa2f429a0f9",
+        "expiresAt": "2026-11-25T18:19:49.909Z",
+        "resendAvailableAt": "2026-11-25T18:10:49.909Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T18:09:49.813Z"
+      }
+    ],
+    "usr_64ad3db71fbe74": [
+      {
+        "id": "otp_8abcdf3707d2",
+        "userId": "usr_64ad3db71fbe74",
+        "email": "p3sec_1795634762@example.com",
+        "otpHash": "95b7e709f06e1416f865c994d2ae9056b4bc298dc1110d086e1d4559f4343718",
+        "expiresAt": "2026-11-25T19:36:02.454Z",
+        "resendAvailableAt": "2026-11-25T19:27:02.454Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:26:02.371Z"
+      }
+    ],
+    "usr_eb2e097fb684b6": [
+      {
+        "id": "otp_6d84ba117572",
+        "userId": "usr_eb2e097fb684b6",
+        "email": "p3browser_1795634940877@example.com",
+        "otpHash": "610bae7dcc5167f71b1f2500cbb2359cd75298b1dd0fe1dbfea368276b4d15be",
+        "expiresAt": "2026-11-25T19:39:01.329Z",
+        "resendAvailableAt": "2026-11-25T19:30:01.329Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:29:01.252Z"
+      }
+    ],
+    "usr_22ebd678544403": [
+      {
+        "id": "otp_54d974129508",
+        "userId": "usr_22ebd678544403",
+        "email": "p3browser_1795635016280@example.com",
+        "otpHash": "50dd073dfe8dfeeb597d41546c0ccd1da366eefeee6b1b764d5c4a2661c7226d",
+        "expiresAt": "2026-11-25T19:40:16.724Z",
+        "resendAvailableAt": "2026-11-25T19:31:16.724Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:30:16.675Z"
+      }
+    ],
+    "usr_3fb074af43dc0c": [
+      {
+        "id": "otp_d7142921a157",
+        "userId": "usr_3fb074af43dc0c",
+        "email": "p3diag_1795635056790@example.com",
+        "otpHash": "6cadf852295332b8c74d5ff29a62fa8d381dcf50db6fee1acd4209a47e2ef3d1",
+        "expiresAt": "2026-11-25T19:40:57.228Z",
+        "resendAvailableAt": "2026-11-25T19:31:57.228Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:30:57.178Z"
+      }
+    ],
+    "usr_fb7d4b9bbf1c72": [
+      {
+        "id": "otp_f1beba6074b5",
+        "userId": "usr_fb7d4b9bbf1c72",
+        "email": "p3e2e_1795635102194@example.com",
+        "otpHash": "d6afb3730e7002a9d768dcbf92e52b7a302ad983a2d34c19cbfce2fb41cee36e",
+        "expiresAt": "2026-11-25T19:41:42.602Z",
+        "resendAvailableAt": "2026-11-25T19:32:42.602Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:31:42.553Z"
+      }
+    ],
+    "usr_945734713ae4cc": [
+      {
+        "id": "otp_2fef77ff6546",
+        "userId": "usr_945734713ae4cc",
+        "email": "p3e2e_1795635212635@example.com",
+        "otpHash": "b259a5b5bc654597f923b333ece8cf3ca93a8417c215f7aa0de16297de7bbd6f",
+        "expiresAt": "2026-11-25T19:43:33.125Z",
+        "resendAvailableAt": "2026-11-25T19:34:33.125Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:33:33.072Z"
+      }
+    ],
+    "usr_751defcb2e32cf": [
+      {
+        "id": "otp_af75623b2d88",
+        "userId": "usr_751defcb2e32cf",
+        "email": "p3e2e_1795635305849@example.com",
+        "otpHash": "5c09775c1713cabe920f7bf2f6ca485480f806646e98484d141796a69f8e4624",
+        "expiresAt": "2026-11-25T19:45:06.275Z",
+        "resendAvailableAt": "2026-11-25T19:36:06.275Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:35:06.226Z"
+      }
+    ],
+    "usr_f8b20edd29016c": [
+      {
+        "id": "otp_4b54ab002284",
+        "userId": "usr_f8b20edd29016c",
+        "email": "p3r2_1795635554@example.com",
+        "otpHash": "9371ca08bee7a91fbaa049291f2517f3c134a509d9f705cf362ab552d94102b8",
+        "expiresAt": "2026-11-25T19:49:21.422Z",
+        "resendAvailableAt": "2026-11-25T19:40:21.422Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T19:39:21.349Z"
+      }
+    ],
+    "usr_cb999e0cce6dc3": [
+      {
+        "id": "otp_7655dbe4ba56",
+        "userId": "usr_cb999e0cce6dc3",
+        "email": "ui.verify.1795638148@example.com",
+        "otpHash": "4ee210d3c9e8098fe1650aa2bd487dcaf646c1332dbf244f49f595a9fd624566",
+        "expiresAt": "2026-11-25T20:32:34.285Z",
+        "resendAvailableAt": "2026-11-25T20:23:34.285Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T20:22:34.237Z"
+      }
+    ],
+    "usr_30b7f363a3f96e": [
+      {
+        "id": "otp_8a211d0b9701",
+        "userId": "usr_30b7f363a3f96e",
+        "email": "ui.verify.1795638229@example.com",
+        "otpHash": "731ae826396a967c0e5495a25e108d75ae9573f826fdfd6535204226875bef10",
+        "expiresAt": "2026-11-25T20:33:54.525Z",
+        "resendAvailableAt": "2026-11-25T20:24:54.525Z",
+        "attempts": 0,
+        "createdAt": "2026-11-25T20:23:54.476Z"
+      }
+    ],
+    "usr_ad1a984da10874": [
+      {
+        "id": "otp_332d5a8e6851",
+        "userId": "usr_ad1a984da10874",
+        "email": "poc.prd61.1795688292233@example.com",
+        "otpHash": "f4b4199e8338856494c4cd9e724b38c7df45606ef352577aa8d41715166b2702",
+        "expiresAt": "2026-11-26T10:28:12.389Z",
+        "resendAvailableAt": "2026-11-26T10:19:12.389Z",
+        "attempts": 0,
+        "createdAt": "2026-11-26T10:18:12.239Z"
+      }
+    ],
+    "usr_69eab49a6d7855": [
+      {
+        "id": "otp_898473628ce9",
+        "userId": "usr_69eab49a6d7855",
+        "email": "poc.prd61.1795688385787@example.com",
+        "otpHash": "12926063377e3ac5171815f6c0302025a0742c6da103848dd8c66c21c58ec3c6",
+        "expiresAt": "2026-11-26T10:29:45.867Z",
+        "resendAvailableAt": "2026-11-26T10:20:45.867Z",
+        "attempts": 0,
+        "createdAt": "2026-11-26T10:19:45.791Z",
+        "consumedAt": "2026-11-26T10:19:45.878Z"
+      }
+    ],
+    "usr_c9b7817896d3c1": [
+      {
+        "id": "otp_21056f07a0c4",
+        "userId": "usr_c9b7817896d3c1",
+        "email": "browser.verify.1795688458783@example.com",
+        "otpHash": "3874cca4f64eca618992c85b14ca96613beed22637de3ceadb1d2148a2133308",
+        "expiresAt": "2026-11-26T10:30:58.887Z",
+        "resendAvailableAt": "2026-11-26T10:21:58.887Z",
+        "attempts": 0,
+        "createdAt": "2026-11-26T10:20:58.786Z",
+        "consumedAt": "2026-11-26T10:20:58.895Z"
+      }
+    ],
+    "usr_6b82b5cba8c9fb": [
+      {
+        "id": "otp_9485a1ba6918",
+        "userId": "usr_6b82b5cba8c9fb",
+        "email": "ui.verify.1795688607@example.com",
+        "otpHash": "095140a08e3622d1a9e06fc6216e2f7622475477e7086315893b1151208513d1",
+        "expiresAt": "2026-11-26T10:33:35.530Z",
+        "resendAvailableAt": "2026-11-26T10:24:35.530Z",
+        "attempts": 0,
+        "createdAt": "2026-11-26T10:23:35.476Z"
+      }
+    ],
+    "usr_9c95cb994cd3b5": [
+      {
+        "id": "otp_2ea78fef21d0",
+        "userId": "usr_9c95cb994cd3b5",
+        "email": "prd61.full.1795688895@example.com",
+        "otpHash": "064442cde996677e5650b6fd6b09510f90a9f8ee8c53ac66d5af2056499e1e70",
+        "expiresAt": "2026-11-26T10:38:22.019Z",
+        "resendAvailableAt": "2026-11-26T10:29:22.019Z",
+        "attempts": 0,
+        "createdAt": "2026-11-26T10:28:21.971Z"
+      }
+    ]
+  },
+  "resetCooldownByEmail": {}
+}

@@ -26,6 +26,7 @@ import type {
   SpeakingTurnRecord,
   SubscriptionPlan,
   TransferAttemptRecord,
+  TransferConversationTurn,
   TransferRubricEvaluation,
   TransferScenarioId,
   UserAccount,
@@ -42,6 +43,7 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface AuthResult {
@@ -70,9 +72,31 @@ export interface UpdateProfilePayload {
   primaryGoal?: LearnerProfile['primaryGoal'];
   dailyTimeGoalMinutes?: LearnerProfile['dailyTimeGoalMinutes'];
   spacedRepetitionPreset?: SpacedRepetitionPreset;
+  nativeLanguage?: LearnerProfile['nativeLanguage'];
+  targetLanguage?: LearnerProfile['targetLanguage'];
+  learningGoals?: LearnerProfile['learningGoals'];
+  explanationDepth?: LearnerProfile['explanationDepth'];
+  learningFormat?: LearnerProfile['learningFormat'];
+  dailyReminderEnabled?: LearnerProfile['dailyReminderEnabled'];
+  dailyReminderTime?: LearnerProfile['dailyReminderTime'];
+  selfProficiencyChoice?: LearnerProfile['selfProficiencyChoice'];
+  microphonePermissionStatus?: LearnerProfile['microphonePermissionStatus'];
   privacyConsent?: PrivacyConsentSettings;
   onboardingCompleted?: boolean;
   diagnosticCompleted?: boolean;
+}
+
+export interface SubmitDiagnosticOptions {
+  listeningAnswers?: Record<string, string>;
+  listeningMode?: 'speech_synthesis' | 'skipped' | 'unavailable';
+  speakingInput?: {
+    mode: 'ai_evaluated' | 'recorded_unscored' | 'skipped' | 'unavailable';
+    transcript?: string;
+    aiMistakesCount?: number;
+    aiCorrectElementsCount?: number;
+    aiCoachNoteEn?: string;
+    aiCoachNoteBn?: string;
+  };
 }
 
 export interface ReviewFlaggedMistakePayload {
@@ -157,6 +181,7 @@ export interface RecordTransferAttemptPayload {
   durationSeconds: number;
   timedOut: boolean;
   evaluation: TransferRubricEvaluation;
+  transcript?: TransferConversationTurn[];
   completedAt?: string;
 }
 
@@ -168,6 +193,18 @@ export interface LinguaVerseRepository {
   restoreSession(): Promise<AuthResult | null>;
   verifyEmailOtp(userId: string, code: string): Promise<{ user: UserAccount }>;
   resendEmailOtp(userId: string): Promise<EmailOtpDeliveryInfo>;
+  syncPasswordAfterReset?(email: string, newPassword: string): Promise<void>;
+  hydrateServerUser?(payload: {
+    id: string;
+    name: string;
+    email: string;
+    password: string;
+    role?: AdminRole;
+    plan?: SubscriptionPlan;
+    emailVerified?: boolean;
+    createdAt?: string;
+    rememberMe?: boolean;
+  }): Promise<AuthResult>;
   updateProfile(userId: string, patch: UpdateProfilePayload): Promise<{
     user: UserAccount;
     profile: LearnerProfile;
@@ -175,7 +212,8 @@ export interface LinguaVerseRepository {
   }>;
   submitDiagnostic(
     userId: string,
-    answers: DiagnosticUserAnswer[]
+    answers: DiagnosticUserAnswer[],
+    options?: SubmitDiagnosticOptions
   ): Promise<{
     profile: LearnerProfile;
     diagnostic: EvidenceStartingProfile;

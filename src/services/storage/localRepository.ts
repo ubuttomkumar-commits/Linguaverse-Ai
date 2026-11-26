@@ -1,6 +1,7 @@
 import { DEFAULT_PRIVACY_CONSENT } from '../../domain/adminGovernanceEngine';
 import { getLessonById } from '../../domain/curriculumData';
 import { evaluateDiagnosticAttempt } from '../../domain/diagnosticEngine';
+import { evaluateFiveSkillAssessment } from '../../domain/initialAssessmentEngine';
 import {
   appendIdempotentXpAward,
   buildLessonCompletionXpAward,
@@ -10,7 +11,10 @@ import {
   buildTransferPassXpAward,
 } from '../../domain/gamificationEngine';
 import { computeNextMistakeReview } from '../../domain/mistakeMemoryEngine';
-import { mapMistakeCategoryToDomain } from '../../domain/speakingEvaluation';
+import {
+  mapMistakeCategoryToDomain,
+  MISTAKE_MEMORY_MIN_CONFIDENCE,
+} from '../../domain/speakingEvaluation';
 import { getSpeakingScenario } from '../../domain/speakingScenarios';
 import {
   calculateLessonMastery,
@@ -43,6 +47,7 @@ import type {
   MistakeDrillAttemptRecord,
   MistakeMemoryItem,
   MistakeSeverity,
+  SubscriptionPlan,
   SpacedRepetitionPreset,
   SpeakingSessionRecord,
   TransferAttemptRecord,
@@ -61,6 +66,7 @@ import type {
   ReportFalseCorrectionPayload,
   ReviewFlaggedMistakePayload,
   SaveSpeakingSessionPayload,
+  SubmitDiagnosticOptions,
   UpdateProfilePayload,
 } from './repository';
 
@@ -320,13 +326,14 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     }
   }
 
-  private createSession(userId: string): AuthSession {
+  private createSession(userId: string, rememberMe = true): AuthSession {
     const now = Date.now();
+    const ttlMs = rememberMe ? 1000 * 60 * 60 * 24 * 30 : 1000 * 60 * 60 * 24;
     const session: AuthSession = {
       token: generateId('lv_sess'),
       userId,
       createdAt: new Date(now).toISOString(),
-      expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 30).toISOString(),
+      expiresAt: new Date(now + ttlMs).toISOString(),
     };
     this.storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     return session;
@@ -413,35 +420,14 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     db.emailVerificationTokens[user.id] = [record, ...existing].slice(0, 5);
     this.writeDb(db);
 
-    let deliveryMode: EmailOtpDeliveryInfo['deliveryMode'] = 'local_dev_preview';
-    if (typeof window !== 'undefined' && typeof fetch === 'function') {
-      try {
-        const res = await fetch('/api/auth/send-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.email,
-            name: user.name,
-            otpCode,
-          }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { deliveryMode?: string; delivered?: boolean };
-          if (data.delivered || data.deliveryMode === 'email_provider') {
-            deliveryMode = 'email_provider';
-          }
-        }
-      } catch {
-        // Local dev preview fallback when Express/email endpoint is unreachable
-      }
-    }
+    const deliveryMode: EmailOtpDeliveryInfo['deliveryMode'] = 'local_dev_preview';
 
     return {
       email: user.email,
       expiresAt,
       resendAvailableAt,
       deliveryMode,
-      devPreviewOtp: deliveryMode === 'local_dev_preview' ? otpCode : undefined,
+      devPreviewOtp: otpCode,
     };
   }
 
@@ -548,7 +534,7 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       throw new Error('Incorrect password. Please check your credentials and try again.');
     }
 
-    const session = this.createSession(user.id);
+    const session = this.createSession(user.id, payload.rememberMe ?? true);
     const result = this.buildAuthResult(db, user, session);
     if (user.emailVerified === false) {
       const latestToken = (db.emailVerificationTokens[user.id] ?? [])[0];
@@ -564,6 +550,97 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       }
     }
     return result;
+  }
+
+  async syncPasswordAfterReset(email: string, newPassword: string): Promise<void> {
+    const normalized = normalizeEmail(email);
+    const db = this.readDb();
+    const user = Object.values(db.users).find((u) => u.email === normalized);
+    if (user) {
+      const newSalt = generateId('salt');
+      const newHash = await hashPassword(newPassword, newSalt);
+      user.passwordSalt = newSalt;
+      user.passwordHash = newHash;
+      db.users[user.id] = user;
+      this.writeDb(db);
+    }
+    // Revoke local active session per password reset security policy
+    this.storage.removeItem(SESSION_STORAGE_KEY);
+  }
+
+  async hydrateServerUser(payload: {
+    id: string;
+    name: string;
+    email: string;
+    password: string;
+    role?: AdminRole;
+    plan?: SubscriptionPlan;
+    emailVerified?: boolean;
+    createdAt?: string;
+    rememberMe?: boolean;
+  }): Promise<AuthResult> {
+    const email = normalizeEmail(payload.email);
+    const db = this.readDb();
+    let userRecord = Object.values(db.users).find((u) => u.email === email);
+    const now = new Date().toISOString();
+    const salt = generateId('salt');
+    const passwordHash = await hashPassword(payload.password, salt);
+
+    if (userRecord) {
+      userRecord.name = payload.name || userRecord.name;
+      userRecord.passwordSalt = salt;
+      userRecord.passwordHash = passwordHash;
+      if (typeof payload.emailVerified === 'boolean') {
+        userRecord.emailVerified = payload.emailVerified;
+      }
+      db.users[userRecord.id] = userRecord;
+    } else {
+      const userId = payload.id || generateId('usr');
+      userRecord = {
+        id: userId,
+        name: payload.name || email.split('@')[0] || 'Learner',
+        email,
+        plan: payload.plan ?? 'free',
+        role: payload.role ?? 'learner',
+        emailVerified: payload.emailVerified ?? true,
+        accountStatus: 'active',
+        createdAt: payload.createdAt || now,
+        passwordSalt: salt,
+        passwordHash,
+      };
+      db.users[userId] = userRecord;
+      db.profiles[userId] = {
+        userId,
+        preferredUiLanguage: 'en',
+        explanationLanguage: 'bn',
+        selfEstimatedLevel: 'A2',
+        primaryGoal: 'daily_speaking',
+        dailyTimeGoalMinutes: 15,
+        spacedRepetitionPreset: 'standard',
+        privacyConsent: {
+          storeMicRecordings: true,
+          logAiEvaluations: true,
+          updatedAt: now,
+        },
+        onboardingCompleted: false,
+        diagnosticCompleted: false,
+        updatedAt: now,
+      };
+      db.emailVerificationTokens[userId] = [];
+      db.diagnostics[userId] = [];
+      db.mistakes[userId] = [];
+      db.lessonAttempts[userId] = [];
+      db.exerciseAttempts[userId] = [];
+      db.speakingSessions[userId] = [];
+      db.mistakeDrillAttempts[userId] = [];
+      db.transferAttempts[userId] = [];
+      db.xpLedger[userId] = [];
+      db.activities[userId] = createZeroActivitySummary();
+    }
+
+    this.writeDb(db);
+    const session = this.createSession(userRecord.id, payload.rememberMe ?? true);
+    return this.buildAuthResult(db, userRecord, session);
   }
 
   async logout(): Promise<void> {
@@ -677,6 +754,16 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       dailyTimeGoalMinutes: patch.dailyTimeGoalMinutes ?? hydrated.dailyTimeGoalMinutes,
       spacedRepetitionPreset:
         patch.spacedRepetitionPreset ?? hydrated.spacedRepetitionPreset,
+      nativeLanguage: patch.nativeLanguage ?? hydrated.nativeLanguage,
+      targetLanguage: patch.targetLanguage ?? hydrated.targetLanguage,
+      learningGoals: patch.learningGoals ?? hydrated.learningGoals,
+      explanationDepth: patch.explanationDepth ?? hydrated.explanationDepth,
+      learningFormat: patch.learningFormat ?? hydrated.learningFormat,
+      dailyReminderEnabled: patch.dailyReminderEnabled ?? hydrated.dailyReminderEnabled,
+      dailyReminderTime: patch.dailyReminderTime ?? hydrated.dailyReminderTime,
+      selfProficiencyChoice: patch.selfProficiencyChoice ?? hydrated.selfProficiencyChoice,
+      microphonePermissionStatus:
+        patch.microphonePermissionStatus ?? hydrated.microphonePermissionStatus,
       privacyConsent: patch.privacyConsent ?? hydrated.privacyConsent,
       onboardingCompleted: patch.onboardingCompleted ?? hydrated.onboardingCompleted,
       diagnosticCompleted: patch.diagnosticCompleted ?? hydrated.diagnosticCompleted,
@@ -702,7 +789,8 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
 
   async submitDiagnostic(
     userId: string,
-    answers: DiagnosticUserAnswer[]
+    answers: DiagnosticUserAnswer[],
+    options?: SubmitDiagnosticOptions
   ): Promise<{
     profile: LearnerProfile;
     diagnostic: EvidenceStartingProfile;
@@ -716,13 +804,26 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     const profile = this.hydrateProfile(rawProfile);
 
     const attemptId = generateId('diag');
-    const { profile: diagnosticResult, mistakes: diagnosticMistakes } =
-      evaluateDiagnosticAttempt({
-        attemptId,
-        userId,
-        selfEstimatedLevel: profile.selfEstimatedLevel,
-        answers,
-      });
+    const evaluation = options
+      ? evaluateFiveSkillAssessment({
+          attemptId,
+          userId,
+          selfEstimatedLevel: profile.selfEstimatedLevel,
+          dailyPracticeMinutes: profile.dailyTimeGoalMinutes,
+          learningGoals: profile.learningGoals,
+          writtenAnswers: answers,
+          listeningAnswers: options.listeningAnswers ?? {},
+          listeningMode: options.listeningMode ?? 'skipped',
+          speakingInput: options.speakingInput ?? { mode: 'skipped' },
+        })
+      : evaluateDiagnosticAttempt({
+          attemptId,
+          userId,
+          selfEstimatedLevel: profile.selfEstimatedLevel,
+          answers,
+        });
+
+    const { profile: diagnosticResult, mistakes: diagnosticMistakes } = evaluation;
 
     const updatedProfile: LearnerProfile = {
       ...profile,
@@ -1006,6 +1107,10 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     const existingMistakes = [...(db.mistakes[userId] ?? [])];
     for (const turn of turnsToSync) {
       for (const m of turn.evaluation.mistakes) {
+        // Never permanently store low-confidence AI guesses as confirmed learner mistakes
+        if (!Number.isFinite(m.confidence) || m.confidence < MISTAKE_MEMORY_MIN_CONFIDENCE) {
+          continue;
+        }
         const normalizedCat = m.category.trim() || 'Grammar';
         const normalizedOriginal = m.original.trim().toLowerCase();
         const normalizedCorrected = m.corrected.trim().toLowerCase();
@@ -1252,6 +1357,7 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
       durationSeconds: Math.max(10, Math.round(payload.durationSeconds)),
       timedOut: payload.timedOut,
       evaluation: payload.evaluation,
+      transcript: payload.transcript,
       passed: payload.evaluation.passed,
       completedAt,
     };
@@ -1259,9 +1365,12 @@ export class LocalPersistenceRepository implements LinguaVerseRepository {
     const nextTransferAttempts = [transferAttempt, ...(db.transferAttempts[userId] ?? [])];
     db.transferAttempts[userId] = nextTransferAttempts;
 
-    // Sync any newly detected Transfer Lab mistakes into Mistake Memory
+    // Sync any newly detected Transfer Lab mistakes into Mistake Memory (confidence-gated >= 0.70)
     const existingMistakes = [...(db.mistakes[userId] ?? [])];
     for (const m of payload.evaluation.detected_mistakes) {
+      if (typeof m.confidence === 'number' && m.confidence < MISTAKE_MEMORY_MIN_CONFIDENCE) {
+        continue;
+      }
       const normalizedCat = m.category.trim() || 'Grammar';
       const normalizedOriginal = m.original.trim().toLowerCase();
       const normalizedCorrected = m.corrected.trim().toLowerCase();

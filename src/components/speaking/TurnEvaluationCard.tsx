@@ -15,6 +15,7 @@ import {
   stopSpeaking,
   type PlaybackSpeed,
 } from '../../utils/speechSynthesis';
+import { isVerifiedMistakeForMemory } from '../../domain/speakingStudioEngine';
 import type {
   ExplanationLanguage,
   MistakeSeverity,
@@ -90,12 +91,14 @@ export function TurnEvaluationCard({
   };
 
   const { evaluation } = turn;
+  const verifiedMistakes = evaluation.mistakes.filter(isVerifiedMistakeForMemory);
+  const optionalSuggestions = evaluation.mistakes.filter((m) => !isVerifiedMistakeForMemory(m));
 
   return (
-    <article className="rounded-xl border border-slate-800 bg-[#111827] p-5 sm:p-6 space-y-5">
+    <article className="rounded-xl border border-slate-800/90 bg-[#0B1230] p-5 sm:p-6 space-y-5">
       {/* Turn Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 text-xs">
-        <span className="font-mono font-semibold text-[#3B82F6] tabular-nums">
+        <span className="font-mono font-semibold text-[#22D3EE] tabular-nums">
           {lang === 'bn' ? `ধাপ ০${turn.turnNumber}` : `Turn 0${turn.turnNumber}`} ·{' '}
           {channelLabel(turn.inputChannel, lang)}
         </span>
@@ -106,20 +109,20 @@ export function TurnEvaluationCard({
             </span>
           )}
           <span>
-            {evaluation.mistakes.length === 0
+            {verifiedMistakes.length === 0
               ? lang === 'bn'
-                ? '০টি ভুল শনাক্ত'
-                : '0 errors detected'
+                ? '০টি নিশ্চিত ভুল'
+                : '0 confirmed errors'
               : lang === 'bn'
-                ? `${evaluation.mistakes.length}টি ভুল · Mistake Memory-তে সিঙ্কড`
-                : `${evaluation.mistakes.length} error${evaluation.mistakes.length === 1 ? '' : 's'} · Synced to Mistake Memory`}
+                ? `${verifiedMistakes.length}টি নিশ্চিত ভুল · Mistake Memory-তে সিঙ্কড`
+                : `${verifiedMistakes.length} confirmed error${verifiedMistakes.length === 1 ? '' : 's'} · Synced to Mistake Memory`}
           </span>
         </div>
       </div>
 
       {/* User Transcript + Self-Review Audio Player */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-800 bg-[#0A0F1C] p-4">
+        <div className="rounded-lg border border-slate-800 bg-[#070B1B] p-4">
           <p className="text-xs font-medium text-slate-400">
             {lang === 'bn' ? 'আপনার বক্তব্য (Original)' : 'What You Said (Original)'}
           </p>
@@ -128,7 +131,7 @@ export function TurnEvaluationCard({
           {audioUrl && (
             <div className="mt-3 border-t border-slate-800 pt-3">
               <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-                <Mic className="h-3.5 w-3.5 text-[#3B82F6]" aria-hidden="true" />
+                <Mic className="h-3.5 w-3.5 text-[#22D3EE]" aria-hidden="true" />
                 <span>
                   {lang === 'bn'
                     ? 'আপনার রেকর্ডকৃত কণ্ঠস্বর শুনুন'
@@ -146,9 +149,9 @@ export function TurnEvaluationCard({
         </div>
 
         {/* Corrected & Natural Alternative */}
-        <div className="rounded-lg border border-[#3B82F6]/35 bg-[#0A0F1C] p-4 space-y-3">
+        <div className="rounded-lg border border-[#3B82F6]/35 bg-[#070B1B] p-4 space-y-3">
           <div>
-            <p className="text-xs font-medium text-[#3B82F6]">
+            <p className="text-xs font-medium text-[#22D3EE]">
               {lang === 'bn' ? 'শুদ্ধ রূপ (Corrected Transcript)' : 'Corrected Transcript'}
             </p>
             <p className="mt-1 text-sm font-medium leading-relaxed text-emerald-300">
@@ -169,10 +172,10 @@ export function TurnEvaluationCard({
       </div>
 
       {/* AI Conversational Reply + TTS */}
-      <div className="rounded-xl border border-slate-700/80 bg-[#0A0F1C] p-4 sm:p-5">
+      <div className="rounded-xl border border-slate-700/80 bg-[#070B1B] p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#3B82F6]">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#22D3EE]">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{lang === 'bn' ? 'AI কথোপকথনের উত্তর' : 'AI Coach Reply'}</span>
             </p>
@@ -193,7 +196,7 @@ export function TurnEvaluationCard({
             className={`inline-flex items-center gap-1.5 self-start rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               isSpeakingReply
                 ? 'border-[#3B82F6] bg-[#3B82F6] text-white'
-                : 'border-slate-700 bg-[#111827] text-slate-200 hover:border-[#3B82F6] hover:text-white'
+                : 'border-slate-700 bg-[#0B1230] text-slate-200 hover:border-[#22D3EE] hover:text-white'
             }`}
           >
             {isSpeakingReply ? (
@@ -226,19 +229,19 @@ export function TurnEvaluationCard({
         </div>
       )}
 
-      {/* Detected Mistakes List */}
-      {evaluation.mistakes.length > 0 && (
+      {/* High-Confidence Confirmed Mistakes Synced to Mistake Memory */}
+      {verifiedMistakes.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-[#F59E0B]">
             {lang === 'bn'
-              ? 'শনাক্তকৃত ভুল ও বাংলা ব্যাখ্যা (Mistake Memory-তে সংরক্ষিত)'
-              : 'Detected Mistakes & Bangla Explanations (Synced to Mistake Memory)'}
+              ? 'নিশ্চিত ভুল ও বাংলা ব্যাখ্যা (Mistake Memory-তে সংরক্ষিত)'
+              : 'Confirmed Mistakes & Bangla Explanations (Synced to Mistake Memory)'}
           </p>
           <div className="space-y-3">
-            {evaluation.mistakes.map((m, idx) => (
+            {verifiedMistakes.map((m, idx) => (
               <div
                 key={`${turn.id}_m_${idx}`}
-                className="rounded-lg border border-[#F59E0B]/35 bg-[#0A0F1C] p-4"
+                className="rounded-lg border border-[#F59E0B]/35 bg-[#070B1B] p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-semibold text-[#8B5CF6]">{m.category}</span>
@@ -268,7 +271,7 @@ export function TurnEvaluationCard({
                   )}
                   {(explanationPref === 'en' || explanationPref === 'both') && (
                     <p className="text-slate-300">
-                      <span className="font-semibold text-[#3B82F6]">English: </span>
+                      <span className="font-semibold text-[#22D3EE]">English: </span>
                       {m.explanation_en}
                     </p>
                   )}
@@ -279,8 +282,40 @@ export function TurnEvaluationCard({
         </div>
       )}
 
+      {/* Optional Low-Confidence AI Suggestions (NOT stored in Mistake Memory) */}
+      {optionalSuggestions.length > 0 && (
+        <div className="space-y-2.5">
+          <p className="text-xs font-semibold text-slate-300">
+            {lang === 'bn'
+              ? 'ঐচ্ছিক AI পরামর্শ (Mistake Memory-তে সংরক্ষিত নয় · < ৭০% নিশ্চয়তা)'
+              : 'Optional AI Suggestions (Not saved to Mistake Memory · < 70% confidence)'}
+          </p>
+          <div className="space-y-2">
+            {optionalSuggestions.map((m, idx) => (
+              <div
+                key={`${turn.id}_opt_${idx}`}
+                className="rounded-lg border border-slate-800 bg-[#070B1B] p-3.5 text-xs"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-slate-300">{m.category}</span>
+                  <span className="font-mono text-slate-400 tabular-nums">
+                    {Math.round(m.confidence * 100)}% confidence
+                  </span>
+                </div>
+                <p className="mt-1.5 text-slate-200">
+                  “{m.original}” → <span className="text-emerald-300">“{m.corrected}”</span>
+                </p>
+                <p className="mt-1 text-slate-400">
+                  {lang === 'bn' ? m.explanation_bn : m.explanation_en}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Honest Pronunciation / Clarity Note */}
-      <div className="flex items-start gap-2.5 rounded-lg border border-slate-800 bg-[#0A0F1C] p-3.5 text-xs leading-relaxed text-slate-300">
+      <div className="flex items-start gap-2.5 rounded-lg border border-slate-800 bg-[#070B1B] p-3.5 text-xs leading-relaxed text-slate-300">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
         <div>
           <p className="font-semibold text-slate-200">

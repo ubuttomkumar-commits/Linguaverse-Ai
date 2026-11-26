@@ -10,11 +10,22 @@ import {
   type ReportFalseCorrectionPayload,
   type ReviewFlaggedMistakePayload,
   type SaveSpeakingSessionPayload,
+  type SubmitDiagnosticOptions,
   type UpdateProfilePayload,
 } from '../services/storage';
 import { computeTotalVerifiedXp } from '../domain/gamificationEngine';
 import { appendAuditLog } from '../services/governanceStore';
+import {
+  syncServerLogin,
+  syncServerLogout,
+  syncServerRegister,
+} from '../services/authApi';
 import { clearAllAudioBlobs } from '../utils/audioBlobStore';
+import { clearUserAcademyState } from '../services/academyStateStore';
+import { clearUserSpeakingState } from '../services/speakingStateStore';
+import { clearUserDnaAnalysisState } from '../services/dnaAnalysisStore';
+import { clearUserTransferState } from '../services/transferSessionStore';
+import { clearUserReplayState } from '../services/replayStateStore';
 import type {
   AccountStatus,
   ActivityLedgerSummary,
@@ -78,6 +89,8 @@ function writeStoredOtpDelivery(userId: string | null, info: EmailOtpDeliveryInf
 
 interface AuthContextValue {
   isHydrating: boolean;
+  hydrationError: string | null;
+  retryHydration: () => Promise<void>;
   user: UserAccount | null;
   profile: LearnerProfile | null;
   latestDiagnostic: EvidenceStartingProfile | null;
@@ -98,8 +111,12 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   verifyEmailOtp: (code: string) => Promise<UserAccount>;
   resendEmailOtp: () => Promise<EmailOtpDeliveryInfo>;
+  applyPasswordResetSync: (email: string, newPassword: string) => Promise<void>;
   updateProfile: (patch: UpdateProfilePayload) => Promise<void>;
-  submitDiagnostic: (answers: DiagnosticUserAnswer[]) => Promise<EvidenceStartingProfile>;
+  submitDiagnostic: (
+    answers: DiagnosticUserAnswer[],
+    options?: SubmitDiagnosticOptions
+  ) => Promise<EvidenceStartingProfile>;
   recordExerciseAttempt: (payload: RecordExerciseAttemptPayload) => Promise<{
     exerciseAttempt: ExerciseAttemptRecord;
     loggedMistake: MistakeMemoryItem | null;
@@ -155,6 +172,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setLang } = useLanguage();
   const [isHydrating, setIsHydrating] = useState(true);
+  const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [user, setUser] = useState<UserAccount | null>(null);
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [latestDiagnostic, setLatestDiagnostic] = useState<EvidenceStartingProfile | null>(null);
@@ -201,13 +219,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [setLang]
   );
 
+  const runSessionHydration = useCallback(async () => {
+    setIsHydrating(true);
+    setHydrationError(null);
+    try {
+      const result = await repository.restoreSession();
+      hydrateFromResult(result);
+    } catch (err) {
+      setHydrationError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to restore your learning session. Please retry.'
+      );
+    } finally {
+      setIsHydrating(false);
+    }
+  }, [hydrateFromResult]);
+
   useEffect(() => {
     let active = true;
+    setHydrationError(null);
     repository
       .restoreSession()
       .then((result) => {
         if (!active) return;
         hydrateFromResult(result);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setHydrationError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to restore your learning session. Please retry.'
+        );
       })
       .finally(() => {
         if (active) setIsHydrating(false);
@@ -219,6 +263,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [hydrateFromResult]);
 
   const register = useCallback(async (payload: RegisterPayload) => {
+    // Register in backend auth store (scrypt + rate limiting + CSRF) while preserving learner repository
+    await syncServerRegister({
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      plan: payload.plan,
+    });
     const result = await repository.register(payload);
     setUser(result.user);
     setProfile(result.profile);
@@ -240,14 +291,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (payload: LoginPayload) => {
-      const result = await repository.login(payload);
-      hydrateFromResult(result);
-      return result.user;
+      const serverCheck = await syncServerLogin({
+        email: payload.email,
+        password: payload.password,
+        rememberMe: payload.rememberMe,
+      });
+      if (!serverCheck.ok && serverCheck.status === 429) {
+        throw new Error(serverCheck.error || 'Too many sign-in attempts. Please wait and try again.');
+      }
+      try {
+        const result = await repository.login(payload);
+        hydrateFromResult(result);
+        return result.user;
+      } catch (localErr) {
+        if (serverCheck.ok && serverCheck.user && repository.hydrateServerUser) {
+          const hydrated = await repository.hydrateServerUser({
+            id: serverCheck.user.id,
+            name: serverCheck.user.name,
+            email: serverCheck.user.email,
+            password: payload.password,
+            role: serverCheck.user.role,
+            plan: serverCheck.user.plan,
+            emailVerified: serverCheck.user.emailVerified,
+            createdAt: serverCheck.user.createdAt,
+            rememberMe: payload.rememberMe,
+          });
+          hydrateFromResult(hydrated);
+          return hydrated.user;
+        }
+        throw localErr;
+      }
     },
     [hydrateFromResult]
   );
 
   const logout = useCallback(async () => {
+    await syncServerLogout();
     await repository.logout();
     setUser(null);
     setProfile(null);
@@ -261,6 +340,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTransferAttempts([]);
     setXpLedger([]);
     setActivitySummary(ZERO_ACTIVITY);
+    setPendingOtpDelivery(null);
+    writeStoredOtpDelivery(null, null);
+  }, []);
+
+  const applyPasswordResetSync = useCallback(async (email: string, newPassword: string) => {
+    if (repository.syncPasswordAfterReset) {
+      await repository.syncPasswordAfterReset(email, newPassword);
+    }
+    setUser(null);
+    setProfile(null);
     setPendingOtpDelivery(null);
     writeStoredOtpDelivery(null, null);
   }, []);
@@ -310,9 +399,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitDiagnostic = useCallback(
-    async (answers: DiagnosticUserAnswer[]) => {
+    async (answers: DiagnosticUserAnswer[], options?: SubmitDiagnosticOptions) => {
       if (!user) throw new Error('Not authenticated.');
-      const res = await repository.submitDiagnostic(user.id, answers);
+      const res = await repository.submitDiagnostic(user.id, answers, options);
       setProfile(res.profile);
       setLatestDiagnostic(res.diagnostic);
       setMistakes(res.mistakes);
@@ -501,6 +590,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       metadata: { deletedAudioCount: deletedCount },
     });
     await repository.clearLocalAccountData(user.id);
+    clearUserAcademyState(user.id);
+    clearUserSpeakingState(user.id);
+    clearUserDnaAnalysisState(user.id);
+    clearUserTransferState(user.id);
+    clearUserReplayState(user.id);
     setUser(null);
     setProfile(null);
     setLatestDiagnostic(null);
@@ -520,6 +614,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         isHydrating,
+        hydrationError,
+        retryHydration: runSessionHydration,
         user,
         profile,
         latestDiagnostic,
@@ -540,6 +636,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         verifyEmailOtp,
         resendEmailOtp,
+        applyPasswordResetSync,
         updateProfile,
         submitDiagnostic,
         recordExerciseAttempt,

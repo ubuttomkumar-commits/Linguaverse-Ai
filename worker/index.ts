@@ -1,6 +1,11 @@
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
-import type { SessionJwtPayload, WorkerAdminRole, WorkerEnv } from './types';
+import type {
+  SessionJwtPayload,
+  WorkerAdminRole,
+  WorkerAuthUser,
+  WorkerEnv,
+} from './types';
 import {
   generateRandomId,
   generateSaltHex,
@@ -13,7 +18,26 @@ import {
   verifySessionJwt,
 } from './services/crypto';
 import { sendWorkerOtpEmail } from './services/email';
-import { callWorkerGeminiJson } from './services/gemini';
+import { callWorkerGeminiJson, resolveWorkerGeminiModels } from './services/gemini';
+import {
+  JwtSecretConfigError,
+  resolveAllowedCorsOrigin,
+  resolveWorkerJwtSecret,
+  validateAudioUploadConstraints,
+} from '../src/domain/securityPolicy';
+import {
+  buildSpeakingSystemInstruction,
+  buildSpeakingTurnPrompt,
+  normalizeSpeakingEvaluation,
+  type SpeakingEvaluationRequest,
+} from '../src/domain/speakingEvaluation';
+import { isValidSpeakingModeId } from '../src/domain/speakingScenarios';
+import { normalizePressureLevel } from '../src/domain/pressureLadder';
+import type { SpeakingPressureLevel } from '../src/types/domain';
+import { registerParts06To12Routes, type WorkerRouteDeps } from './routes/parts06To12Routes';
+import { registerLearnerPersistenceRoutes } from './routes/learnerPersistenceRoutes';
+import { registerP3CommunityVocabBillingRoutes } from './routes/p3CommunityVocabBillingRoutes';
+import { registerWorkerPrd61Routes } from './routes/prd61Routes';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -29,39 +53,56 @@ const ADMIN_ALLOWED_ROLES = new Set<WorkerAdminRole>([
   'moderator',
 ]);
 
-type AppContext = Context<{ Bindings: WorkerEnv; Variables: { authUser?: AuthUserContext } }>;
+type AppContext = Context<{ Bindings: WorkerEnv; Variables: { authUser?: WorkerAuthUser } }>;
+type AuthUserContext = WorkerAuthUser;
 
-interface AuthUserContext {
-  id: string;
-  name: string;
-  email: string;
-  plan: string;
-  role: WorkerAdminRole;
-  emailVerified: boolean;
-  accountStatus: 'active' | 'suspended';
-  createdAt: string;
-  sessionId: string;
-}
+const app = new Hono<{ Bindings: WorkerEnv; Variables: { authUser?: WorkerAuthUser } }>();
 
-const app = new Hono<{ Bindings: WorkerEnv; Variables: { authUser?: AuthUserContext } }>();
+app.onError((err, c) => {
+  if (err instanceof JwtSecretConfigError) {
+    return c.json(
+      {
+        error: 'Server authentication configuration error.',
+        code: 'AUTH_CONFIG_ERROR',
+      },
+      500
+    );
+  }
+  return c.json(
+    {
+      error: 'Internal server error.',
+      code: 'INTERNAL_ERROR',
+    },
+    500
+  );
+});
 
-// 1. CORS & Security Headers
+// 1. Strict Allowlisted CORS & Security Headers (never reflects untrusted origins)
 app.use('*', async (c, next) => {
-  const origin = c.env.CORS_ALLOWED_ORIGIN || '*';
   const middleware = cors({
-    origin: origin === '*' ? (reqOrigin) => reqOrigin || '*' : origin,
+    origin: (reqOrigin) =>
+      resolveAllowedCorsOrigin(reqOrigin, c.env.CORS_ALLOWED_ORIGIN, c.env.APP_ENV) ?? '',
     credentials: true,
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Correlation-Id',
+      'X-CSRF-Token',
+      'X-Requested-With',
+    ],
   });
   return middleware(c, next);
 });
 
 app.use('*', async (c, next) => {
-  const corrId = c.req.header('X-Correlation-Id') || generateRandomId('req');
+  const corrId = c.req.header('X-Correlation-Id') || c.req.header('X-Request-Id') || generateRandomId('req');
   c.header('X-Correlation-Id', corrId);
+  c.header('X-Request-Id', corrId);
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.header('Permissions-Policy', 'camera=(), geolocation=(), payment=()');
   await next();
 });
 
@@ -73,14 +114,20 @@ async function checkRateLimit(c: AppContext, bucket: string, maxPerMinute: numbe
   const minuteWindow = Math.floor(Date.now() / 60_000);
   const key = `rl:${bucket}:${ip}:${minuteWindow}`;
   const current = Number((await kv.get(key)) || '0');
-  if (current >= maxPerMinute) return false;
+  if (current >= maxPerMinute) {
+    c.header('Retry-After', '60');
+    return false;
+  }
   await kv.put(key, String(current + 1), { expirationTtl: 90 });
   return true;
 }
 
-// 3. Session Helpers (HTTP-only Cookie + Bearer Token)
+// 3. Session Helpers (HTTP-only Cookie + Bearer Token; fail-closed JWT secret resolution)
 function getJwtSecret(env: WorkerEnv): string {
-  return env.JWT_SIGNING_SECRET?.trim() || 'dev-local-jwt-secret-change-in-production';
+  return resolveWorkerJwtSecret({
+    JWT_SIGNING_SECRET: env.JWT_SIGNING_SECRET,
+    APP_ENV: env.APP_ENV,
+  });
 }
 
 function extractToken(c: AppContext): string | null {
@@ -94,23 +141,33 @@ function extractToken(c: AppContext): string | null {
 }
 
 function setSessionCookie(c: AppContext, token: string): void {
-  const isProd = c.env.APP_ENV === 'production';
+  const isProd = c.env.APP_ENV === 'production' || c.env.APP_ENV === 'staging';
   const attrs = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    isProd ? 'SameSite=None' : 'SameSite=Lax',
     `Max-Age=${SESSION_TTL_SECONDS}`,
   ];
-  if (isProd) attrs.push('Secure');
+  if (isProd) {
+    attrs.push('Secure', 'Partitioned');
+  }
   c.header('Set-Cookie', attrs.join('; '));
 }
 
 function clearSessionCookie(c: AppContext): void {
-  c.header(
-    'Set-Cookie',
-    `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
-  );
+  const isProd = c.env.APP_ENV === 'production' || c.env.APP_ENV === 'staging';
+  const attrs = [
+    `${SESSION_COOKIE_NAME}=`,
+    'Path=/',
+    'HttpOnly',
+    isProd ? 'SameSite=None' : 'SameSite=Lax',
+    'Max-Age=0',
+  ];
+  if (isProd) {
+    attrs.push('Secure', 'Partitioned');
+  }
+  c.header('Set-Cookie', attrs.join('; '));
 }
 
 async function resolveAuthenticatedUser(c: AppContext): Promise<AuthUserContext | null> {
@@ -442,7 +499,7 @@ app.get('/api/v1/speaking/health', (c) =>
   c.json({
     ok: true,
     configured: Boolean(c.env.GEMINI_API_KEY?.trim()),
-    model: c.env.GEMINI_PRIMARY_MODEL || 'gemini-2.5-flash',
+    model: resolveWorkerGeminiModels(c.env).primary,
   })
 );
 
@@ -510,7 +567,7 @@ app.post('/api/v1/auth/register', async (c) => {
   const name = (body.name || '').trim();
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
-  const plan = body.plan === 'pro' ? 'pro' : 'free';
+  const plan = 'free';
 
   if (name.length < 2) {
     return c.json({ error: 'Please enter your full name (at least 2 characters).' }, 400);
@@ -911,20 +968,48 @@ app.post('/api/v1/learners/:userId/recordings', async (c) => {
   if (!c.env.AUDIO_BUCKET) {
     return c.json({ error: 'R2 AUDIO_BUCKET binding is not configured.' }, 503);
   }
-
-  const arrayBuffer = await c.req.arrayBuffer();
-  if (!arrayBuffer.byteLength || arrayBuffer.byteLength > 10 * 1024 * 1024) {
-    return c.json({ error: 'Audio clip must be between 1 byte and 10 MB.' }, 400);
+  if (!(await checkRateLimit(c, 'audio_upload', 20))) {
+    return c.json({ error: 'Too many audio uploads. Please try again shortly.' }, 429);
   }
 
-  const contentType = c.req.header('Content-Type') || 'audio/webm';
+  // Server-side recording consent check from D1 learner_profiles
+  const profileRow = await c.env.DB.prepare(
+    `SELECT store_mic_recordings FROM learner_profiles WHERE user_id = ? LIMIT 1`
+  )
+    .bind(userId)
+    .first<{ store_mic_recordings: number | null }>();
+
+  const declaredContentType = c.req.header('Content-Type') || '';
+  const contentLengthHeader = Number(c.req.header('Content-Length') || '0');
+  if (Number.isFinite(contentLengthHeader) && contentLengthHeader > 10 * 1024 * 1024) {
+    return c.json(
+      { error: 'Audio recording exceeds the 10 MB maximum upload limit.' },
+      413
+    );
+  }
+
+  const arrayBuffer = await c.req.arrayBuffer();
+  const validation = validateAudioUploadConstraints({
+    contentType: declaredContentType,
+    sizeBytes: arrayBuffer.byteLength,
+    storeMicRecordingsConsent: Boolean(profileRow?.store_mic_recordings),
+  });
+  if (!validation.ok) {
+    return c.json(
+      { error: validation.error },
+      validation.status as 400 | 403 | 413 | 415
+    );
+  }
+
   const sessionId = c.req.query('sessionId') || null;
-  const durationSeconds = Number(c.req.query('durationSeconds') || '0');
+  const rawDuration = Number(c.req.query('durationSeconds') || '0');
+  const durationSeconds =
+    Number.isFinite(rawDuration) && rawDuration >= 0 ? Math.min(3600, rawDuration) : 0;
   const assetId = generateRandomId('aud');
-  const objectKey = `users/${userId}/${assetId}.webm`;
+  const objectKey = `users/${userId}/${assetId}.${validation.extension}`;
 
   await c.env.AUDIO_BUCKET.put(objectKey, arrayBuffer, {
-    httpMetadata: { contentType },
+    httpMetadata: { contentType: validation.normalizedMime },
     customMetadata: { userId, assetId },
   });
 
@@ -940,7 +1025,7 @@ app.post('/api/v1/learners/:userId/recordings', async (c) => {
       userId,
       sessionId,
       objectKey,
-      contentType,
+      validation.normalizedMime,
       arrayBuffer.byteLength,
       durationSeconds,
       expiresAt,
@@ -948,7 +1033,15 @@ app.post('/api/v1/learners/:userId/recordings', async (c) => {
     )
     .run();
 
-  return c.json({ assetId, objectKey, sizeBytes: arrayBuffer.byteLength }, 201);
+  return c.json(
+    {
+      assetId,
+      objectKey,
+      mimeType: validation.normalizedMime,
+      sizeBytes: arrayBuffer.byteLength,
+    },
+    201
+  );
 });
 
 app.delete('/api/v1/learners/:userId/recordings', async (c) => {
@@ -1013,7 +1106,7 @@ app.post('/api/v1/landing/analyze', async (c) => {
   return c.json({ analysis: result.data, correlationId: result.correlationId });
 });
 
-app.post('/api/v1/speaking/evaluate', async (c) => {
+const speakingEvaluateHandler = async (c: AppContext) => {
   const auth = await requireAuth(c, { requireVerified: true });
   if (auth instanceof Response) return auth;
   if (!(await checkRateLimit(c, 'speaking_eval', 25))) {
@@ -1021,33 +1114,111 @@ app.post('/api/v1/speaking/evaluate', async (c) => {
   }
 
   const body = (await c.req.json().catch(() => ({}))) as {
-    userTranscript?: string;
-    modeId?: string;
-    pressureLevel?: string;
-    learnerLevel?: string;
+    userTranscript?: unknown;
+    modeId?: unknown;
+    pressureLevel?: unknown;
+    learnerLevel?: unknown;
+    inputChannel?: unknown;
+    explanationLanguage?: unknown;
+    history?: unknown;
+    timedOut?: unknown;
+    correctionStyle?: unknown;
+    contextSummary?: unknown;
   };
-  const transcript = (body.userTranscript || '').trim().slice(0, 2000);
+  const transcript = typeof body.userTranscript === 'string' ? body.userTranscript.trim().slice(0, 2000) : '';
   if (!transcript) {
-    return c.json({ error: 'Please speak or type a response first.' }, 400);
+    return c.json({ error: 'Please speak or type a response first.', code: 'EMPTY_TRANSCRIPT' }, 400);
   }
 
-  const result = await callWorkerGeminiJson<Record<string, unknown>>(c.env, {
-    endpoint: 'speaking_evaluate',
-    promptVersion: c.env.SPEAKING_PROMPT_VERSION || 'speaking-eval-v5.0',
-    userId: auth.id,
-    systemInstruction:
-      'You are LINGUAVERSE AI Speaking Coach for Bangla-speaking English learners. Return strict JSON matching: { ai_reply, ai_reply_bn_hint, corrected_transcript, correct_elements: string[], mistakes: [{ category, original, corrected, explanation_en, explanation_bn, confidence, severity }], natural_alternative, pronunciation_note }.',
-    userPrompt: `Mode: ${body.modeId || 'daily_conversations'} | Level: ${body.learnerLevel || 'A2'} | Pressure: ${body.pressureLevel || 'level_2_guided'}\nLearner utterance: "${transcript}"`,
-  });
+  if (body.modeId !== undefined && !isValidSpeakingModeId(body.modeId)) {
+    return c.json({ error: 'Invalid speaking scenario modeId.', code: 'INVALID_MODE' }, 400);
+  }
 
-  return c.json({
-    evaluation: result.data,
-    model: result.model,
-    correlationId: result.correlationId,
-  });
-});
+  const modeId = isValidSpeakingModeId(body.modeId) ? body.modeId : 'daily_conversations';
+  const pressureLevel = normalizePressureLevel(
+    (typeof body.pressureLevel === 'string' ? body.pressureLevel : 'level_2_guided') as SpeakingPressureLevel
+  );
+  const inputChannel =
+    body.inputChannel === 'voice_stt' || body.inputChannel === 'voice_with_manual_edit'
+      ? body.inputChannel
+      : 'text_fallback';
+  const correctionStyle =
+    body.correctionStyle === 'detailed' || body.correctionStyle === 'conversation_first'
+      ? body.correctionStyle
+      : 'gentle';
+  const explanationLanguage =
+    body.explanationLanguage === 'en' || body.explanationLanguage === 'both'
+      ? body.explanationLanguage
+      : 'bn';
+  const learnerLevel =
+    body.learnerLevel === 'Pre-A1' ||
+    body.learnerLevel === 'A1' ||
+    body.learnerLevel === 'A2' ||
+    body.learnerLevel === 'B1' ||
+    body.learnerLevel === 'B2' ||
+    body.learnerLevel === 'C1'
+      ? body.learnerLevel
+      : 'A2';
 
-app.post('/api/v1/transfer/evaluate', async (c) => {
+  const safeHistory = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (item): item is { role: 'ai' | 'user'; text: string } =>
+            Boolean(
+              item &&
+                typeof item === 'object' &&
+                ((item as { role?: unknown }).role === 'ai' ||
+                  (item as { role?: unknown }).role === 'user') &&
+                typeof (item as { text?: unknown }).text === 'string'
+            )
+        )
+        .slice(-8)
+    : [];
+
+  const evalRequest: SpeakingEvaluationRequest = {
+    modeId,
+    pressureLevel,
+    userTranscript: transcript,
+    inputChannel,
+    learnerLevel,
+    explanationLanguage,
+    history: safeHistory,
+    timedOut: Boolean(body.timedOut),
+    correctionStyle,
+    contextSummary: typeof body.contextSummary === 'string' ? body.contextSummary.slice(0, 800) : undefined,
+  };
+
+  try {
+    const result = await callWorkerGeminiJson<Record<string, unknown>>(c.env, {
+      endpoint: 'speaking_evaluate',
+      promptVersion: c.env.SPEAKING_PROMPT_VERSION || 'speaking-eval-v5.0',
+      userId: auth.id,
+      systemInstruction: buildSpeakingSystemInstruction(evalRequest),
+      userPrompt: buildSpeakingTurnPrompt(evalRequest),
+    });
+
+    const evaluation = normalizeSpeakingEvaluation(result.data, transcript, inputChannel);
+
+    return c.json({
+      evaluation,
+      model: result.model,
+      correlationId: result.correlationId,
+      telemetry: result.telemetry,
+    });
+  } catch (err) {
+    return c.json(
+      {
+        error: err instanceof Error ? err.message : 'Unable to evaluate speaking response.',
+        code: 'SPEAKING_EVAL_UNAVAILABLE',
+      },
+      503
+    );
+  }
+};
+app.post('/api/v1/speaking/evaluate', speakingEvaluateHandler);
+app.post('/api/speaking/evaluate', speakingEvaluateHandler);
+
+const transferEvaluateHandler = async (c: AppContext) => {
   const auth = await requireAuth(c, { requireVerified: true });
   if (auth instanceof Response) return auth;
   if (!(await checkRateLimit(c, 'transfer_eval', 25))) {
@@ -1063,21 +1234,34 @@ app.post('/api/v1/transfer/evaluate', async (c) => {
   const userResponse = (body.userResponse || '').trim().slice(0, 2500);
   if (!userResponse) return c.json({ error: 'Please provide a response.' }, 400);
 
-  const result = await callWorkerGeminiJson<Record<string, unknown>>(c.env, {
-    endpoint: 'transfer_evaluate',
-    promptVersion: c.env.TRANSFER_PROMPT_VERSION || 'transfer-rubric-v5.1',
-    userId: auth.id,
-    systemInstruction:
-      'You are LINGUAVERSE AI Transfer Lab Evaluator. Grade across 4 rubrics (0-100): task_completion, target_grammar_application, contextual_appropriateness, response_relevance. Return strict JSON with overall_score, passed (boolean >= 70), strengths, detected_mistakes, natural_model_response, coach_summary_en, coach_summary_bn.',
-    userPrompt: `Scenario: ${body.scenarioId || 'job_interview_followup'} | Pressure: ${body.pressureLevel || 'level_3_open'} | Target skill: ${body.targetSkillLabelEn || 'Real-world English accuracy'}\nResponse: "${userResponse}"`,
-  });
+  try {
+    const result = await callWorkerGeminiJson<Record<string, unknown>>(c.env, {
+      endpoint: 'transfer_evaluate',
+      promptVersion: c.env.TRANSFER_PROMPT_VERSION || 'transfer-rubric-v5.1',
+      userId: auth.id,
+      systemInstruction:
+        'You are LINGUAVERSE AI Transfer Lab Evaluator. Grade across 4 rubrics (0-100): task_completion, target_grammar_application, contextual_appropriateness, response_relevance. Return strict JSON with overall_score, passed (boolean >= 70), strengths, detected_mistakes, natural_model_response, coach_summary_en, coach_summary_bn.',
+      userPrompt: `Scenario: ${body.scenarioId || 'job_interview_followup'} | Pressure: ${body.pressureLevel || 'level_3_open'} | Target skill: ${body.targetSkillLabelEn || 'Real-world English accuracy'}\n<learner_response>\n${userResponse}\n</learner_response>`,
+    });
 
-  return c.json({
-    evaluation: result.data,
-    model: result.model,
-    correlationId: result.correlationId,
-  });
-});
+    return c.json({
+      evaluation: result.data,
+      model: result.model,
+      correlationId: result.correlationId,
+      telemetry: result.telemetry,
+    });
+  } catch (err) {
+    return c.json(
+      {
+        error: err instanceof Error ? err.message : 'Unable to evaluate transfer response.',
+        code: 'TRANSFER_EVAL_UNAVAILABLE',
+      },
+      503
+    );
+  }
+};
+app.post('/api/v1/transfer/evaluate', transferEvaluateHandler);
+app.post('/api/transfer/evaluate', transferEvaluateHandler);
 
 // ============================================================================
 // Public Curriculum Catalog
@@ -1204,6 +1388,12 @@ app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
     .bind(nextRole, nextStatus, nextVerified, new Date().toISOString(), targetUserId)
     .run();
 
+  if (nextStatus === 'suspended') {
+    await c.env.DB.prepare(`UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`)
+      .bind(new Date().toISOString(), targetUserId)
+      .run();
+  }
+
   await writeAuditLog(c.env, {
     actorUserId: admin.id,
     actorEmail: admin.email,
@@ -1229,6 +1419,32 @@ app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
     activeMistakes: 0,
     createdAt: String(target.created_at),
   });
+});
+
+app.delete('/api/v1/admin/users/:targetUserId', async (c) => {
+  const admin = await requireAdmin(c, ['super_admin', 'admin']);
+  if (admin instanceof Response) return admin;
+  const targetUserId = c.req.param('targetUserId');
+  if (targetUserId === admin.id) {
+    return c.json({ error: 'You cannot delete your own administrator account.' }, 400);
+  }
+  const target = await c.env.DB.prepare(`SELECT id, email FROM users WHERE id = ? LIMIT 1`)
+    .bind(targetUserId)
+    .first<{ id: string; email: string }>();
+  if (!target) return c.json({ error: 'Target user not found.' }, 404);
+  await c.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(targetUserId).run();
+  await c.env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(targetUserId).run();
+  await writeAuditLog(c.env, {
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    actorRole: admin.role,
+    action: 'user.deleted',
+    resourceType: 'user_account',
+    resourceId: targetUserId,
+    summaryEn: `Deleted user account ${target.email}.`,
+    summaryBn: `ব্যবহারকারীর অ্যাকাউন্ট মুছে ফেলা হয়েছে (${target.email})।`,
+  });
+  return c.json({ deleted: true, id: targetUserId });
 });
 
 app.post('/api/v1/admin/curriculum/courses', async (c) => {
@@ -1433,5 +1649,213 @@ app.get('/api/v1/admin/audit-logs', async (c) => {
     }))
   );
 });
+
+// ============================================================================
+// Public & Admin CMS, Analytics, and Honest Subscription Endpoints (D1 + R2)
+// ============================================================================
+app.get('/api/v1/cms/public', async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT payload_json FROM cms_documents WHERE doc_key = 'published' LIMIT 1`
+  ).first<{ payload_json: string }>();
+
+  if (row?.payload_json) {
+    return c.json({ config: JSON.parse(row.payload_json) });
+  }
+  return c.json({ config: null }, 200);
+});
+
+app.post('/api/v1/analytics/event', async (c) => {
+  if (!(await checkRateLimit(c, 'analytics', 60))) {
+    return c.json({ error: 'Rate limit exceeded.' }, 429);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    eventType?: string;
+    path?: string;
+    metadata?: Record<string, unknown>;
+  };
+  if (!body.eventType) return c.json({ error: 'eventType is required.' }, 400);
+  await c.env.DB.prepare(
+    `INSERT INTO cms_analytics_events (id, event_type, path, metadata_json, created_at)
+     VALUES (?, ?, ?, ?, ?)`
+  )
+    .bind(
+      generateRandomId('evt'),
+      body.eventType.slice(0, 60),
+      (body.path || '/').slice(0, 160),
+      body.metadata ? JSON.stringify(body.metadata) : null,
+      new Date().toISOString()
+    )
+    .run();
+  return c.json({ ok: true }, 202);
+});
+
+app.post('/api/v1/subscriptions/intent', async (c) => {
+  if (!(await checkRateLimit(c, 'sub_intent', 20))) {
+    return c.json({ error: 'Too many checkout requests. Please try again shortly.' }, 429);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    planSlug?: string;
+    billingInterval?: string;
+  };
+  return c.json({
+    status: 'payment_provider_not_configured',
+    planSlug: body.planSlug || 'premium',
+    billingInterval: body.billingInterval === 'yearly' ? 'yearly' : 'monthly',
+    message:
+      'Live payment checkout is not configured yet in this Cloudflare environment. No payment was charged.',
+  });
+});
+
+app.get('/api/v1/admin/cms', async (c) => {
+  const admin = await requireAdmin(c);
+  if (admin instanceof Response) return admin;
+
+  const docs = await c.env.DB.prepare(
+    `SELECT doc_key, payload_json FROM cms_documents`
+  ).all<{ doc_key: string; payload_json: string }>();
+  const publishedRow = docs.results.find((d) => d.doc_key === 'published');
+  const draftRow = docs.results.find((d) => d.doc_key === 'draft');
+
+  const eventsRes = await c.env.DB.prepare(
+    `SELECT id, event_type, path, metadata_json, created_at
+     FROM cms_analytics_events ORDER BY created_at DESC LIMIT 200`
+  ).all<Record<string, unknown>>();
+
+  return c.json({
+    published: publishedRow ? JSON.parse(publishedRow.payload_json) : null,
+    draft: draftRow
+      ? JSON.parse(draftRow.payload_json)
+      : publishedRow
+        ? JSON.parse(publishedRow.payload_json)
+        : null,
+    analytics: {
+      totalPageViews: eventsRes.results.filter((e) => e.event_type === 'page_view').length,
+      heroCtaClicks: eventsRes.results.filter((e) => e.event_type === 'hero_cta_click').length,
+      watchDemoClicks: eventsRes.results.filter((e) => e.event_type === 'watch_demo_click').length,
+      pricingClicks: eventsRes.results.filter((e) => e.event_type === 'pricing_click').length,
+      liveDemoSubmissions: eventsRes.results.filter((e) => e.event_type === 'live_demo_analyze').length,
+      upgradeModalOpens: eventsRes.results.filter((e) => e.event_type === 'upgrade_modal_open').length,
+      recentEvents: eventsRes.results.slice(0, 25).map((e) => ({
+        id: String(e.id),
+        eventType: String(e.event_type),
+        path: String(e.path),
+        createdAt: String(e.created_at),
+      })),
+    },
+  });
+});
+
+app.put('/api/v1/admin/cms/draft', async (c) => {
+  const admin = await requireAdmin(c, ['super_admin', 'admin', 'content_manager']);
+  if (admin instanceof Response) return admin;
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    patch?: Record<string, unknown>;
+    summary?: string;
+  };
+  if (!body.patch) return c.json({ error: 'CMS patch is required.' }, 400);
+
+  const nowIso = new Date().toISOString();
+  const existing = await c.env.DB.prepare(
+    `SELECT version, payload_json FROM cms_documents WHERE doc_key = 'draft' LIMIT 1`
+  ).first<{ version: number; payload_json: string }>();
+
+  const merged = {
+    ...(existing?.payload_json ? JSON.parse(existing.payload_json) : {}),
+    ...body.patch,
+    updatedAt: nowIso,
+    updatedBy: admin.email,
+  };
+
+  await c.env.DB.prepare(
+    `INSERT OR REPLACE INTO cms_documents (doc_key, version, payload_json, updated_by, updated_at)
+     VALUES ('draft', ?, ?, ?, ?)`
+  )
+    .bind(existing?.version || 1, JSON.stringify(merged), admin.email, nowIso)
+    .run();
+
+  await writeAuditLog(c.env, {
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    actorRole: admin.role,
+    action: 'cms.draft_saved',
+    resourceType: 'cms',
+    resourceId: 'draft',
+    summaryEn: body.summary || 'Saved CMS draft configuration.',
+    summaryBn: 'CMS ড্রাফট সংরক্ষণ করা হয়েছে।',
+  });
+
+  return c.json({ draft: merged });
+});
+
+app.post('/api/v1/admin/cms/publish', async (c) => {
+  const admin = await requireAdmin(c, ['super_admin', 'admin', 'content_manager']);
+  if (admin instanceof Response) return admin;
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    patch?: Record<string, unknown>;
+  };
+  const nowIso = new Date().toISOString();
+
+  const currentPub = await c.env.DB.prepare(
+    `SELECT version, payload_json FROM cms_documents WHERE doc_key = 'published' LIMIT 1`
+  ).first<{ version: number; payload_json: string }>();
+  const currentDraft = await c.env.DB.prepare(
+    `SELECT payload_json FROM cms_documents WHERE doc_key = 'draft' LIMIT 1`
+  ).first<{ payload_json: string }>();
+
+  const nextVersion = Number(currentPub?.version || 0) + 1;
+  const basePayload = currentDraft?.payload_json
+    ? JSON.parse(currentDraft.payload_json)
+    : currentPub?.payload_json
+      ? JSON.parse(currentPub.payload_json)
+      : {};
+
+  const publishedPayload = {
+    ...basePayload,
+    ...(body.patch || {}),
+    version: nextVersion,
+    publishedAt: nowIso,
+    updatedAt: nowIso,
+    updatedBy: admin.email,
+  };
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT OR REPLACE INTO cms_documents (doc_key, version, payload_json, updated_by, updated_at)
+       VALUES ('published', ?, ?, ?, ?)`
+    ).bind(nextVersion, JSON.stringify(publishedPayload), admin.email, nowIso),
+    c.env.DB.prepare(
+      `INSERT OR REPLACE INTO cms_documents (doc_key, version, payload_json, updated_by, updated_at)
+       VALUES ('draft', ?, ?, ?, ?)`
+    ).bind(nextVersion, JSON.stringify(publishedPayload), admin.email, nowIso),
+  ]);
+
+  await writeAuditLog(c.env, {
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    actorRole: admin.role,
+    action: 'cms.published',
+    resourceType: 'cms',
+    resourceId: `v${nextVersion}`,
+    summaryEn: `Published CMS configuration v${nextVersion}.`,
+    summaryBn: `CMS কনফিগারেশন v${nextVersion} লাইভ প্রকাশ করা হয়েছে।`,
+  });
+
+  return c.json({ published: publishedPayload, draft: publishedPayload });
+});
+
+const routeDeps: WorkerRouteDeps = {
+  requireAuth,
+  requireAdmin,
+  checkRateLimit,
+  writeAuditLog,
+  clearSessionCookie,
+};
+
+registerLearnerPersistenceRoutes(app, routeDeps);
+registerParts06To12Routes(app, routeDeps);
+registerP3CommunityVocabBillingRoutes(app, routeDeps);
+registerWorkerPrd61Routes(app, routeDeps);
 
 export default app;

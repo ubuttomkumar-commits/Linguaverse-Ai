@@ -1,313 +1,344 @@
-import { Link } from 'react-router-dom';
-import { ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LearnerShell } from '../../components/layout/LearnerShell';
+import { WorkspaceErrorBoundary } from '../../components/common/WorkspaceErrorBoundary';
+import { LvIntelligenceCoreHero } from '../../components/dashboard/LvIntelligenceCoreHero';
+import { TodayCommandWidget } from '../../components/dashboard/TodayCommandWidget';
+import { CommunicationDnaWidget } from '../../components/dashboard/CommunicationDnaWidget';
+import { CommunicationLoopWidget } from '../../components/dashboard/CommunicationLoopWidget';
+import {
+  AcademyPathWidget,
+  CommunityAndAchievementsRow,
+  MistakeMemoryPreviewWidget,
+  NextBestMoveWidget,
+  ProgressAnalyticsPreviewWidget,
+  SpeakingStudioPreviewWidget,
+  TransferLabPreviewWidget,
+  VocabularySpacedPreviewWidget,
+} from '../../components/dashboard/DashboardModulePreviews';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import { getAllLessons } from '../../domain/curriculumData';
-import type { MistakeSource } from '../../types/domain';
-
-function formatSourceLabel(source: MistakeSource, lang: 'en' | 'bn'): string {
-  const labels: Record<MistakeSource, { en: string; bn: string }> = {
-    diagnostic: { en: 'Diagnostic', bn: 'ডায়াগনস্টিক' },
-    lesson_guided: { en: 'Lesson · Guided', bn: 'লেসন · নির্দেশিত' },
-    lesson_independent: { en: 'Lesson · Independent', bn: 'লেসন · স্বাধীন' },
-    lesson_assessment: { en: 'Lesson · Assessment', bn: 'লেসন · মূল্যায়ন' },
-    speaking_studio: { en: 'AI Speaking Studio', bn: 'AI স্পিকিং স্টুডিও' },
-  };
-  return lang === 'bn' ? labels[source].bn : labels[source].en;
-}
+import { getAllCourses, getAllLessons } from '../../domain/curriculumData';
+import {
+  buildAcademyPathPreview,
+  buildCommunicationLoopStages,
+  buildDashboardWeeklyAnalytics,
+  computeDashboardNextBestMoves,
+  computeTodayLearningSummary,
+  resolvePrimaryContinueTarget,
+} from '../../domain/dashboardIntelligence';
+import { computeVerifiedAchievements } from '../../domain/gamificationEngine';
+import { buildSpacedRetentionSeries } from '../../domain/personalIntelligenceEngine';
+import { classifyMistakeCategory } from '../../domain/mistakeMemoryEngine';
+import { TRANSFER_SCENARIOS } from '../../domain/transferLabEngine';
+import {
+  getNativeLanguageByCode,
+  getTargetLanguageByCode,
+} from '../../domain/onboardingCatalog';
+import { fetchSpeakingHealth, type SpeakingHealthResponse } from '../../services/speakingApi';
 
 export function LearnerHomePage() {
-  const { lang, t } = useLanguage();
-  const { user, profile, latestDiagnostic, mistakes, activitySummary, totalVerifiedXp } =
-    useAuth();
-  const totalCurriculumLessons = getAllLessons().length;
-  const activeMistakes = mistakes.filter(
-    (m) => !m.falseCorrectionReported && m.status !== 'resolved'
+  const { lang } = useLanguage();
+  const {
+    user,
+    profile,
+    latestDiagnostic,
+    mistakes,
+    lessonMastery,
+    lessonAttempts,
+    exerciseAttempts,
+    speakingSessions,
+    mistakeDrillAttempts,
+    transferAttempts,
+    xpLedger,
+    activitySummary,
+    totalVerifiedXp,
+  } = useAuth();
+
+  const [speakingHealth, setSpeakingHealth] = useState<SpeakingHealthResponse | null>(null);
+  const [speakingHealthError, setSpeakingHealthError] = useState(false);
+
+  const loadSpeakingHealth = useCallback(() => {
+    setSpeakingHealth(null);
+    setSpeakingHealthError(false);
+    return fetchSpeakingHealth()
+      .then((res) => {
+        setSpeakingHealth(res);
+      })
+      .catch(() => {
+        setSpeakingHealth(null);
+        setSpeakingHealthError(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchSpeakingHealth()
+      .then((res) => {
+        if (active) {
+          setSpeakingHealth(res);
+          setSpeakingHealthError(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSpeakingHealth(null);
+          setSpeakingHealthError(true);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const allCourses = useMemo(() => getAllCourses(), []);
+  const allLessons = useMemo(() => getAllLessons(), []);
+
+  const nativeLangOpt = getNativeLanguageByCode(profile?.nativeLanguage);
+  const targetLangOpt = getTargetLanguageByCode(profile?.targetLanguage);
+  const languagePairLabel = `${nativeLangOpt.nativeName} → ${targetLangOpt.englishName}`;
+
+  const todaySummary = useMemo(
+    () =>
+      computeTodayLearningSummary({
+        profile,
+        latestDiagnostic,
+        lessonAttempts,
+        exerciseAttempts,
+        speakingSessions,
+        mistakeDrillAttempts,
+        transferAttempts,
+        mistakes,
+        activeStreakDays: activitySummary.activeStreakDays,
+      }),
+    [
+      profile,
+      latestDiagnostic,
+      lessonAttempts,
+      exerciseAttempts,
+      speakingSessions,
+      mistakeDrillAttempts,
+      transferAttempts,
+      mistakes,
+      activitySummary.activeStreakDays,
+    ]
   );
 
-  const goalLabel = profile
-    ? t.onboarding.steps.goal.options[profile.primaryGoal].label
-    : '—';
+  const continueTarget = useMemo(
+    () =>
+      resolvePrimaryContinueTarget({
+        latestDiagnostic,
+        lessonMastery,
+        allLessons,
+        mistakes,
+      }),
+    [latestDiagnostic, lessonMastery, allLessons, mistakes]
+  );
 
-  const explanationLabel =
-    profile?.explanationLanguage === 'bn'
-      ? t.onboarding.steps.expLang.bnLabel
-      : profile?.explanationLanguage === 'en'
-        ? t.onboarding.steps.expLang.enLabel
-        : t.onboarding.steps.expLang.bothLabel;
+  const { primaryMove, secondaryMoves, dnaProfile } = useMemo(
+    () =>
+      computeDashboardNextBestMoves({
+        latestDiagnostic,
+        mistakes,
+        lessonMastery,
+        lessonAttempts,
+        exerciseAttempts,
+        speakingSessions,
+        mistakeDrillAttempts,
+        allLessons,
+      }),
+    [
+      latestDiagnostic,
+      mistakes,
+      lessonMastery,
+      lessonAttempts,
+      exerciseAttempts,
+      speakingSessions,
+      mistakeDrillAttempts,
+      allLessons,
+    ]
+  );
+
+  const academyPath = useMemo(
+    () =>
+      buildAcademyPathPreview({
+        courses: allCourses,
+        lessonMastery,
+        recommendedFirstLessonId:
+          latestDiagnostic?.fiveSkillSummary?.personalizedPath?.recommendedFirstLessonId ?? null,
+      }),
+    [allCourses, lessonMastery, latestDiagnostic]
+  );
+
+  const spacedRetention = useMemo(
+    () => buildSpacedRetentionSeries(lessonMastery, mistakes),
+    [lessonMastery, mistakes]
+  );
+
+  const vocabMistakesCount = useMemo(
+    () =>
+      mistakes.filter(
+        (m) =>
+          !m.falseCorrectionReported &&
+          m.status !== 'resolved' &&
+          classifyMistakeCategory(m.category, m.domain) === 'vocabulary'
+      ).length,
+    [mistakes]
+  );
+
+  const weeklyAnalytics = useMemo(
+    () =>
+      buildDashboardWeeklyAnalytics({
+        lessonAttempts,
+        speakingSessions,
+        mistakeDrillAttempts,
+        transferAttempts,
+      }),
+    [lessonAttempts, speakingSessions, mistakeDrillAttempts, transferAttempts]
+  );
+
+  const verifiedAchievements = useMemo(
+    () =>
+      computeVerifiedAchievements({
+        xpLedger,
+        lessonMastery,
+        speakingSessions,
+        mistakes,
+        transferAttempts,
+      }),
+    [xpLedger, lessonMastery, speakingSessions, mistakes, transferAttempts]
+  );
+
+  const communicationLoopStages = useMemo(
+    () =>
+      buildCommunicationLoopStages({
+        latestDiagnostic,
+        mistakes,
+        lessonMastery,
+        speakingSessions,
+        transferAttempts,
+        mistakeDrillAttempts,
+        dnaMeasuredCount: dnaProfile.measuredCount,
+      }),
+    [
+      latestDiagnostic,
+      mistakes,
+      lessonMastery,
+      speakingSessions,
+      transferAttempts,
+      mistakeDrillAttempts,
+      dnaProfile.measuredCount,
+    ]
+  );
+
+  const assessedSkillCount =
+    latestDiagnostic?.fiveSkillSummary?.assessedSkillCount ?? dnaProfile.measuredCount;
+
+  const hasAnyActivity =
+    Boolean(latestDiagnostic) ||
+    activitySummary.completedLessons > 0 ||
+    activitySummary.completedSpeakingSessions > 0 ||
+    activitySummary.completedTransferDrills > 0;
 
   return (
-    <LearnerShell title={t.learnerNav.home}>
-      {/* Personalized Greeting & Honest Ledger Notice */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-            {t.workspace.welcome}, {user?.name ?? ''}
-          </h2>
-          <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-400">
-            {t.workspace.noFakeDataNotice}
-          </p>
-        </div>
+    <LearnerShell title={lang === 'bn' ? 'কমান্ড সেন্টার' : 'Dashboard'}>
+      <WorkspaceErrorBoundary lang={lang}>
+        <div className="space-y-6">
+        {/* 1. Signature Hero — LV Intelligence Core */}
+        <LvIntelligenceCoreHero
+          userName={user?.name ?? ''}
+          lang={lang}
+          languagePairLabel={languagePairLabel}
+          dailyGoalMinutes={todaySummary.dailyGoalMinutes}
+          assessedSkillCount={assessedSkillCount}
+          totalSkillsCount={5}
+          continueTarget={continueTarget}
+        />
 
-        <div className="flex flex-wrap items-center gap-2.5 self-start shrink-0">
-          <Link
-            to="/app/transfer-lab"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-[#111827] px-4 py-2.5 text-sm font-semibold text-slate-100 hover:border-slate-500 hover:text-white transition-colors whitespace-nowrap"
-          >
-            <span>{lang === 'bn' ? 'ট্রান্সফার ল্যাব' : 'Transfer Lab'}</span>
-          </Link>
-          <Link
-            to="/app/speak"
-            className="inline-flex items-center gap-2 rounded-lg border border-[#8B5CF6]/50 bg-[#8B5CF6]/15 px-4 py-2.5 text-sm font-semibold text-violet-100 hover:bg-[#8B5CF6]/25 transition-colors whitespace-nowrap"
-          >
-            <span>{lang === 'bn' ? 'স্পিকিং স্টুডিও' : 'Speaking Studio'}</span>
-          </Link>
-          <Link
-            to="/app/learn"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB] transition-colors whitespace-nowrap"
-          >
-            <span>{lang === 'bn' ? 'একাডেমি খুলুন' : 'Open The Academy'}</span>
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
-      </div>
-
-      {/* Honest Evidence Ledger Strip (Zero fake streaks/XP) */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-800 bg-[#111827] p-4 sm:p-5">
-          <p className="text-xs text-slate-400">{t.workspace.stats.diagnosticBaseline}</p>
-          <p className="mt-2 font-mono text-2xl font-bold text-white tabular-nums">
-            {latestDiagnostic
-              ? `${latestDiagnostic.totalCorrect}/${latestDiagnostic.totalQuestions}`
-              : '—'}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            {latestDiagnostic
-              ? lang === 'bn'
-                ? `${latestDiagnostic.confidenceCoveragePercent}% কভারেজ`
-                : `${latestDiagnostic.confidenceCoveragePercent}% coverage`
-              : t.workspace.stats.notTaken}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-[#111827] p-4 sm:p-5">
-          <p className="text-xs text-slate-400">{t.workspace.stats.activeMistakes}</p>
-          <p className="mt-2 font-mono text-2xl font-bold text-white tabular-nums">
-            {activeMistakes.length}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            {lang === 'en' && activeMistakes.length === 1 ? 'pattern' : t.workspace.stats.patterns}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-[#111827] p-4 sm:p-5">
-          <p className="text-xs text-slate-400">
-            {lang === 'bn' ? 'সম্পন্ন লেসন' : 'Academy Lessons'}
-          </p>
-          <p className="mt-2 font-mono text-2xl font-bold text-white tabular-nums">
-            {activitySummary.completedLessons}/{totalCurriculumLessons}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">{t.workspace.stats.completed}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-[#111827] p-4 sm:p-5">
-          <p className="text-xs text-slate-400">
-            {lang === 'bn' ? 'যাচাইকৃত XP · ধারা' : 'Verified XP · Streak'}
-          </p>
-          <p className="mt-2 font-mono text-2xl font-bold text-[#F59E0B] tabular-nums">
-            {totalVerifiedXp} XP
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            {activitySummary.activeStreakDays}{' '}
-            {lang === 'en' && activitySummary.activeStreakDays === 1
-              ? 'day streak'
-              : lang === 'en'
-                ? 'days streak'
-                : 'দিন সক্রিয়'}
-          </p>
-        </div>
-      </div>
-
-      {/* Main 2-column Evidence & Profile Layout */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Diagnostic Baseline Card */}
-        <section className="rounded-xl border border-slate-800 bg-[#111827] p-6 lg:col-span-7">
-          {!latestDiagnostic ? (
-            <div>
-              <p className="text-xs font-semibold text-[#F59E0B]">
-                {t.diagnostic.kicker}
-              </p>
-              <h2 className="mt-2 text-xl font-bold text-white">
-                {t.workspace.home.startDiagnosticTitle}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                {t.workspace.home.startDiagnosticDesc}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  to="/diagnostic"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB] transition-colors"
-                >
-                  <span>{t.workspace.home.startDiagnosticBtn}</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-                <Link
-                  to="/app/learn"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-[#0A0F1C] px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-white transition-colors"
-                >
-                  <span>{lang === 'bn' ? 'সরাসরি লেসন শুরু করুন' : 'Browse Curriculum'}</span>
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-base font-bold text-white">
-                  {t.workspace.home.diagnosticCardTitle}
-                </h2>
-                <Link
-                  to="/diagnostic"
-                  className="text-xs font-semibold text-[#3B82F6] hover:text-blue-400"
-                >
-                  {t.workspace.home.retakeDiagnosticBtn}
-                </Link>
-              </div>
-
-              <p className="mt-3 text-lg font-semibold text-[#3B82F6]">
-                {lang === 'bn'
-                  ? latestDiagnostic.estimatedStartingBandBn
-                  : latestDiagnostic.estimatedStartingBand}
-              </p>
-              <p className="mt-1.5 text-sm text-slate-300 leading-relaxed">
-                {lang === 'bn'
-                  ? latestDiagnostic.calibrationNoteBn
-                  : latestDiagnostic.calibrationNoteEn}
-              </p>
-
-              <p className="mt-3 flex items-start gap-2 text-xs text-[#F59E0B]">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span>
-                  {lang === 'bn'
-                    ? latestDiagnostic.confidenceLabelBn
-                    : latestDiagnostic.confidenceLabelEn}
-                </span>
-              </p>
-
-              <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-800 pt-5 sm:grid-cols-4">
-                {latestDiagnostic.domainBreakdown.map((item) => (
-                  <div key={item.domain} className="flex flex-col justify-between gap-1.5">
-                    <p className="text-xs leading-snug text-slate-400">
-                      {t.diagnostic.domains[item.domain]}
-                    </p>
-                    <p className="font-mono text-base font-bold text-white tabular-nums">
-                      {item.correct}/{item.total}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Learner Profile Summary */}
-        <section className="rounded-xl border border-slate-800 bg-[#111827] p-6 lg:col-span-5">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-white">
-              {t.workspace.home.profileSummaryTitle}
-            </h2>
-            <Link
-              to="/app/settings"
-              className="text-xs font-semibold text-[#3B82F6] hover:text-blue-400"
-            >
-              {t.workspace.home.editPreferences}
-            </Link>
+        {/* 2. Today's Learning Command + Personalized Next Best Move */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-6">
+            <TodayCommandWidget summary={todaySummary} lang={lang} />
           </div>
-
-          <dl className="mt-4 divide-y divide-slate-800 text-sm">
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-slate-400">{t.workspace.home.goalLabel}</dt>
-              <dd className="text-right font-medium text-white">{goalLabel}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-slate-400">{t.workspace.home.dailyTargetLabel}</dt>
-              <dd className="font-mono font-medium text-white tabular-nums">
-                {profile?.dailyTimeGoalMinutes ?? 15} {t.onboarding.steps.dailyTime.minutesLabel}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-slate-400">{t.workspace.home.selfLevelLabel}</dt>
-              <dd className="font-mono font-medium text-white">
-                {profile?.selfEstimatedLevel ?? '—'}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-slate-400">{t.workspace.home.explanationPrefLabel}</dt>
-              <dd className="text-right font-medium text-slate-200">{explanationLabel}</dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      {/* Mistake Memory Starter Queue */}
-      <section className="mt-6 rounded-xl border border-slate-800 bg-[#111827] p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-bold text-white">
-            {t.workspace.home.recentMistakesTitle}
-          </h2>
-          <Link
-            to="/app/improve"
-            className="text-xs font-semibold text-[#3B82F6] hover:text-blue-400"
-          >
-            {t.workspace.home.viewAllMistakes}
-          </Link>
+          <div className="xl:col-span-6">
+            <NextBestMoveWidget
+              primaryMove={primaryMove}
+              secondaryMoves={secondaryMoves}
+              lang={lang}
+            />
+          </div>
         </div>
 
-        {activeMistakes.length === 0 ? (
-          <div className="mt-4 flex items-start gap-2.5 text-sm leading-relaxed text-slate-400">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
-            <p>
-              {latestDiagnostic ||
-              activitySummary.completedLessons > 0 ||
-              activitySummary.completedSpeakingSessions > 0
-                ? t.workspace.home.noMistakesPerfect
-                : t.workspace.home.noMistakesUntaken}
-            </p>
+        {/* 3. Communication DNA — Personal Intelligence Profile */}
+        <CommunicationDnaWidget
+          profile={profile}
+          latestDiagnostic={latestDiagnostic}
+          dnaProfile={dnaProfile}
+          lang={lang}
+        />
+
+        {/* 3b. 8-Step Communication Improvement Loop */}
+        <CommunicationLoopWidget stages={communicationLoopStages} lang={lang} />
+
+        {/* 4. Learning Path & Academy Preview */}
+        <AcademyPathWidget
+          items={academyPath.items}
+          completedCount={academyPath.completedCount}
+          totalCount={academyPath.totalCount}
+          currentCourseTitleEn={academyPath.currentCourseTitleEn}
+          currentCourseTitleBn={academyPath.currentCourseTitleBn}
+          lang={lang}
+        />
+
+        {/* 5. Mistake Memory + Speaking Studio Previews */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <MistakeMemoryPreviewWidget
+              mistakes={mistakes}
+              explanationLanguage={profile?.explanationLanguage ?? 'both'}
+              hasAnyActivity={hasAnyActivity}
+              lang={lang}
+            />
           </div>
-        ) : (
-          <div className="mt-4 divide-y divide-slate-800">
-            {activeMistakes.slice(0, 5).map((item) => (
-              <div key={item.id} className="py-4 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold text-[#8B5CF6]">{item.category}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-slate-400 tabular-nums">
-                      {formatSourceLabel(item.source, lang)} · {item.occurrences}x
-                    </span>
-                    <Link
-                      to={`/app/improve?focus=${encodeURIComponent(item.id)}`}
-                      className="font-semibold text-[#3B82F6] hover:text-blue-400 whitespace-nowrap"
-                    >
-                      {lang === 'bn' ? 'ড্রিল করুন' : 'Fix'}
-                    </Link>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-slate-200">
-                  <span className="text-rose-300 line-through">{item.userExample}</span>
-                  <span aria-hidden="true" className="mx-2 text-slate-500">
-                    →
-                  </span>
-                  <span className="font-semibold text-emerald-300">{item.correctedExample}</span>
-                </p>
-                <p className="font-bn mt-1.5 text-xs leading-relaxed text-slate-400">
-                  {profile?.explanationLanguage === 'en' ? item.explanationEn : item.explanationBn}
-                </p>
-              </div>
-            ))}
+          <div className="lg:col-span-5">
+            <SpeakingStudioPreviewWidget
+              speakingSessions={speakingSessions}
+              speakingHealth={speakingHealth}
+              speakingHealthError={speakingHealthError}
+              onRetrySpeakingHealth={() => void loadSpeakingHealth()}
+              lang={lang}
+            />
           </div>
-        )}
-      </section>
+        </div>
+
+        {/* 6. Transfer Lab Preview */}
+        <TransferLabPreviewWidget
+          scenarios={TRANSFER_SCENARIOS}
+          completedTransfersCount={activitySummary.completedTransferDrills}
+          lang={lang}
+        />
+
+        {/* 7. Progress & Analytics + Vocabulary & Spaced Repetition */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <ProgressAnalyticsPreviewWidget analytics={weeklyAnalytics} lang={lang} />
+          </div>
+          <div className="lg:col-span-5">
+            <VocabularySpacedPreviewWidget
+              dueReviewsCount={spacedRetention.dueNowCount}
+              vocabMistakesCount={vocabMistakesCount}
+              lang={lang}
+            />
+          </div>
+        </div>
+
+        {/* 8. Compact Achievements & Community (Honest States) */}
+        <CommunityAndAchievementsRow
+          totalVerifiedXp={totalVerifiedXp}
+          achievements={verifiedAchievements}
+          lang={lang}
+        />
+        </div>
+      </WorkspaceErrorBoundary>
     </LearnerShell>
   );
 }
-

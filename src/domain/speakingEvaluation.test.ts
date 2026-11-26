@@ -8,8 +8,8 @@ import {
 } from './speakingEvaluation.ts';
 import { SPEAKING_PRESSURE_LEVELS, SPEAKING_SCENARIOS } from './speakingScenarios.ts';
 
-test('defines all 7 required speaking conversation modes and 5 Pressure Ladder levels', () => {
-  assert.equal(SPEAKING_SCENARIOS.length, 7);
+test('defines all 10 configured speaking scenarios (preserving all 7 core modes) and 5 Pressure Ladder levels', () => {
+  assert.equal(SPEAKING_SCENARIOS.length, 10);
   const modeIds = SPEAKING_SCENARIOS.map((s) => s.id);
   for (const expected of [
     'daily_conversations',
@@ -19,6 +19,9 @@ test('defines all 7 required speaking conversation modes and 5 Pressure Ladder l
     'travel',
     'customer_service',
     'unexpected_questions',
+    'academic_discussion',
+    'presentation_pitch',
+    'travel_airport_assistance',
   ]) {
     assert.ok(modeIds.includes(expected as (typeof modeIds)[number]), `Missing mode: ${expected}`);
   }

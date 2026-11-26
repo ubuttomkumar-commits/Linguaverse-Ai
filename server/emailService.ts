@@ -128,3 +128,112 @@ export async function sendOtpEmailFromServer(
 
   return { delivered: false, provider: 'none' };
 }
+
+export interface PasswordResetEmailRequest {
+  toEmail: string;
+  recipientName: string;
+  resetUrl: string;
+}
+
+export function buildBilingualResetHtml(recipientName: string, resetUrl: string): string {
+  const safeName = recipientName.replace(/[<>&"]/g, '');
+  const safeUrl = resetUrl.replace(/["<>]/g, '');
+  return `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:24px;background:#05091F;color:#e2e8f0;font-family:Inter,Arial,sans-serif;">
+    <div style="max-width:520px;margin:0 auto;background:#0B122C;border:1px solid #312e81;border-radius:16px;padding:32px;">
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;color:#00D9FF;text-transform:uppercase;">
+        LINGUAVERSE AI · THE LANGUAGE PORTAL
+      </div>
+      <h1 style="margin:14px 0 8px;font-size:22px;color:#ffffff;">
+        Reset Your Password • পাসওয়ার্ড রিসেট করুন
+      </h1>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+        Hi ${safeName || 'Learner'}, we received a request to reset your LINGUAVERSE AI password. Use the secure single-use button below within 15 minutes.
+        <br/>
+        প্রিয় ${safeName || 'শিক্ষার্থী'}, আপনার LINGUAVERSE AI পাসওয়ার্ড রিসেট করার অনুরোধ পাওয়া গেছে। আগামী ১৫ মিনিটের মধ্যে নিচের লিংকটি ব্যবহার করুন।
+      </p>
+      <div style="margin:24px 0;text-align:center;">
+        <a href="${safeUrl}" style="display:inline-block;background:linear-gradient(95deg,#7C3AED,#00D9FF);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;">
+          Reset Password
+        </a>
+      </div>
+      <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">
+        For your security, resetting your password revokes all active sessions. If you did not request this, you can safely ignore this email.
+      </p>
+    </div>
+  </body>
+</html>`;
+}
+
+export async function sendPasswordResetEmailFromServer(
+  req: PasswordResetEmailRequest
+): Promise<OtpEmailResult> {
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  const brevoKey = process.env.EMAIL_PROVIDER_API_KEY?.trim();
+  const fromAddress =
+    process.env.EMAIL_FROM?.trim() || 'LINGUAVERSE AI <noreply@linguaverse.ai>';
+  const subject = 'Reset your LINGUAVERSE AI password';
+  const html = buildBilingualResetHtml(req.recipientName, req.resetUrl);
+
+  if (resendKey) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [req.toEmail],
+          subject,
+          html,
+        }),
+      });
+      if (!response.ok) {
+        return { delivered: false, provider: 'resend', error: `Resend HTTP ${response.status}` };
+      }
+      return { delivered: true, provider: 'resend' };
+    } catch (err) {
+      return {
+        delivered: false,
+        provider: 'resend',
+        error: err instanceof Error ? err.message : 'Resend delivery error',
+      };
+    }
+  }
+
+  if (brevoKey) {
+    try {
+      const fromEmailMatch = fromAddress.match(/<([^>]+)>/);
+      const senderEmail = fromEmailMatch ? fromEmailMatch[1] : fromAddress;
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'LINGUAVERSE AI', email: senderEmail },
+          to: [{ email: req.toEmail, name: req.recipientName || 'Learner' }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+      if (!response.ok) {
+        return { delivered: false, provider: 'brevo', error: `Brevo HTTP ${response.status}` };
+      }
+      return { delivered: true, provider: 'brevo' };
+    } catch (err) {
+      return {
+        delivered: false,
+        provider: 'brevo',
+        error: err instanceof Error ? err.message : 'Brevo delivery error',
+      };
+    }
+  }
+
+  return { delivered: false, provider: 'none' };
+}
+

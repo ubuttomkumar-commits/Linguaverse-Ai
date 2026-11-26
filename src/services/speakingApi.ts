@@ -1,5 +1,7 @@
 import type { SpeakingEvaluationRequest } from '../domain/speakingEvaluation';
 import { generateCorrelationId } from '../domain/adminGovernanceEngine';
+import { getApiCredentialsMode, resolveApiUrl } from './apiBase';
+import { buildCsrfHeaders } from './authApi';
 import { recordAiTelemetryEvent } from './governanceStore';
 import type { SpeakingTurnEvaluation } from '../types/domain';
 
@@ -42,7 +44,10 @@ export class SpeakingClientError extends Error {
 }
 
 export async function fetchSpeakingHealth(): Promise<SpeakingHealthResponse> {
-  const res = await fetch('/api/speaking/health', { method: 'GET' });
+  const res = await fetch(resolveApiUrl('/api/speaking/health'), {
+    method: 'GET',
+    credentials: getApiCredentialsMode(),
+  });
   if (!res.ok) {
     return { ok: false, configured: false, model: 'gemini-4-hydrogen' };
   }
@@ -59,9 +64,11 @@ export async function requestSpeakingEvaluation(
   const shouldLog = options?.logTelemetry !== false;
 
   try {
-    const res = await fetch('/api/speaking/evaluate', {
+    const headers = await buildCsrfHeaders({ 'Content-Type': 'application/json' });
+    const res = await fetch(resolveApiUrl('/api/speaking/evaluate'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: getApiCredentialsMode(),
+      headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
     });

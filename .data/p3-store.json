@@ -1,0 +1,161 @@
+{
+  "vocabulary": [
+    {
+      "id": "voc_e37534b89c1c90a2",
+      "userId": "usr_f8b20edd29016c",
+      "word": "articulate",
+      "wordNormalized": "articulate",
+      "phoneticHint": "",
+      "meaningEn": "Express an idea clearly and fluently",
+      "meaningBn": "স্পষ্ট ও সাবলীলভাবে প্রকাশ করা",
+      "exampleSentence": "She articulated her proposal with confidence.",
+      "sourceType": "manual",
+      "difficulty": "medium",
+      "reviewCount": 1,
+      "passCount": 1,
+      "consecutivePasses": 1,
+      "intervalDays": 2,
+      "masteryStatus": "learning",
+      "algorithmVersion": "srs-v2.0-sm2-lite",
+      "lastReviewedAt": "2026-11-25T19:39:57.233Z",
+      "nextReviewAt": "2026-11-27T19:39:57.233Z",
+      "reviewHistory": [
+        {
+          "reviewedAt": "2026-11-25T19:39:57.233Z",
+          "rating": "good",
+          "intervalDays": 2,
+          "algorithmVersion": "srs-v2.0-sm2-lite"
+        }
+      ],
+      "createdAt": "2026-11-25T19:39:56.981Z",
+      "updatedAt": "2026-11-25T19:39:57.233Z"
+    },
+    {
+      "id": "voc_6a3053742ba531cc",
+      "userId": "usr_751defcb2e32cf",
+      "word": "articulate",
+      "wordNormalized": "articulate",
+      "phoneticHint": "",
+      "meaningEn": "Express an idea clearly and effectively",
+      "meaningBn": "স্পষ্টভাবে মত প্রকাশ করা",
+      "exampleSentence": "She was able to articulate her project goals during the interview.",
+      "sourceType": "manual",
+      "difficulty": "medium",
+      "reviewCount": 0,
+      "passCount": 0,
+      "consecutivePasses": 0,
+      "intervalDays": 1,
+      "masteryStatus": "new",
+      "algorithmVersion": "srs-v2.0-sm2-lite",
+      "lastReviewedAt": null,
+      "nextReviewAt": "2026-11-25T19:35:20.400Z",
+      "reviewHistory": [],
+      "createdAt": "2026-11-25T19:35:20.400Z",
+      "updatedAt": "2026-11-25T19:35:20.400Z"
+    }
+  ],
+  "posts": [
+    {
+      "id": "post_0c44b4d205440977",
+      "authorUserId": "usr_f8b20edd29016c",
+      "authorName": "P3 Round2 Learner",
+      "authorLevel": "B1",
+      "category": "discussion",
+      "title": "How do you practice fluent workplace presentations?",
+      "body": "I started recording two-minute summaries after Academy lessons and reviewing my pauses.",
+      "tags": [],
+      "helpfulUserIds": [
+        "usr_f8b20edd29016c"
+      ],
+      "status": "active",
+      "comments": [],
+      "createdAt": "2026-11-25T19:40:04.635Z",
+      "updatedAt": "2026-11-25T19:40:05.326Z"
+    },
+    {
+      "id": "post_9147c32eeaf6c161",
+      "authorUserId": "usr_751defcb2e32cf",
+      "authorName": "Rafiul Hasan",
+      "authorLevel": "B1",
+      "category": "practice_challenge",
+      "title": "Daily Standup Speaking Challenge",
+      "body": "Share 3 sentences about what you worked on yesterday and your plan for today.",
+      "tags": [
+        "workplace",
+        "speaking"
+      ],
+      "helpfulUserIds": [
+        "usr_751defcb2e32cf"
+      ],
+      "status": "active",
+      "comments": [
+        {
+          "id": "cmt_a5759919b3e9f891",
+          "postId": "post_9147c32eeaf6c161",
+          "authorUserId": "usr_751defcb2e32cf",
+          "authorName": "Rafiul Hasan",
+          "body": "Yesterday I reviewed past simple tense and today I will practice hotel check-in.",
+          "status": "active",
+          "createdAt": "2026-11-25T19:35:44.623Z",
+          "updatedAt": "2026-11-25T19:35:44.623Z"
+        }
+      ],
+      "createdAt": "2026-11-25T19:35:43.766Z",
+      "updatedAt": "2026-11-25T19:35:45.353Z"
+    }
+  ],
+  "reports": [],
+  "blocks": [],
+  "restrictions": {},
+  "subscriptions": [
+    {
+      "id": "sub_8171690129b17ae0",
+      "userId": "usr_751defcb2e32cf",
+      "planSlug": "pro",
+      "billingInterval": "monthly",
+      "status": "pending_provider",
+      "provider": "unconfigured",
+      "createdAt": "2026-11-25T19:35:51.750Z",
+      "updatedAt": "2026-11-25T19:35:51.750Z"
+    }
+  ],
+  "invoices": [
+    {
+      "id": "inv_cf9a16c83509e632",
+      "subscriptionId": "sub_8171690129b17ae0",
+      "userId": "usr_751defcb2e32cf",
+      "planSlug": "pro",
+      "billingInterval": "monthly",
+      "amountCents": 1200,
+      "currency": "USD",
+      "status": "pending_provider",
+      "provider": "unconfigured",
+      "createdAt": "2026-11-25T19:35:51.750Z",
+      "updatedAt": "2026-11-25T19:35:51.750Z"
+    }
+  ],
+  "supportTickets": [
+    {
+      "id": "sup_6b81d3e18791010d",
+      "userId": "usr_751defcb2e32cf",
+      "userEmail": "p3e2e_1795635305849@example.com",
+      "category": "billing",
+      "subject": "Bangladesh billing question",
+      "message": "Please notify me when local payment methods are enabled for Pro.",
+      "status": "open",
+      "createdAt": "2026-11-25T19:35:52.886Z",
+      "updatedAt": "2026-11-25T19:35:52.886Z"
+    }
+  ],
+  "gamificationPrefs": {
+    "usr_751defcb2e32cf": {
+      "userId": "usr_751defcb2e32cf",
+      "leaderboardOptIn": false,
+      "displayAlias": "Rafiul",
+      "reminderEnabled": false,
+      "reminderTimeLocal": "20:00",
+      "totalVerifiedXp": 0,
+      "updatedAt": "2026-11-25T19:35:50.212Z"
+    }
+  }
+}

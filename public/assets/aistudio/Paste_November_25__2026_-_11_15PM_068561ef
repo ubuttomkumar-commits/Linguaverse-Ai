@@ -1,0 +1,2181 @@
+LINGUAVERSE AI
+
+MASTER PRODUCT REQUIREMENTS DOCUMENT (PRD)
+
+VERSION 5.0 — DEVIL'S ADVOCATE • PRODUCT AUTOPSY • RED TEAM • PRODUCTION EDITION
+
+Product: LINGUAVERSE AI
+Category: AI-Powered Language Learning & Communication Intelligence Platform
+Initial Market: Bangladesh and Bangla-speaking English learners
+Global Vision: A multilingual communication-learning ecosystem
+Primary Platform: Responsive Web Application / PWA
+Architecture: React + TypeScript + Cloudflare
+Product Positioning: Learn, Speak, Improve, Communicate.
+
+Tagline: Don't Just Learn a Language. Master Real Communication.
+
+Core Promise: Every mistake becomes a learning opportunity. Every practice session creates evidence. Every improvement moves learners closer to real-world communication.
+
+MASTER EXECUTIVE DIRECTIVE
+
+Build LINGUAVERSE AI as a premium, intelligent, voice-first language-learning and real-world communication training platform.
+
+This is not another vocabulary memorization application, grammar quiz platform, or generic AI chatbot.
+
+LINGUAVERSE AI must connect five activities:
+
+Learning a language.
+
+Practicing communication.
+
+Detecting actual mistakes.
+
+Correcting weaknesses.
+
+Measuring whether the learner improves.
+
+The platform must create a continuous, evidence-based learning experience.
+
+0.1 Non-negotiable principles
+
+Never claim functionality that has not been implemented and tested.
+
+Never generate fake user activity, learning progress, revenue, reviews, or analytics.
+
+Never present AI-generated guesses as verified educational assessments.
+
+Never award proficiency levels without sufficient assessment evidence.
+
+Never claim pronunciation accuracy without appropriate acoustic evidence.
+
+Never expose API keys, credentials, or provider secrets in frontend code.
+
+Never bypass backend authorization.
+
+Never use private voice recordings for model training without appropriate consent and legal basis.
+
+Never overwrite an existing repository without auditing it.
+
+Never create duplicate components, tables, services, or API routes unnecessarily.
+
+Never delete production data through routine migrations.
+
+Every important operation must have a verifiable backend implementation.
+
+Every AI evaluation must be testable, explainable, and traceable.
+
+Every sensitive administrative operation must be audited.
+
+Every implementation phase must produce evidence-based completion reports.
+
+Accessibility, privacy, reliability, and performance are product requirements, not optional polish.
+
+0.2 Product success philosophy
+
+The objective is not to maximize:
+
+Time spent unnecessarily.
+
+Number of AI conversations.
+
+Vocabulary cards opened.
+
+Daily meaningless page visits.
+
+Artificial engagement.
+
+The objective is to improve:
+
+Communication ability.
+
+Language comprehension.
+
+Sentence construction.
+
+Speaking performance.
+
+Knowledge retention.
+
+Real-world task completion.
+
+Learner confidence as self-reported and behaviorally observed.
+
+PRODUCT VISION AND POSITIONING
+
+1.1 Vision
+
+Create a global communication intelligence platform that helps people understand, speak, respond, and communicate naturally in another language.
+
+LINGUAVERSE AI should become a personalized learning environment that understands what a learner knows, identifies what they struggle with, and creates targeted opportunities to improve.
+
+1.2 Initial target market
+
+Start with Bangla-speaking English learners.
+
+Primary users:
+
+English beginners.
+
+School and university students.
+
+Job seekers.
+
+Professionals.
+
+International study applicants.
+
+People preparing for interviews.
+
+People struggling with speaking confidence.
+
+People who understand English but cannot communicate naturally.
+
+People who need practical workplace communication.
+
+1.3 Future markets
+
+Support additional learning languages through a configurable language architecture.
+
+Potential expansion:
+
+English.
+
+Bengali.
+
+Spanish.
+
+French.
+
+German.
+
+Japanese.
+
+Korean.
+
+Arabic.
+
+Other supported languages.
+
+Do not launch a language merely because an AI provider claims to support it. Validate curriculum quality, speech recognition, pronunciation assessment, and evaluation reliability first.
+
+1.4 Product positioning
+
+LINGUAVERSE AI combines:
+
+Structured language education.
+
+AI conversation practice.
+
+Personalized mistake tracking.
+
+Evidence-based assessment.
+
+Practical communication simulation.
+
+Adaptive revision.
+
+Learning analytics.
+
+1.5 Core competitive advantage
+
+The primary competitive advantage must be the Communication Improvement Loop, not a collection of disconnected AI features.
+
+TARGET USERS AND USER PERSONAS
+
+2.1 Beginner learner
+
+Problems:
+
+Cannot construct sentences.
+
+Knows individual words but struggles to speak.
+
+Fears making mistakes.
+
+Needs explanations in Bangla.
+
+Needs simple, structured lessons.
+
+Requirements:
+
+Beginner-friendly interface.
+
+Bilingual explanations.
+
+Slow, guided practice.
+
+Short lessons.
+
+Immediate feedback.
+
+2.2 Intermediate learner
+
+Problems:
+
+Understands basic English.
+
+Makes recurring grammar mistakes.
+
+Struggles with spontaneous conversations.
+
+Has limited vocabulary.
+
+Cannot respond naturally under pressure.
+
+Requirements:
+
+Open conversations.
+
+Personalized mistake review.
+
+Natural sentence alternatives.
+
+Practical simulations.
+
+Increasing difficulty.
+
+2.3 Advanced learner
+
+Problems:
+
+Understands English but lacks natural fluency.
+
+Struggles with complex discussions.
+
+Needs professional communication.
+
+Wants precise language feedback.
+
+Requirements:
+
+Advanced discussions.
+
+Presentation practice.
+
+Interview simulations.
+
+Nuance and vocabulary improvement.
+
+Contextual communication evaluation.
+
+2.4 Job seeker
+
+Requirements:
+
+Interview preparation.
+
+Professional introductions.
+
+Answer structuring.
+
+Workplace communication.
+
+Follow-up questions.
+
+Performance replay.
+
+2.5 Admin and content manager
+
+Requirements:
+
+Manage curriculum.
+
+Monitor AI operations.
+
+Review content quality.
+
+Manage users.
+
+Monitor moderation.
+
+Review subscriptions.
+
+Inspect audit logs.
+
+PRODUCT DIFFERENTIATION SYSTEMS
+
+These six systems are the core intellectual product experience.
+
+3.1 Communication DNA
+
+Create an evidence-based learner profile.
+
+Track:
+
+Vocabulary range.
+
+Grammar accuracy.
+
+Sentence complexity.
+
+Listening comprehension.
+
+Speaking task performance.
+
+Pronunciation indicators.
+
+Fluency indicators.
+
+Response completion.
+
+Recurring mistakes.
+
+Scenario completion.
+
+Learning consistency.
+
+Self-reported confidence.
+
+Rules:
+
+Never infer psychological characteristics from voice.
+
+Separate measured performance from self-reported information.
+
+Record evidence source and assessment date.
+
+Track confidence and data coverage.
+
+Avoid presenting insufficient data as a reliable score.
+
+3.2 Mistake Memory Engine
+
+Store recurring mistakes and use them to personalize future practice.
+
+Each mistake record should include:
+
+Original expression.
+
+Corrected expression.
+
+Explanation.
+
+Mistake category.
+
+Language.
+
+Context.
+
+Detection timestamp.
+
+Frequency.
+
+Severity.
+
+Confidence in detection.
+
+Previous practice.
+
+Review schedule.
+
+Retest outcome.
+
+Current status.
+
+Mistake categories:
+
+Grammar.
+
+Vocabulary.
+
+Word choice.
+
+Word order.
+
+Sentence structure.
+
+Verb tense.
+
+Articles.
+
+Prepositions.
+
+Pronunciation.
+
+Listening comprehension.
+
+Contextual appropriateness.
+
+Rules:
+
+Do not create permanent mistakes from uncertain AI interpretations.
+
+Allow users to report incorrect corrections.
+
+Merge genuinely identical errors where appropriate.
+
+Preserve the history of corrections.
+
+Track whether a mistake reappears.
+
+Do not claim mastery after one successful attempt.
+
+3.3 Transfer Lab
+
+Transfer knowledge into real communication.
+
+Example:
+
+A learner completes a past-tense lesson.
+
+The system asks the learner to:
+
+Describe yesterday.
+
+Explain a previous experience.
+
+Tell a short story.
+
+Answer unexpected questions.
+
+Use the same grammar in another scenario.
+
+Evaluate actual application rather than lesson completion.
+
+3.4 Pressure Ladder
+
+Progressively increase communication difficulty.
+
+Levels:
+
+Controlled practice.
+
+Guided conversation.
+
+Open-ended conversation.
+
+Follow-up questions.
+
+Unexpected questions.
+
+Time-limited responses.
+
+Complex real-world simulations.
+
+Difficulty must account for language complexity, context, response demands, and learner proficiency.
+
+Do not equate fast speaking with good communication.
+
+3.5 Communication Replay
+
+Allow users to review previous practice sessions.
+
+Show:
+
+Original audio, when retained with consent.
+
+Transcript.
+
+Corrected transcript.
+
+Original response.
+
+Natural alternative.
+
+Grammar feedback.
+
+Vocabulary feedback.
+
+Pronunciation evidence where supported.
+
+Mistake history.
+
+Retry controls.
+
+Users must be able to delete recordings according to retention and legal requirements.
+
+3.6 Evidence-Based Progress
+
+Every progress metric must be connected to actual activity or assessment records.
+
+Do not award progress for:
+
+Opening a page.
+
+Watching a loading animation.
+
+Clicking a lesson.
+
+Starting but not completing an exercise.
+
+Progress must reflect meaningful learning activity.
+
+CORE PRODUCT ENGINE — COMMUNICATION IMPROVEMENT LOOP
+
+This is the most important system in LINGUAVERSE AI.
+
+4.1 Workflow
+
+STEP 1 — DETECT
+
+Identify actual weaknesses from exercises, conversations, and assessments.
+
+STEP 2 — EXPLAIN
+
+Explain the mistake in language appropriate to the learner.
+
+STEP 3 — PERSONALIZE
+
+Create exercises targeting the identified weakness.
+
+STEP 4 — PRACTICE
+
+Let the learner apply the correction.
+
+STEP 5 — TRANSFER
+
+Test the concept in a different communication context.
+
+STEP 6 — RETEST
+
+Measure whether performance improved.
+
+STEP 7 — UPDATE
+
+Update the learner profile using verified evidence.
+
+STEP 8 — REPEAT
+
+Generate the next appropriate learning recommendation.
+
+4.2 Evidence requirements
+
+Every learning recommendation must contain:
+
+Recommendation reason.
+
+Supporting assessment or mistake references.
+
+Difficulty.
+
+Learning objective.
+
+Expected activity.
+
+Completion criteria.
+
+4.3 Success measurement
+
+Measure:
+
+Mistake recurrence rate.
+
+Correct application rate.
+
+Retention after a time interval.
+
+Scenario completion.
+
+Assessment improvement.
+
+Transfer performance.
+
+Do not interpret correlation as proof that one specific lesson caused an improvement.
+
+INFORMATION ARCHITECTURE AND NAVIGATION
+
+5.1 Public navigation
+
+Home.
+
+Features.
+
+How It Works.
+
+Pricing.
+
+About.
+
+Login.
+
+Start Learning.
+
+5.2 Authenticated learner navigation
+
+Primary:
+
+Home.
+
+Learn.
+
+Speak.
+
+Improve.
+
+Progress.
+
+Secondary:
+
+Discover.
+
+Transfer Lab.
+
+Community.
+
+Achievements.
+
+Profile.
+
+Settings.
+
+5.3 Admin navigation
+
+Separate protected application:
+
+Admin Overview.
+
+User Management.
+
+Curriculum Management.
+
+AI Operations.
+
+Subscription Management.
+
+Community Moderation.
+
+Support.
+
+Analytics.
+
+Audit Logs.
+
+System Configuration.
+
+5.4 Mobile navigation
+
+Use a mobile-first navigation system.
+
+Keep the most important actions accessible:
+
+Continue learning.
+
+Start speaking.
+
+Review mistakes.
+
+View progress.
+
+Avoid excessive navigation depth.
+
+PREMIUM LANDING PAGE
+
+Build a premium, modern, immersive landing page.
+
+6.1 Visual direction
+
+Brand identity:
+
+Deep navy.
+
+Charcoal.
+
+Carefully selected electric blue or violet accents.
+
+Warm educational accent colors.
+
+Clean typography.
+
+Restrained glass effects.
+
+Layered gradients.
+
+Subtle 3D depth.
+
+Professional visual hierarchy.
+
+The interface must feel like a premium global education technology product.
+
+Avoid:
+
+Generic AI landing page templates.
+
+Excessive neon effects.
+
+Unnecessary glass panels.
+
+Overloaded gradients.
+
+Unreadable text.
+
+Excessive animation.
+
+Fake product metrics.
+
+6.2 Hero section
+
+Headline:
+
+"Stop Studying English. Start Speaking It."
+
+Supporting copy:
+
+"Learn smarter, practice real conversations, fix recurring mistakes, and see how your communication improves."
+
+CTAs:
+
+Start Learning.
+
+Explore the Platform.
+
+Visual:
+
+A real interactive product preview featuring:
+
+Conversation interface.
+
+Learning feedback.
+
+Mistake Memory.
+
+Progress visualization.
+
+Any displayed metrics must be clearly labeled as sample previews unless they come from real records.
+
+6.3 Landing page sections
+
+Hero.
+
+Problem identification.
+
+Why traditional learning fails.
+
+LINGUAVERSE solution.
+
+Communication Improvement Loop.
+
+Six differentiation systems.
+
+Product demonstration.
+
+Learning journey.
+
+Supported learning languages.
+
+Pricing.
+
+Testimonials only when genuine and authorized.
+
+FAQ.
+
+Final CTA.
+
+Footer.
+
+6.4 Animation and motion
+
+Use:
+
+Smooth transitions.
+
+Scroll-based reveal.
+
+Interactive feature previews.
+
+Subtle 3D environments.
+
+Animated waveform demonstrations.
+
+Progress animations.
+
+Micro-interactions.
+
+Loading skeletons.
+
+Requirements:
+
+Respect reduced-motion settings.
+
+Avoid blocking navigation.
+
+Optimize mobile performance.
+
+Never use decorative animation to disguise missing functionality.
+
+AUTHENTICATION AND ONBOARDING
+
+7.1 Authentication
+
+Support:
+
+Email registration.
+
+Email verification.
+
+Login.
+
+Logout.
+
+Password reset.
+
+Secure session management.
+
+Optional OAuth.
+
+Security:
+
+Secure password hashing.
+
+Session rotation.
+
+Expiration.
+
+Revocation.
+
+CSRF protection where applicable.
+
+Login abuse protection.
+
+Account enumeration protection.
+
+7.2 Onboarding
+
+Collect minimum necessary information:
+
+Preferred interface language.
+
+Target learning language.
+
+Current estimated level.
+
+Learning objective.
+
+Available daily time.
+
+Preferred explanation language.
+
+Relevant learning preferences.
+
+Provide privacy information before collecting optional voice data.
+
+7.3 Initial assessment
+
+Assessment components:
+
+Vocabulary.
+
+Grammar.
+
+Reading.
+
+Listening.
+
+Speaking where supported.
+
+Assessment results must include:
+
+Estimated level.
+
+Evidence.
+
+Areas assessed.
+
+Areas not assessed.
+
+Confidence and coverage.
+
+Recommended next step.
+
+Do not assign a definitive CEFR level based on a short, unvalidated quiz.
+
+ACADEMY — STRUCTURED LEARNING ENGINE
+
+8.1 Learning levels
+
+Pre-A1.
+
+A1.
+
+A2.
+
+B1.
+
+B2.
+
+C1.
+
+C2.
+
+These levels must be aligned with CEFR descriptors through curriculum design and assessment validation.
+
+8.2 Lesson categories
+
+Vocabulary.
+
+Grammar.
+
+Listening.
+
+Reading.
+
+Pronunciation.
+
+Sentence construction.
+
+Practical communication.
+
+Situational English.
+
+Professional English.
+
+Writing.
+
+8.3 Lesson structure
+
+Every lesson must contain:
+
+Learning objective.
+
+Prerequisites.
+
+Explanation.
+
+Examples.
+
+Guided practice.
+
+Independent practice.
+
+Assessment.
+
+Feedback.
+
+Revision recommendation.
+
+8.4 Adaptive learning
+
+Adjust difficulty based on actual performance.
+
+Consider:
+
+Recent accuracy.
+
+Repeated mistakes.
+
+Retention performance.
+
+Difficulty history.
+
+Time since previous review.
+
+Transfer performance.
+
+8.5 Spaced repetition
+
+Implement configurable spaced-repetition scheduling.
+
+Track:
+
+Item.
+
+Previous review.
+
+Recall result.
+
+Difficulty.
+
+Next review date.
+
+Review history.
+
+Do not assume one scheduling algorithm is universally optimal.
+
+Allow algorithm versioning and evaluation.
+
+8.6 Mastery requirements
+
+A learner cannot achieve mastery simply by answering one question correctly.
+
+Require multiple independent opportunities and delayed recall.
+
+Mastery criteria must be configurable and documented.
+
+AI SPEAKING STUDIO
+
+The Speaking Studio is a core product capability.
+
+9.1 Features
+
+Microphone recording.
+
+Audio playback.
+
+Speech-to-text.
+
+AI conversation partner.
+
+Grammar feedback.
+
+Vocabulary feedback.
+
+Pronunciation analysis where supported.
+
+Fluency indicators.
+
+Session history.
+
+Communication Replay.
+
+9.2 Conversation modes
+
+Daily conversations.
+
+Self-introduction.
+
+Job interviews.
+
+Workplace communication.
+
+Travel.
+
+Education.
+
+Customer service.
+
+Public speaking.
+
+Presentations.
+
+Unexpected questions.
+
+9.3 Voice-processing architecture
+
+Pipeline:
+
+Request session authorization.
+
+Obtain appropriate recording consent.
+
+Validate recording permissions.
+
+Capture audio.
+
+Validate file type, duration, and size.
+
+Upload through a secure backend-controlled process.
+
+Submit to speech recognition.
+
+Store transcript and provider metadata.
+
+Perform language evaluation.
+
+Perform supported pronunciation analysis.
+
+Validate AI output.
+
+Generate targeted feedback.
+
+Save results.
+
+Update Mistake Memory and progress.
+
+Schedule relevant revision.
+
+9.4 AI response structure
+
+Each assessment should contain:
+
+Original response.
+
+Transcript.
+
+Correct elements.
+
+Incorrect elements.
+
+Corrected response.
+
+Natural alternative.
+
+Explanation.
+
+Targeted exercise.
+
+Confidence or uncertainty indicators.
+
+9.5 Pronunciation assessment
+
+Do not use ordinary speech recognition as proof of pronunciation correctness.
+
+Where supported, use:
+
+Phoneme-level assessment.
+
+Forced alignment.
+
+Word-level pronunciation evidence.
+
+Supported acoustic indicators.
+
+Reference audio comparison.
+
+Separate:
+
+Recognition accuracy.
+
+Pronunciation quality.
+
+Fluency.
+
+Grammar.
+
+Communication effectiveness.
+
+Do not penalize legitimate accent variation.
+
+Do not claim native-like pronunciation is required.
+
+9.6 Real-time voice
+
+Real-time voice is optional and must be implemented only when the selected provider and architecture genuinely support streaming.
+
+Requirements:
+
+Streaming session management.
+
+Connection recovery.
+
+Audio buffering.
+
+Interruption handling.
+
+Latency measurement.
+
+Usage accounting.
+
+Graceful fallback.
+
+A normal recorded-audio workflow must not be presented as real-time conversation.
+
+9.7 Failure handling
+
+Handle:
+
+Microphone permission denied.
+
+Unsupported audio format.
+
+Network failure.
+
+Upload interruption.
+
+STT timeout.
+
+AI provider outage.
+
+Invalid AI response.
+
+Quota exhaustion.
+
+Low-confidence evaluation.
+
+Never discard an available recording without explaining the failure.
+
+AI INTELLIGENCE AND EVALUATION FRAMEWORK
+
+10.1 Provider abstraction
+
+Implement provider-independent interfaces for:
+
+Language models.
+
+Speech recognition.
+
+Text-to-speech.
+
+Pronunciation assessment.
+
+Do not couple application business logic directly to one vendor.
+
+10.2 Provider selection
+
+Select providers based on:
+
+Language support.
+
+Accent coverage.
+
+Latency.
+
+Cost.
+
+Reliability.
+
+Data processing terms.
+
+Privacy requirements.
+
+Availability.
+
+Quality benchmark results.
+
+Keep provider configuration server-side.
+
+10.3 Structured AI responses
+
+Require validated structured outputs.
+
+Example logical response:
+
+{ "assessment_status": "completed", "transcript": "I went to school yesterday.", "feedback": [ { "category": "grammar", "original": "I go to school yesterday.", "corrected": "I went to school yesterday.", "explanation": "Use past tense for a completed past event.", "confidence": 0.96 } ], "recommendations": [ "Practice past-tense sentence construction." ] }
+
+This is an illustrative schema, not actual assessment output.
+
+Validate every field server-side.
+
+Reject malformed, unsupported, or incomplete outputs.
+
+10.4 Prompt management
+
+Implement:
+
+Versioned prompts.
+
+Prompt ownership.
+
+Change history.
+
+Evaluation datasets.
+
+Rollback capability.
+
+Provider/model version tracking.
+
+Prompt injection tests.
+
+10.5 AI evaluation dataset
+
+Maintain appropriately licensed or consented test examples.
+
+Include:
+
+Beginner English.
+
+Intermediate English.
+
+Advanced English.
+
+Bangla-influenced English.
+
+Different legitimate accents.
+
+Noisy recordings.
+
+Ambiguous expressions.
+
+Grammar variations.
+
+Correct but uncommon expressions.
+
+Context-dependent expressions.
+
+10.6 Evaluation metrics
+
+Track:
+
+Correction precision.
+
+False correction rate.
+
+Explanation quality.
+
+Contextual relevance.
+
+Pronunciation reliability.
+
+Transcript error rate.
+
+Safety.
+
+Consistency.
+
+Latency.
+
+Cost per completed session.
+
+Use human-reviewed ground truth for important evaluations.
+
+An LLM's own confidence score is not proof of accuracy.
+
+10.7 Human review
+
+Provide review workflows for:
+
+Reported incorrect corrections.
+
+Systematic evaluation errors.
+
+Curriculum issues.
+
+Safety incidents.
+
+Do not require manual review for every ordinary practice session.
+
+COMMUNICATION DNA AND PERSONALIZATION ENGINE
+
+11.1 Learner profile
+
+Store:
+
+Learning language.
+
+Interface language.
+
+Estimated proficiency.
+
+Skill-specific performance.
+
+Learning goals.
+
+Mistake history.
+
+Review history.
+
+Speaking history.
+
+Assessment evidence.
+
+11.2 Skill dimensions
+
+Maintain separate measurements for:
+
+Grammar.
+
+Vocabulary.
+
+Reading.
+
+Listening.
+
+Writing.
+
+Speaking.
+
+Pronunciation where supported.
+
+Functional communication.
+
+Do not collapse all skills into one misleading universal score.
+
+11.3 Evidence metadata
+
+Each metric should include:
+
+Calculation version.
+
+Assessment references.
+
+Time range.
+
+Sample size.
+
+Last updated timestamp.
+
+Confidence/coverage.
+
+Limitations.
+
+11.4 Recommendations
+
+Recommendations must explain:
+
+What to practice.
+
+Why it matters.
+
+Which evidence supports it.
+
+Expected duration.
+
+Completion criteria.
+
+Avoid repetitive recommendations and unnecessary notifications.
+
+TRANSFER LAB
+
+12.1 Scenario categories
+
+Introducing yourself.
+
+Ordering food.
+
+Asking for directions.
+
+Shopping.
+
+Travel.
+
+Job interviews.
+
+Workplace discussions.
+
+Presentations.
+
+Customer support.
+
+University conversations.
+
+Social interactions.
+
+Problem-solving conversations.
+
+12.2 Scenario structure
+
+Each scenario includes:
+
+Scenario title.
+
+Learning objective.
+
+Context.
+
+User role.
+
+AI role.
+
+Task requirements.
+
+Interaction.
+
+Assessment rubric.
+
+Mistake review.
+
+Retry.
+
+12.3 Transfer evaluation
+
+Evaluate:
+
+Task completion.
+
+Language accuracy.
+
+Contextual appropriateness.
+
+Response relevance.
+
+Vocabulary application.
+
+Grammar application.
+
+Use scenario-specific rubrics.
+
+12.4 Adaptive difficulty
+
+Difficulty can change based on:
+
+Number of follow-up questions.
+
+Vocabulary complexity.
+
+Sentence complexity.
+
+Conversation ambiguity.
+
+Time constraints.
+
+Contextual demands.
+
+Do not make every scenario harder simply by making it faster.
+
+PERSONAL INTELLIGENCE DASHBOARD
+
+13.1 Dashboard metrics
+
+Practice time.
+
+Completed lessons.
+
+Assessment history.
+
+Vocabulary retention.
+
+Grammar performance.
+
+Listening performance.
+
+Speaking practice.
+
+Mistake recurrence.
+
+Scenario performance.
+
+Learning consistency.
+
+13.2 Metric definitions
+
+Every metric must have:
+
+Formula.
+
+Data source.
+
+Time window.
+
+Inclusion rules.
+
+Exclusion rules.
+
+Update frequency.
+
+13.3 Visualizations
+
+Skill development.
+
+Weekly activity.
+
+Mistake trends.
+
+Retention trends.
+
+Assessment history.
+
+Scenario completion.
+
+Learning consistency.
+
+13.4 Honest empty states
+
+When no records exist:
+
+Show an empty state.
+
+Explain how to generate the metric.
+
+Do not display fabricated charts.
+
+Do not display fake streaks.
+
+Do not create artificial progress.
+
+COMMUNITY
+
+14.1 Features
+
+Learning discussions.
+
+Questions.
+
+Practice challenges.
+
+Posts.
+
+Comments.
+
+Reactions.
+
+Reporting.
+
+User blocking.
+
+Moderation.
+
+14.2 Safety
+
+Implement:
+
+Content validation.
+
+Rate limits.
+
+Spam protection.
+
+Abuse reporting.
+
+Moderation queue.
+
+User restrictions.
+
+Audit records.
+
+Private messaging is not part of the initial MVP.
+
+Do not launch it until moderation, reporting, blocking, and abuse response are operational.
+
+14.3 Community governance
+
+Define:
+
+Community rules.
+
+Prohibited content.
+
+Moderation policies.
+
+Appeals process.
+
+Enforcement levels.
+
+Incident escalation.
+
+GAMIFICATION AND RETENTION
+
+15.1 Features
+
+XP.
+
+Levels.
+
+Streaks.
+
+Achievements.
+
+Learning challenges.
+
+Milestones.
+
+Leaderboards.
+
+15.2 Reward rules
+
+XP must be awarded for verified learning actions.
+
+Examples:
+
+Completing an assessed lesson.
+
+Completing a meaningful speaking task.
+
+Successful delayed recall.
+
+Completing a transfer challenge.
+
+Do not reward:
+
+Page visits.
+
+Repeated empty submissions.
+
+Duplicate requests.
+
+Artificial activity.
+
+Unverified engagement.
+
+15.3 Reward integrity
+
+Implement:
+
+Idempotent reward operations.
+
+Auditable XP event ledger.
+
+Duplicate prevention.
+
+Rate limits.
+
+Abuse detection.
+
+Server-side reward calculation.
+
+15.4 Retention strategy
+
+Use:
+
+Personalized revision.
+
+Realistic learning goals.
+
+Optional reminders.
+
+Progress milestones.
+
+Meaningful challenges.
+
+Avoid manipulative notifications and punitive streak mechanics.
+
+Users must be able to control reminders.
+
+ADMIN CONTROL CENTER
+
+16.1 Admin overview
+
+Show actual:
+
+Registered users.
+
+Active users.
+
+Learning activity.
+
+Speaking sessions.
+
+AI usage.
+
+Provider errors.
+
+Subscription records.
+
+Revenue records.
+
+Support requests.
+
+Moderation reports.
+
+Every dashboard metric must have a defined calculation.
+
+16.2 Role-based access control
+
+Suggested roles:
+
+Super Admin.
+
+Admin.
+
+Content Manager.
+
+AI Operations Manager.
+
+Finance Manager.
+
+Moderator.
+
+Support Agent.
+
+Use least-privilege permissions.
+
+Never rely on frontend-only role checks.
+
+16.3 User management
+
+Search users.
+
+View authorized profile information.
+
+Review account status.
+
+Suspend accounts.
+
+Restore accounts.
+
+Process account deletion requests.
+
+Review authorized audit history.
+
+16.4 Curriculum management
+
+Create courses.
+
+Edit courses.
+
+Create modules.
+
+Edit lessons.
+
+Manage exercises.
+
+Manage assessment rubrics.
+
+Preview lessons.
+
+Publish.
+
+Archive.
+
+Version content.
+
+Published content must not silently change underneath active assessments.
+
+16.5 AI operations
+
+Provider status.
+
+Usage monitoring.
+
+Error monitoring.
+
+Latency monitoring.
+
+Cost reporting.
+
+Model configuration.
+
+Prompt versions.
+
+Rate limits.
+
+Provider credentials must never be visible in ordinary admin interfaces.
+
+16.6 Subscription management
+
+View subscriptions.
+
+Payment history.
+
+Payment failures.
+
+Refund requests.
+
+Entitlements.
+
+Cancellation status.
+
+Invoice history.
+
+Financial actions must use authorized payment-provider workflows.
+
+16.7 Audit logs
+
+Record:
+
+Actor.
+
+Action.
+
+Target.
+
+Timestamp.
+
+Result.
+
+Relevant metadata.
+
+Request correlation ID.
+
+Audit logs must be protected from unauthorized modification.
+
+MONETIZATION AND BUSINESS MODEL
+
+17.1 Freemium model
+
+Free:
+
+Selected Academy lessons.
+
+Limited AI speaking.
+
+Basic progress dashboard.
+
+Basic Mistake Memory.
+
+Limited Transfer Lab.
+
+Premium:
+
+Higher AI usage limits.
+
+Advanced speaking practice.
+
+Detailed progress analytics.
+
+Advanced Transfer Lab.
+
+Personalized revision.
+
+Additional learning paths.
+
+Extended session history where storage policy allows.
+
+17.2 Subscription requirements
+
+Implement:
+
+Plan configuration.
+
+Subscription lifecycle.
+
+Entitlements.
+
+Usage limits.
+
+Renewal tracking.
+
+Cancellation.
+
+Payment failure handling.
+
+Refund workflow.
+
+Invoice records.
+
+17.3 Payment architecture
+
+Use a supported payment provider appropriate for the operating market.
+
+Do not assume that a payment provider is available in every country.
+
+Verify:
+
+Merchant eligibility.
+
+Supported currencies.
+
+Settlement.
+
+Refund capability.
+
+Webhook support.
+
+Applicable legal obligations.
+
+17.4 Financial metrics
+
+Track:
+
+Monthly recurring revenue.
+
+Average revenue per paying user.
+
+Conversion rate.
+
+Churn.
+
+Refund rate.
+
+Payment failure rate.
+
+AI cost per user.
+
+Contribution margin.
+
+Do not display revenue estimates as actual revenue.
+
+17.5 AI cost management
+
+Measure:
+
+Tokens per request.
+
+Audio minutes.
+
+STT usage.
+
+TTS usage.
+
+Provider costs.
+
+Cost per session.
+
+Cost per active user.
+
+Cost per premium user.
+
+Implement:
+
+Quotas.
+
+Usage warnings.
+
+Model selection.
+
+Cost ceilings.
+
+Request throttling.
+
+Appropriate caching.
+
+Abuse prevention.
+
+Do not cache private AI outputs across users without explicit safety and privacy justification.
+
+TECHNICAL ARCHITECTURE — CLOUDFLARE
+
+18.1 Frontend
+
+React.
+
+TypeScript.
+
+Vite.
+
+React Router.
+
+Tailwind CSS.
+
+shadcn/ui.
+
+Lucide.
+
+React Query or an equivalent server-state solution.
+
+Use reusable components and clear domain boundaries.
+
+18.2 Backend
+
+Cloudflare Workers.
+
+Hono.
+
+TypeScript.
+
+REST API.
+
+Runtime schema validation.
+
+API prefix:
+
+/api/v1
+
+18.3 Infrastructure
+
+Cloudflare D1:
+
+Relational application database.
+
+User records.
+
+Courses.
+
+Lessons.
+
+Assessments.
+
+Mistakes.
+
+Subscriptions.
+
+Audit metadata.
+
+Cloudflare R2:
+
+Private audio storage.
+
+Approved learning media.
+
+User-uploaded files.
+
+Retained session artifacts.
+
+Cloudflare KV:
+
+Suitable cache data.
+
+Non-authoritative temporary configuration.
+
+Rate-limit support where appropriate.
+
+Durable Objects:
+
+Stateful real-time coordination.
+
+Live conversation session coordination where required.
+
+Cloudflare Queues:
+
+Asynchronous audio processing.
+
+AI evaluation jobs.
+
+Notification delivery.
+
+Background tasks.
+
+Cron Triggers:
+
+Scheduled revision.
+
+Subscription reconciliation tasks where appropriate.
+
+Cleanup.
+
+Retention jobs.
+
+Periodic maintenance.
+
+Turnstile:
+
+Bot protection.
+
+Registration abuse prevention.
+
+Sensitive public forms.
+
+Do not use every Cloudflare service merely because it is available.
+
+18.4 Architecture principles
+
+Server-side business logic.
+
+Server-side authorization.
+
+Explicit service boundaries.
+
+Transactional safeguards.
+
+Idempotency.
+
+Structured logs.
+
+Retry policies.
+
+Dead-letter handling where appropriate.
+
+Database migration versioning.
+
+Provider abstraction.
+
+Secure environment separation.
+
+18.5 API route groups
+
+Authentication: /api/v1/auth
+
+Users: /api/v1/users
+
+Onboarding: /api/v1/onboarding
+
+Academy: /api/v1/academy
+
+Lessons: /api/v1/lessons
+
+Exercises: /api/v1/exercises
+
+Speaking: /api/v1/speaking
+
+Assessments: /api/v1/assessments
+
+Progress: /api/v1/progress
+
+Mistakes: /api/v1/mistakes
+
+Vocabulary: /api/v1/vocabulary
+
+Transfer Lab: /api/v1/transfer-lab
+
+Community: /api/v1/community
+
+Gamification: /api/v1/gamification
+
+Subscriptions: /api/v1/subscriptions
+
+Notifications: /api/v1/notifications
+
+Privacy: /api/v1/privacy
+
+Admin: /api/v1/admin
+
+Health: /api/v1/health
+
+18.6 API standards
+
+Every endpoint must define:
+
+Method.
+
+Authentication requirements.
+
+Authorization requirements.
+
+Request schema.
+
+Response schema.
+
+Error codes.
+
+Rate limits.
+
+Pagination where applicable.
+
+Idempotency requirements.
+
+Audit requirements.
+
+Use consistent error responses.
+
+Never expose stack traces or internal secrets to clients.
+
+DATABASE ARCHITECTURE
+
+Design normalized, mig

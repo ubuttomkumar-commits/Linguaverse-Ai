@@ -291,3 +291,159 @@ export function computeVerifiedAchievements(input: {
     },
   ];
 }
+
+export interface LearnerLevelProgress {
+  level: number;
+  titleEn: string;
+  titleBn: string;
+  currentXp: number;
+  currentLevelFloorXp: number;
+  nextLevelXp: number;
+  progressPercent: number;
+}
+
+const LEVEL_TIERS: Array<{ minXp: number; titleEn: string; titleBn: string }> = [
+  { minXp: 0, titleEn: 'Starter Explorer', titleBn: 'প্রাথমিক অভিযাত্রী' },
+  { minXp: 100, titleEn: 'Sentence Builder', titleBn: 'বাক্য নির্মাতা' },
+  { minXp: 250, titleEn: 'Active Speaker', titleBn: 'সক্রিয় বক্তা' },
+  { minXp: 500, titleEn: 'Pattern Solver', titleBn: 'ভুল সংশোধক' },
+  { minXp: 850, titleEn: 'Real-World Communicator', titleBn: 'বাস্তব যোগাযোগকারী' },
+  { minXp: 1300, titleEn: 'Pressure-Ready Speaker', titleBn: 'উচ্চচাপে সাবলীল বক্তা' },
+];
+
+export function computeLearnerLevel(totalXp: number): LearnerLevelProgress {
+  const safeXp = Math.max(0, Math.round(totalXp));
+  let tierIndex = 0;
+  for (let i = 0; i < LEVEL_TIERS.length; i += 1) {
+    if (safeXp >= LEVEL_TIERS[i].minXp) tierIndex = i;
+  }
+  const current = LEVEL_TIERS[tierIndex];
+  const next = LEVEL_TIERS[tierIndex + 1];
+  const nextLevelXp = next ? next.minXp : current.minXp + 500;
+  const span = Math.max(1, nextLevelXp - current.minXp);
+  const progressPercent = next
+    ? Math.min(100, Math.round(((safeXp - current.minXp) / span) * 100))
+    : 100;
+
+  return {
+    level: tierIndex + 1,
+    titleEn: current.titleEn,
+    titleBn: current.titleBn,
+    currentXp: safeXp,
+    currentLevelFloorXp: current.minXp,
+    nextLevelXp,
+    progressPercent,
+  };
+}
+
+export interface VerifiedLearningChallenge {
+  id: string;
+  titleEn: string;
+  titleBn: string;
+  descriptionEn: string;
+  descriptionBn: string;
+  currentCount: number;
+  targetCount: number;
+  completed: boolean;
+  actionTo: string;
+}
+
+/**
+ * PRD v5.0 Section 15.1 & 15.2:
+ * Computes meaningful learning challenges strictly from real activity records over the last 7 days.
+ */
+export function computeWeeklyChallenges(input: {
+  lessonMastery: Record<string, LessonMasteryRecord>;
+  speakingSessions: SpeakingSessionRecord[];
+  mistakes: MistakeMemoryItem[];
+  transferAttempts: TransferAttemptRecord[];
+  nowMs?: number;
+}): VerifiedLearningChallenge[] {
+  const nowMs = input.nowMs ?? Date.now();
+  const sevenDaysAgoMs = nowMs - 7 * 24 * 60 * 60 * 1000;
+
+  const recentSpeaking = input.speakingSessions.filter(
+    (s) => s.turns.length > 0 && Date.parse(s.startedAt) >= sevenDaysAgoMs
+  ).length;
+  const recentResolvedMistakes = input.mistakes.filter(
+    (m) =>
+      m.status === 'resolved' &&
+      !m.falseCorrectionReported &&
+      m.lastPracticedAt &&
+      Date.parse(m.lastPracticedAt) >= sevenDaysAgoMs
+  ).length;
+  const recentPassedTransfers = input.transferAttempts.filter(
+    (t) => t.passed && Date.parse(t.completedAt) >= sevenDaysAgoMs
+  ).length;
+  const completedLessons = Object.values(input.lessonMastery).filter(
+    (m) => m.bestAccuracyPercent >= 60 && m.lastAttemptAt && Date.parse(m.lastAttemptAt) >= sevenDaysAgoMs
+  ).length;
+
+  return [
+    {
+      id: 'weekly_speaking_2',
+      titleEn: 'Complete 2 Speaking Studio Sessions',
+      titleBn: '২টি স্পিকিং স্টুডিও সেশন সম্পন্ন করুন',
+      descriptionEn: 'Practice two AI-evaluated real conversations within the last 7 days.',
+      descriptionBn: 'গত ৭ দিনে ২টি AI মূল্যায়িত বাস্তব কথোপকথন অনুশীলন করুন।',
+      currentCount: Math.min(2, recentSpeaking),
+      targetCount: 2,
+      completed: recentSpeaking >= 2,
+      actionTo: '/app/speak',
+    },
+    {
+      id: 'weekly_mistake_1',
+      titleEn: 'Resolve 1 Recurring Mistake',
+      titleBn: '১টি পুনরাবৃত্ত ভুল সমাধান করুন',
+      descriptionEn: 'Verify a recurring pattern across delayed retests in Mistake Memory.',
+      descriptionBn: 'মিস্টেক মেমোরিতে পুনরায় যাচাই করে ১টি ভুল Resolved করুন।',
+      currentCount: Math.min(1, recentResolvedMistakes),
+      targetCount: 1,
+      completed: recentResolvedMistakes >= 1,
+      actionTo: '/app/improve',
+    },
+    {
+      id: 'weekly_transfer_1',
+      titleEn: 'Pass 1 Transfer Lab Simulation',
+      titleBn: '১টি ট্রান্সফার ল্যাব সিমুলেশনে উত্তীর্ণ হন',
+      descriptionEn: 'Apply your language skills in a real-world roleplay scenario.',
+      descriptionBn: 'বাস্তব পরিস্থিতির রোলপ্লেতে আপনার ইংরেজি দক্ষতা প্রয়োগ করুন।',
+      currentCount: Math.min(1, recentPassedTransfers),
+      targetCount: 1,
+      completed: recentPassedTransfers >= 1,
+      actionTo: '/app/transfer-lab',
+    },
+    {
+      id: 'weekly_lesson_2',
+      titleEn: 'Pass 2 Assessed Academy Lessons',
+      titleBn: '২টি মূল্যায়িত একাডেমি লেসন সম্পন্ন করুন',
+      descriptionEn: 'Achieve >= 60% accuracy on two Academy lessons this week.',
+      descriptionBn: 'এই সপ্তাহে ২টি একাডেমি লেসনে ৬০%+ নির্ভুলতা অর্জন করুন।',
+      currentCount: Math.min(2, completedLessons),
+      targetCount: 2,
+      completed: completedLessons >= 2,
+      actionTo: '/app/learn',
+    },
+  ];
+}
+
+export interface VerifiedLeaderboardEntry {
+  userId: string;
+  displayAlias: string;
+  totalVerifiedXp: number;
+  level: number;
+  isCurrentUser?: boolean;
+}
+
+export function sortVerifiedLeaderboard(
+  entries: VerifiedLeaderboardEntry[],
+  currentUserId?: string
+): VerifiedLeaderboardEntry[] {
+  return [...entries]
+    .sort((a, b) => b.totalVerifiedXp - a.totalVerifiedXp || a.displayAlias.localeCompare(b.displayAlias))
+    .map((entry) => ({
+      ...entry,
+      isCurrentUser: currentUserId ? entry.userId === currentUserId : entry.isCurrentUser,
+    }));
+}
+

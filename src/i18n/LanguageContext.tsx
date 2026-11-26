@@ -23,9 +23,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<UILanguage>(readInitialLanguage);
 
   const setLang = useCallback((next: UILanguage) => {
-    setLangState(next);
+    const safeNext: UILanguage = next === 'bn' ? 'bn' : 'en';
+    setLangState(safeNext);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(UI_LANG_STORAGE_KEY, next);
+      window.localStorage.setItem(UI_LANG_STORAGE_KEY, safeNext);
     }
   }, []);
 
@@ -39,19 +40,21 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const safeLang: UILanguage = lang === 'bn' ? 'bn' : 'en';
+
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.documentElement.lang = lang;
+      document.documentElement.lang = safeLang;
     }
-  }, [lang]);
+  }, [safeLang]);
 
   return (
     <LanguageContext.Provider
       value={{
-        lang,
+        lang: safeLang,
         setLang,
         toggleLang,
-        t: translations[lang],
+        t: translations[safeLang],
       }}
     >
       {children}

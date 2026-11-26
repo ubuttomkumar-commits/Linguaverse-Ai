@@ -8,6 +8,7 @@ import {
   ClipboardList,
   ExternalLink,
   Flag,
+  Layers,
   LayoutDashboard,
   Lock,
   Plus,
@@ -15,9 +16,18 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
+import { CreditCard, Cpu, Server, ShieldAlert, Sliders } from 'lucide-react';
 import { LearnerShell } from '../../components/layout/LearnerShell';
 import { AdminOverviewTab } from '../../components/admin/AdminOverviewTab';
 import { AdminUserManagementTab } from '../../components/admin/AdminUserManagementTab';
+import { AdminCmsWorkspace, type CmsSubModule } from '../../components/admin/AdminCmsWorkspace';
+import { AdminModerationTab } from '../../components/admin/AdminModerationTab';
+import { AdminSubscriptionsTab } from '../../components/admin/AdminSubscriptionsTab';
+import { AdminSystemConfigTab } from '../../components/admin/AdminSystemConfigTab';
+import { AdminAiProvidersTab } from '../../components/admin/AdminAiProvidersTab';
+import { AdminSystemHealthTab } from '../../components/admin/AdminSystemHealthTab';
+import { deleteAdminUserAccount } from '../../services/prd61Api';
+import type { ServerAuditEntry } from '../../services/cmsApi';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -55,7 +65,19 @@ import type {
   MistakeMemoryItem,
 } from '../../types/domain';
 
-type AdminTab = 'overview' | 'users' | 'curriculum' | 'ai_ops' | 'mistakes' | 'audit';
+type AdminTab =
+  | 'overview'
+  | 'cms'
+  | 'users'
+  | 'curriculum'
+  | 'ai_ops'
+  | 'ai_providers'
+  | 'mistakes'
+  | 'moderation'
+  | 'subscriptions'
+  | 'system_config'
+  | 'system_health'
+  | 'audit';
 type BuilderMode = 'lesson' | 'course' | 'module';
 
 const ADMIN_ROLES: AdminRole[] = [
@@ -100,6 +122,8 @@ export function AdminControlCenterPage() {
   const canReadAudit = hasAdminPermission(activeRole, 'audit:read');
 
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [cmsSubModule, setCmsSubModule] = useState<CmsSubModule>('landing');
+  const [serverAuditLogs, setServerAuditLogs] = useState<ServerAuditEntry[]>([]);
   const [roleUpdating, setRoleUpdating] = useState(false);
 
   // Live Curriculum State
@@ -289,6 +313,22 @@ export function AdminControlCenterPage() {
         ...(patch.role ? { newRole: patch.role } : {}),
         ...(patch.accountStatus ? { accountStatus: patch.accountStatus } : {}),
       },
+    });
+    await refreshGovernanceData();
+  };
+
+  const handleAdminUserDelete = async (target: AdminUserSummary) => {
+    if (!user || !canManageUsers) return;
+    await deleteAdminUserAccount(target.id);
+    appendAuditLog({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      actorRole: activeRole,
+      action: 'user.deleted',
+      resourceType: 'user_account',
+      resourceId: target.id,
+      summaryEn: `Deleted user account ${target.email}.`,
+      summaryBn: `${target.email} অ্যাকাউন্ট স্থায়ীভাবে মুছে ফেলা হয়েছে।`,
     });
     await refreshGovernanceData();
   };
@@ -731,6 +771,13 @@ export function AdminControlCenterPage() {
                       allowed: canReadOverview,
                     },
                     {
+                      id: 'cms' as const,
+                      labelEn: 'Website CMS & Analytics',
+                      labelBn: 'ওয়েবসাইট CMS ও অ্যানালিটিক্স',
+                      icon: Layers,
+                      allowed: canAccessAdmin,
+                    },
+                    {
                       id: 'users' as const,
                       labelEn: `Users (${adminUsers.length})`,
                       labelBn: `ব্যবহারকারী (${adminUsers.length})`,
@@ -752,11 +799,46 @@ export function AdminControlCenterPage() {
                       allowed: canReadAiOps,
                     },
                     {
+                      id: 'ai_providers' as const,
+                      labelEn: 'AI & API Providers',
+                      labelBn: 'AI ও API প্রোভাইডার',
+                      icon: Cpu,
+                      allowed: canReadAiOps || canManageUsers,
+                    },
+                    {
                       id: 'mistakes' as const,
                       labelEn: `Reported Mistakes (${flaggedMistakes.length})`,
                       labelBn: `রিপোর্টকৃত ভুল (${flaggedMistakes.length})`,
                       icon: Flag,
                       allowed: canReviewMistakes,
+                    },
+                    {
+                      id: 'moderation' as const,
+                      labelEn: 'Moderation & Appeals',
+                      labelBn: 'মডারেশন ও আপিল',
+                      icon: ShieldAlert,
+                      allowed: canReviewMistakes,
+                    },
+                    {
+                      id: 'subscriptions' as const,
+                      labelEn: 'Subscriptions & Support',
+                      labelBn: 'সাবস্ক্রিপশন ও সাপোর্ট',
+                      icon: CreditCard,
+                      allowed: canManageUsers,
+                    },
+                    {
+                      id: 'system_config' as const,
+                      labelEn: 'System & Flags',
+                      labelBn: 'সিস্টেম ও ফ্ল্যাগ',
+                      icon: Sliders,
+                      allowed: canManageUsers,
+                    },
+                    {
+                      id: 'system_health' as const,
+                      labelEn: 'Health & Broadcasts',
+                      labelBn: 'সিস্টেম হেলথ',
+                      icon: Server,
+                      allowed: canReadAiOps || canManageUsers,
                     },
                     {
                       id: 'audit' as const,
@@ -815,6 +897,17 @@ export function AdminControlCenterPage() {
               />
             )}
 
+            {/* TAB 0A: FULL WEBSITE CMS, NAVIGATION, LANGUAGES, PRICING, TESTIMONIALS, FAQS, MEDIA, SEO, ANALYTICS & SETTINGS */}
+            {activeTab === 'cms' && user && (
+              <AdminCmsWorkspace
+                activeModule={cmsSubModule}
+                onSelectModule={setCmsSubModule}
+                actorEmail={user.email}
+                actorRole={activeRole}
+                onServerAuditRefresh={setServerAuditLogs}
+              />
+            )}
+
             {/* TAB 0B: USER MANAGEMENT */}
             {activeTab === 'users' && user && (
               <AdminUserManagementTab
@@ -825,7 +918,18 @@ export function AdminControlCenterPage() {
                 searchQuery={userSearchQuery}
                 onSearchChange={setUserSearchQuery}
                 onUpdateUser={handleAdminUserUpdate}
+                onDeleteUser={handleAdminUserDelete}
               />
+            )}
+
+            {/* TAB 0C: AI & EXTERNAL PROVIDERS MANAGEMENT */}
+            {activeTab === 'ai_providers' && (
+              <AdminAiProvidersTab lang={lang} canRotateKeys={canManageUsers} />
+            )}
+
+            {/* TAB 0D: SYSTEM HEALTH, MIGRATIONS, SECURITY EVENTS & BROADCASTS */}
+            {activeTab === 'system_health' && (
+              <AdminSystemHealthTab lang={lang} canBroadcast={canManageUsers} />
             )}
 
             {/* TAB 1: CURRICULUM BUILDER */}
@@ -1860,6 +1964,25 @@ export function AdminControlCenterPage() {
               </section>
             )}
 
+            {/* TAB: COMMUNITY MODERATION & APPEALS */}
+            {activeTab === 'moderation' && canReviewMistakes && (
+              <AdminModerationTab lang={lang} />
+            )}
+
+            {/* TAB: SUBSCRIPTIONS, REAL FINANCE & SUPPORT TICKETS */}
+            {activeTab === 'subscriptions' && canManageUsers && (
+              <AdminSubscriptionsTab
+                lang={lang}
+                totalUsers={adminUsers.length}
+                totalAiCostUsd={aiMetrics.totalEstimatedCostUsd}
+              />
+            )}
+
+            {/* TAB: SYSTEM CONFIGURATION */}
+            {activeTab === 'system_config' && canManageUsers && (
+              <AdminSystemConfigTab lang={lang} />
+            )}
+
             {/* TAB 4: IMMUTABLE AUDIT LOG VIEWER */}
             {activeTab === 'audit' && (
               <section className="rounded-xl border border-slate-800 bg-[#111827] p-6">
@@ -1938,6 +2061,49 @@ export function AdminControlCenterPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {serverAuditLogs.length > 0 && (
+                  <div className="mt-6 border-t border-slate-800 pt-5">
+                    <h3 className="text-sm font-bold text-white">
+                      Server-Persisted CMS & Media Audit Log ({serverAuditLogs.length})
+                    </h3>
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-2 pr-3 font-medium">Timestamp</th>
+                            <th className="py-2 pr-3 font-medium">Actor / Role</th>
+                            <th className="py-2 pr-3 font-medium">Action</th>
+                            <th className="py-2 pr-3 font-medium">Summary</th>
+                            <th className="py-2 font-medium">Correlation ID</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/70">
+                          {serverAuditLogs.slice(0, 30).map((entry) => (
+                            <tr key={entry.id}>
+                              <td className="py-2 pr-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                                {formatTimestamp(entry.timestamp)}
+                              </td>
+                              <td className="py-2 pr-3 whitespace-nowrap">
+                                <p className="text-slate-200">{entry.actorEmail}</p>
+                                <p className="font-mono text-[10px] text-[#00D9FF]">
+                                  {entry.actorRole}
+                                </p>
+                              </td>
+                              <td className="py-2 pr-3 font-mono text-[11px] text-[#3B82F6] whitespace-nowrap">
+                                {entry.action}
+                              </td>
+                              <td className="py-2 pr-3 text-slate-300">{entry.summary}</td>
+                              <td className="py-2 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                                {entry.correlationId}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </section>

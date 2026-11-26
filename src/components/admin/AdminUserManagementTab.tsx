@@ -6,6 +6,7 @@ import {
   MailCheck,
   MailWarning,
   Search,
+  Trash2,
   UserCheck,
   Users,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ interface AdminUserManagementTabProps {
     target: AdminUserSummary,
     patch: { role?: AdminRole; accountStatus?: AccountStatus }
   ) => Promise<void>;
+  onDeleteUser?: (target: AdminUserSummary) => Promise<void>;
 }
 
 export function AdminUserManagementTab({
@@ -47,9 +49,14 @@ export function AdminUserManagementTab({
   searchQuery,
   onSearchChange,
   onUpdateUser,
+  onDeleteUser,
 }: AdminUserManagementTabProps) {
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    user: AdminUserSummary;
+    kind: 'suspend' | 'delete';
+  } | null>(null);
 
   if (!canManageUsers) {
     return (
@@ -131,6 +138,51 @@ export function AdminUserManagementTab({
           >
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
             <span>{notice}</span>
+          </div>
+        )}
+
+        {pendingConfirm && (
+          <div
+            role="alertdialog"
+            aria-label="Confirm destructive user action"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-500/50 bg-rose-950/30 px-4 py-3 text-xs text-rose-100"
+          >
+            <p>
+              {pendingConfirm.kind === 'delete'
+                ? `Permanently delete ${pendingConfirm.user.email} and revoke all active sessions?`
+                : `Suspend ${pendingConfirm.user.email} and revoke all active sessions?`}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingConfirm(null)}
+                className="rounded-lg border border-slate-700 bg-[#0A0F1C] px-3 py-1.5 text-xs text-slate-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = pendingConfirm.user;
+                  const kind = pendingConfirm.kind;
+                  setPendingConfirm(null);
+                  if (kind === 'suspend') {
+                    await handleAction(target, { accountStatus: 'suspended' });
+                  } else if (onDeleteUser) {
+                    setBusyUserId(target.id);
+                    try {
+                      await onDeleteUser(target);
+                      setNotice(`Deleted account ${target.email} and logged the action.`);
+                    } finally {
+                      setBusyUserId(null);
+                    }
+                  }
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 cursor-pointer"
+              >
+                {pendingConfirm.kind === 'delete' ? 'Confirm Delete' : 'Confirm Suspend'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -238,39 +290,55 @@ export function AdminUserManagementTab({
                       </td>
 
                       <td className="py-3 text-right">
-                        <button
-                          type="button"
-                          disabled={isBusy || isSelf}
-                          onClick={() =>
-                            void handleAction(u, {
-                              accountStatus: isSuspended ? 'active' : 'suspended',
-                            })
-                          }
-                          title={
-                            isSelf
-                              ? lang === 'bn'
-                                ? 'নিজের অ্যাকাউন্ট স্থগিত করা যাবে না'
-                                : 'Cannot suspend your own active admin session'
-                              : undefined
-                          }
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-                            isSuspended
-                              ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-950/40'
-                              : 'border-rose-500/40 bg-rose-950/20 text-rose-200 hover:bg-rose-950/40'
-                          }`}
-                        >
-                          {isSuspended ? (
-                            <>
-                              <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                              <span>{lang === 'bn' ? 'পুনর্বহাল' : 'Restore'}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-                              <span>{lang === 'bn' ? 'স্থগিত' : 'Suspend'}</span>
-                            </>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            disabled={isBusy || isSelf}
+                            onClick={() => {
+                              if (isSuspended) {
+                                void handleAction(u, { accountStatus: 'active' });
+                              } else {
+                                setPendingConfirm({ user: u, kind: 'suspend' });
+                              }
+                            }}
+                            title={
+                              isSelf
+                                ? lang === 'bn'
+                                  ? 'নিজের অ্যাকাউন্ট স্থগিত করা যাবে না'
+                                  : 'Cannot suspend your own active admin session'
+                                : undefined
+                            }
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                              isSuspended
+                                ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-200 hover:bg-emerald-950/40'
+                                : 'border-rose-500/40 bg-rose-950/20 text-rose-200 hover:bg-rose-950/40'
+                            }`}
+                          >
+                            {isSuspended ? (
+                              <>
+                                <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span>{lang === 'bn' ? 'পুনর্বহাল' : 'Restore'}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span>{lang === 'bn' ? 'স্থগিত' : 'Suspend'}</span>
+                              </>
+                            )}
+                          </button>
+
+                          {onDeleteUser && !isSelf && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => setPendingConfirm({ user: u, kind: 'delete' })}
+                              aria-label={`Delete ${u.email}`}
+                              className="inline-flex items-center rounded-lg border border-rose-500/35 bg-rose-950/15 p-1.5 text-rose-300 hover:bg-rose-950/40 cursor-pointer disabled:opacity-40"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
                           )}
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   );

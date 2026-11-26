@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
+  Bell,
   CheckCircle2,
   Download,
   LogOut,
@@ -21,6 +22,14 @@ import {
 } from '../../domain/adminGovernanceEngine';
 import { appendAuditLog } from '../../services/governanceStore';
 import { listAudioBlobKeys } from '../../utils/audioBlobStore';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  type UserNotificationPreferences,
+} from '../../domain/notificationsEngine';
+import {
+  fetchLearnerNotifications,
+  updateNotificationPreferences,
+} from '../../services/prd61Api';
 import type {
   DailyTimeGoalMinutes,
   ExplanationLanguage,
@@ -37,7 +46,7 @@ const PRIMARY_GOALS: PrimaryGoal[] = [
   'academic_ielts',
   'workplace',
 ];
-const DAILY_TIMES: DailyTimeGoalMinutes[] = [10, 15, 25, 45];
+const DAILY_TIMES: DailyTimeGoalMinutes[] = [5, 10, 15, 20, 25, 30, 45];
 
 export function SettingsPage() {
   const { lang, t } = useLanguage();
@@ -96,6 +105,14 @@ export function SettingsPage() {
     correlationId?: string;
   } | null>(null);
 
+  // PRD v6.1 §35 Server-Persisted Notifications & Learning Schedule
+  const [notifPrefs, setNotifPrefs] = useState<UserNotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSavedMsg, setNotifSavedMsg] = useState<string | null>(null);
+  const [notifError, setNotifError] = useState<string | null>(null);
+
   useEffect(() => {
     setName(user?.name ?? '');
     if (profile) {
@@ -113,6 +130,13 @@ export function SettingsPage() {
     listAudioBlobKeys().then((keys) => {
       if (active) setStoredRecordingCount(keys.length);
     });
+    fetchLearnerNotifications()
+      .then((res) => {
+        if (active && res.preferences) {
+          setNotifPrefs(res.preferences);
+        }
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -149,6 +173,36 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Unable to save settings.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveNotifPrefs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNotifSaving(true);
+    setNotifSavedMsg(null);
+    setNotifError(null);
+    try {
+      const res = await updateNotificationPreferences({
+        remindersEnabled: notifPrefs.remindersEnabled,
+        preferredTimeLocal: notifPrefs.preferredTimeLocal,
+        quietHoursStart: notifPrefs.quietHoursStart,
+        quietHoursEnd: notifPrefs.quietHoursEnd,
+        reviewReminders: notifPrefs.reviewReminders,
+        assessmentReminders: notifPrefs.assessmentReminders,
+        subscriptionNotices: notifPrefs.subscriptionNotices,
+        securityNotifications: notifPrefs.securityNotifications,
+        emailNotifications: notifPrefs.emailNotifications,
+      });
+      setNotifPrefs(res.preferences);
+      setNotifSavedMsg(
+        lang === 'bn'
+          ? 'নোটিফিকেশন ও সময়সূচি পছন্দ সার্ভারে সংরক্ষিত হয়েছে।'
+          : 'Notification & learning schedule preferences saved to server.'
+      );
+    } catch (err) {
+      setNotifError(err instanceof Error ? err.message : 'Unable to save notification settings.');
+    } finally {
+      setNotifSaving(false);
     }
   };
 
@@ -491,6 +545,129 @@ export function SettingsPage() {
               className="rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB] disabled:opacity-60 transition-colors cursor-pointer"
             >
               {t.workspace.settings.saveBtn}
+            </button>
+          </div>
+        </form>
+
+        {/* PRD v6.1 §35 Learner Notifications & Learning Schedule */}
+        <form
+          onSubmit={handleSaveNotifPrefs}
+          className="rounded-xl border border-slate-800 bg-[#111827] p-6 space-y-5"
+        >
+          <div className="flex items-start gap-3">
+            <Bell className="mt-0.5 h-5 w-5 shrink-0 text-[#00D9FF]" aria-hidden="true" />
+            <div>
+              <h2 className="text-base font-bold text-white">
+                {lang === 'bn'
+                  ? 'নোটিফিকেশন ও দৈনিক অনুশীলনের সময়সূচি'
+                  : 'Notifications & Learning Schedule'}
+              </h2>
+              <p className="mt-1 text-xs text-slate-400">
+                {lang === 'bn'
+                  ? 'আপনার পছন্দের অনুশীলনের সময়, নীরব ঘণ্টা (Quiet Hours) এবং কোন ধরনের রিমাইন্ডার পেতে চান তা নির্ধারণ করুন।'
+                  : 'Set your preferred practice time, quiet hours, and reminder channels. Saved server-side without manipulative push spam.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="notif-preferred-time" className="block text-xs font-medium text-slate-300">
+                {lang === 'bn' ? 'পছন্দের অনুশীলনের সময়' : 'Preferred Practice Time'}
+              </label>
+              <input
+                id="notif-preferred-time"
+                type="time"
+                value={notifPrefs.preferredTimeLocal}
+                onChange={(e) =>
+                  setNotifPrefs((p) => ({ ...p, preferredTimeLocal: e.target.value }))
+                }
+                className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-[#0A0F1C] px-3 py-2 text-sm text-white focus:border-[#3B82F6] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="notif-quiet-start" className="block text-xs font-medium text-slate-300">
+                {lang === 'bn' ? 'নীরব ঘণ্টা শুরু' : 'Quiet Hours Start'}
+              </label>
+              <input
+                id="notif-quiet-start"
+                type="time"
+                value={notifPrefs.quietHoursStart}
+                onChange={(e) =>
+                  setNotifPrefs((p) => ({ ...p, quietHoursStart: e.target.value }))
+                }
+                className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-[#0A0F1C] px-3 py-2 text-sm text-white focus:border-[#3B82F6] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="notif-quiet-end" className="block text-xs font-medium text-slate-300">
+                {lang === 'bn' ? 'নীরব ঘণ্টা শেষ' : 'Quiet Hours End'}
+              </label>
+              <input
+                id="notif-quiet-end"
+                type="time"
+                value={notifPrefs.quietHoursEnd}
+                onChange={(e) =>
+                  setNotifPrefs((p) => ({ ...p, quietHoursEnd: e.target.value }))
+                }
+                className="mt-1.5 block w-full rounded-lg border border-slate-700 bg-[#0A0F1C] px-3 py-2 text-sm text-white focus:border-[#3B82F6] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {(
+              [
+                ['remindersEnabled', 'Daily Learning Reminders', 'দৈনিক শেখার রিমাইন্ডার'],
+                ['reviewReminders', 'Spaced Review & Mistake Alerts', 'স্পেসড রিভিউ ও ভুল সংশোধন অ্যালার্ট'],
+                ['assessmentReminders', 'Assessment & Exam Check-Ins', 'মূল্যায়ন ও পরীক্ষা রিমাইন্ডার'],
+                ['subscriptionNotices', 'Billing & Subscription Notices', 'সাবস্ক্রিপশন নোটিশ'],
+                ['securityNotifications', 'Account Security Alerts', 'অ্যাকাউন্ট নিরাপত্তা অ্যালার্ট'],
+                ['emailNotifications', 'Email Digest Delivery', 'ইমেইল নোটিফিকেশন'],
+              ] as const
+            ).map(([field, labelEn, labelBn]) => (
+              <label
+                key={field}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-[#0A0F1C] px-3.5 py-2.5 text-xs text-slate-200 cursor-pointer"
+              >
+                <span>{lang === 'bn' ? labelBn : labelEn}</span>
+                <input
+                  type="checkbox"
+                  checked={notifPrefs[field]}
+                  onChange={(e) =>
+                    setNotifPrefs((prev) => ({ ...prev, [field]: e.target.checked }))
+                  }
+                  className="h-4 w-4 accent-[#00D9FF]"
+                />
+              </label>
+            ))}
+          </div>
+
+          {notifError && (
+            <p role="alert" className="text-xs text-rose-300">
+              {notifError}
+            </p>
+          )}
+          {notifSavedMsg && (
+            <p role="status" className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              <span>{notifSavedMsg}</span>
+            </p>
+          )}
+
+          <div className="flex justify-end border-t border-slate-800 pt-4">
+            <button
+              type="submit"
+              disabled={notifSaving}
+              className="rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2563EB] disabled:opacity-60 cursor-pointer"
+            >
+              {notifSaving
+                ? lang === 'bn'
+                  ? 'সংরক্ষণ হচ্ছে...'
+                  : 'Saving...'
+                : lang === 'bn'
+                  ? 'নোটিফিকেশন পছন্দ সংরক্ষণ করুন'
+                  : 'Save Notification Schedule'}
             </button>
           </div>
         </form>

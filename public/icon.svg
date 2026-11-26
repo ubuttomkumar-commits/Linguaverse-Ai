@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="LINGUAVERSE AI">
+  <defs>
+    <linearGradient id="lvBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05091F" />
+      <stop offset="55%" stop-color="#0B163C" />
+      <stop offset="100%" stop-color="#13103A" />
+    </linearGradient>
+    <linearGradient id="lvAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D9FF" />
+      <stop offset="52%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#lvBg)" />
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="url(#lvAccent)" stroke-width="10" stroke-opacity="0.45" />
+  <circle cx="256" cy="256" r="158" fill="none" stroke="url(#lvAccent)" stroke-width="8" stroke-opacity="0.25" />
+  <!-- Acoustic wave bars -->
+  <g fill="url(#lvAccent)">
+    <rect x="112" y="220" width="22" height="72" rx="11" opacity="0.7" />
+    <rect x="150" y="168" width="24" height="176" rx="12" opacity="0.9" />
+    <rect x="190" y="132" width="26" height="248" rx="13" />
+    <rect x="234" y="176" width="26" height="160" rx="13" opacity="0.95" />
+    <rect x="278" y="144" width="26" height="224" rx="13" />
+    <rect x="322" y="182" width="24" height="148" rx="12" opacity="0.9" />
+    <rect x="362" y="218" width="22" height="76" rx="11" opacity="0.7" />
+  </g>
+</svg>

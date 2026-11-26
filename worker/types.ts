@@ -59,6 +59,9 @@ export interface WorkerEnv {
   APP_ENV?: string;
   GEMINI_API_KEY?: string;
   GEMINI_PRIMARY_MODEL?: string;
+  GEMINI_FALLBACK_MODEL?: string;
+  GEMINI_TRANSCRIBE_MODEL?: string;
+  GEMINI_TTS_MODEL?: string;
   SPEAKING_PROMPT_VERSION?: string;
   TRANSFER_PROMPT_VERSION?: string;
   RESEND_API_KEY?: string;
@@ -68,6 +71,17 @@ export interface WorkerEnv {
   RATE_LIMIT_REQUESTS_PER_MINUTE?: string;
   AUDIO_RETENTION_DAYS?: string;
   CORS_ALLOWED_ORIGIN?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  SSLCOMMERZ_STORE_PASSWD?: string;
+  PADDLE_WEBHOOK_SECRET?: string;
+  DEEPGRAM_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  ELEVENLABS_API_KEY?: string;
+  AZURE_SPEECH_KEY?: string;
+  AZURE_SPEECH_REGION?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 export interface SessionJwtPayload {
@@ -77,4 +91,16 @@ export interface SessionJwtPayload {
   role: WorkerAdminRole;
   exp: number;
   iat: number;
+}
+
+export interface WorkerAuthUser {
+  id: string;
+  name: string;
+  email: string;
+  plan: string;
+  role: WorkerAdminRole;
+  emailVerified: boolean;
+  accountStatus: 'active' | 'suspended';
+  createdAt: string;
+  sessionId: string;
 }

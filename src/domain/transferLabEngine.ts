@@ -15,6 +15,7 @@ import type {
 import { getLessonById } from './curriculumData.ts';
 import { classifyMistakeCategory, getMistakeCategoryMeta } from './mistakeMemoryEngine.ts';
 import { getPressureLadderTier } from './pressureLadder.ts';
+import { getTransferUniverseScenario } from './transferLabUniverseEngine.ts';
 
 export interface TransferScenarioDefinition {
   id: TransferScenarioId;
@@ -280,7 +281,41 @@ export const TRANSFER_SCENARIOS: TransferScenarioDefinition[] = [
 ];
 
 export function getTransferScenario(id: TransferScenarioId): TransferScenarioDefinition {
-  return TRANSFER_SCENARIOS.find((s) => s.id === id) ?? TRANSFER_SCENARIOS[0];
+  const direct = TRANSFER_SCENARIOS.find((s) => s.id === id);
+  if (direct) return direct;
+
+  const universe = getTransferUniverseScenario(id);
+  if (universe) {
+    return {
+      id: universe.id,
+      titleEn: universe.titleEn,
+      titleBn: universe.titleBn,
+      contextTagEn: universe.environmentNameEn,
+      contextTagBn: universe.environmentNameBn,
+      rolePersonaEn: `${universe.aiParticipantName} — ${universe.aiParticipantRoleEn}`,
+      rolePersonaBn: `${universe.aiParticipantName} — ${universe.aiParticipantRoleBn}`,
+      briefEn: universe.descriptionEn,
+      briefBn: universe.descriptionBn,
+      openingPromptEn: universe.openingMessageEn,
+      openingPromptBn: universe.openingMessageBn,
+      level1TemplatesEn: universe.helpfulPhrasesEn,
+      level1TemplatesBn: universe.completionCriteriaBn,
+      level2BulletCuesEn: universe.learningObjectivesEn,
+      level2BulletCuesBn: universe.learningObjectivesBn,
+      fallbackTwistEn:
+        'Wait — could you clarify that point and explain how we should handle this unexpected constraint right now?',
+      fallbackTwistBn:
+        'এক মিনিট — বিষয়টি আরেকটু স্পষ্ট করবেন এবং এই অপ্রত্যাশিত শর্তটি এখন কীভাবে সামলাবেন?',
+      level5ConstraintEn: `High-stakes constraint (60s): ${universe.completionCriteriaEn}`,
+      level5ConstraintBn: `উচ্চচাপের শর্ত (৬০ সেকেন্ড): ${universe.completionCriteriaBn}`,
+      targetCategories: universe.targetMistakeCategories,
+      linkedLessonIds: universe.linkedLessonIds,
+      defaultTargetGrammarEn: universe.targetSkills.slice(0, 2).join(' & '),
+      defaultTargetGrammarBn: universe.requiredTaskBn,
+    };
+  }
+
+  return TRANSFER_SCENARIOS[0];
 }
 
 export interface TransferScenarioRecommendation {

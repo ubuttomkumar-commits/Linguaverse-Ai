@@ -1,0 +1,92 @@
+{
+  "aiRuntimeConfig": {
+    "geminiEnabled": true,
+    "primaryModel": "gemini-4-hydrogen",
+    "fallbackModel": "gemini-3.1-flash-lite",
+    "transcribeModel": "gemini-3.5-transcribe",
+    "ttsModel": "gemini-3.8-flash-lite-tts",
+    "activeSttProvider": "gemini",
+    "activeTtsProvider": "gemini",
+    "activePronunciationProvider": "none",
+    "requestTimeoutMs": 25000,
+    "maxRetries": 1,
+    "dailyCostCeilingUsd": 25,
+    "maxRequestsPerMinute": 30
+  },
+  "featureFlags": {
+    "maintenanceMode": false,
+    "ieltsExamPrepEnabled": true,
+    "writingDiaryStudioEnabled": true,
+    "shadowingLabEnabled": true,
+    "humanBridgeEnabled": true,
+    "communityEnabled": true,
+    "leaderboardEnabled": true,
+    "voiceRecordingEnabled": true,
+    "aiSpeakingEnabled": true,
+    "requireEmailVerification": true
+  },
+  "providerSecrets": {},
+  "providerHealth": {},
+  "examinationAttempts": [
+    {
+      "userId": "usr_69eab49a6d7855",
+      "taskId": "ielts_read_solar_microgrids",
+      "module": "reading",
+      "taskTitleEn": "Reading Practice — Community Solar Microgrids in Riverine Regions",
+      "responseText": "",
+      "wordCount": 0,
+      "durationSeconds": 120,
+      "objectiveScorePct": 100,
+      "correctCount": 3,
+      "totalQuestions": 3,
+      "rubricFeedback": null,
+      "questionResults": [
+        {
+          "questionId": "rq1",
+          "selectedIndex": 1,
+          "correctIndex": 1,
+          "isCorrect": true,
+          "explanationEn": "The passage states later initiatives achieved over 94% uptime by training two local technicians per village and introducing prepaid mobile metering.",
+          "explanationBn": "অনুচ্ছেদে বলা হয়েছে প্রতিটি গ্রামে দুইজন স্থানীয় টেকনিশিয়ানকে প্রশিক্ষণ দেওয়া এবং প্রিপেইড মোবাইল মিটারিং চালু করার মাধ্যমে ৯৪%-এর বেশি আপটাইম অর্জিত হয়েছে।"
+        },
+        {
+          "questionId": "rq2",
+          "selectedIndex": 1,
+          "correctIndex": 1,
+          "isCorrect": true,
+          "explanationEn": "FALSE — the first sentence says seasonal flooding makes extending national transmission towers \"prohibitively expensive\".",
+          "explanationBn": "FALSE — প্রথম বাক্যেই বলা হয়েছে মৌসুমি বন্যার কারণে জাতীয় ট্রান্সমিশন টাওয়ার সম্প্রসারণ অত্যন্ত ব্যয়বহুল হয়ে পড়ে।"
+        },
+        {
+          "questionId": "rq3",
+          "selectedIndex": 2,
+          "correctIndex": 2,
+          "isCorrect": true,
+          "explanationEn": "NOT GIVEN — international grant funding or European donors are never mentioned in the passage.",
+          "explanationBn": "NOT GIVEN — অনুচ্ছেদে আন্তর্জাতিক অনুদান বা ইউরোপীয় দাতাদের কোনো উল্লেখ নেই।"
+        }
+      ],
+      "modelUsed": "deterministic-exam-grader",
+      "id": "exam_605f60e5fea8",
+      "createdAt": "2026-11-26T10:19:45.895Z"
+    }
+  ],
+  "writingDiaryEntries": [],
+  "humanBridgeLogs": [],
+  "notificationPreferences": {
+    "usr_69eab49a6d7855": {
+      "remindersEnabled": true,
+      "preferredTimeLocal": "20:00",
+      "quietHoursStart": "22:30",
+      "quietHoursEnd": "07:00",
+      "reviewReminders": true,
+      "assessmentReminders": true,
+      "subscriptionNotices": true,
+      "securityNotifications": true,
+      "emailNotifications": true,
+      "updatedAt": "2026-11-26T10:19:45.907Z"
+    }
+  },
+  "notifications": [],
+  "securityEvents": []
+}

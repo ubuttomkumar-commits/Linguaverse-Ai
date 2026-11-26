@@ -29,7 +29,7 @@ import type {
   CurriculumModule,
 } from '../types/domain';
 
-const TOKEN_STORAGE_KEY = 'linguaverse_cf_token_v1';
+import { getInMemorySessionToken } from './sessionTokenMemory';
 
 function resolveApiBaseUrl(): string | null {
   const raw =
@@ -49,15 +49,14 @@ async function workerFetch<T>(
   headers.set('Content-Type', 'application/json');
   headers.set('X-Correlation-Id', generateCorrelationId('req'));
 
-  if (typeof window !== 'undefined') {
-    const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
+  const token = getInMemorySessionToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
+    credentials: 'include',
     headers,
   });
 

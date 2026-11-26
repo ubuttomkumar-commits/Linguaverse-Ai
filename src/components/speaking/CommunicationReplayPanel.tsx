@@ -169,13 +169,22 @@ export function CommunicationReplayPanel({
                 </p>
               </div>
 
-              <Link
-                to="/app/improve"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#8B5CF6]/50 bg-[#8B5CF6]/10 px-3.5 py-2 text-xs font-semibold text-violet-200 hover:bg-[#8B5CF6]/20 transition-colors"
-              >
-                <span>{lang === 'bn' ? 'Mistake Memory দেখুন' : 'View Mistake Memory'}</span>
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  to={`/app/replay?session=${encodeURIComponent(activeSession.id)}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/45 bg-cyan-500/10 px-3.5 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 transition-colors"
+                >
+                  <span>{lang === 'bn' ? 'পূর্ণ রিপ্লে খুলুন' : 'Open Full Replay'}</span>
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+                <Link
+                  to="/app/improve"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#8B5CF6]/50 bg-[#8B5CF6]/10 px-3.5 py-2 text-xs font-semibold text-violet-200 hover:bg-[#8B5CF6]/20 transition-colors"
+                >
+                  <span>{lang === 'bn' ? 'Mistake Memory দেখুন' : 'View Mistake Memory'}</span>
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              </div>
             </div>
 
             <div className="space-y-4">

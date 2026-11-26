@@ -1,0 +1,1350 @@
+LINGUAVERSE AI — MASTER AUDIT, COMPLETE IMPLEMENTATION & CLOUDFLARE PRODUCTION DEPLOYMENT
+
+ROLE: Act as a Principal Software Architect, Senior Full-Stack Engineer, AI Systems Engineer, Database Architect, Security Engineer, QA Automation Engineer, Product Designer, DevOps Engineer, and Production Release Manager.
+
+Your mission is to audit, complete, test, secure, and deploy my EXISTING LINGUAVERSE AI project according to my complete and authoritative Master Product Requirements Document (PRD).
+
+This is an existing project. Do NOT start a new project or replace the existing application.
+
+I have connected my GitHub repository and Cloudflare environment to Google AI Studio. First inspect which connected resources and permissions are actually available. Use them only within their granted capabilities.
+
+1. AUTHORITATIVE PROJECT REQUIREMENTS
+
+I will provide my complete LINGUAVERSE AI Master PRD below or in the project files.
+
+The supplied PRD is the authoritative product specification.
+
+Read the ENTIRE PRD, including:
+
+All numbered sections.
+
+Every subsection.
+
+Technical requirements.
+
+UI/UX requirements.
+
+AI requirements.
+
+Database requirements.
+
+Security and privacy requirements.
+
+Testing and acceptance criteria.
+
+Appendices and implementation governance.
+
+Also inspect existing project documentation, especially:
+
+docs/PRD.md
+
+STATE.md
+
+README.md
+
+Architecture documentation.
+
+Database schema and migrations.
+
+API documentation.
+
+Testing documentation.
+
+Deployment configuration.
+
+Environment variable documentation.
+
+If the authoritative PRD is supplied in this conversation, compare it with the repository copy. Do not silently ignore conflicting or missing requirements. Report discrepancies and preserve the complete authoritative specification.
+
+Do not claim that a requirement is complete merely because documentation describes it.
+
+A requirement is complete only when its actual implementation and appropriate verification evidence exist.
+
+2. STRICT EXISTING-PROJECT PRESERVATION
+
+Before modifying anything:
+
+Inspect the connected GitHub repository.
+
+Identify the correct repository, default branch, and current commit.
+
+Inspect the entire existing application structure.
+
+Identify the frontend, backend, database, infrastructure, and deployment architecture.
+
+Identify existing working features and partially implemented features.
+
+Inspect all existing routes, components, hooks, services, APIs, database tables, migrations, and tests.
+
+Identify broken, duplicated, disconnected, placeholder, and unused implementations.
+
+Check the current build, typecheck, lint, and test status where available.
+
+STRICT RULES:
+
+Do not recreate an existing working feature.
+
+Do not create duplicate routes, components, services, database tables, or API endpoints unnecessarily.
+
+Do not replace the existing technology stack without a documented technical justification.
+
+Do not delete existing user data.
+
+Do not overwrite existing configuration blindly.
+
+Do not remove existing working functionality.
+
+Do not replace real implementations with mock functionality.
+
+Do not hide failures by disabling tests or weakening validation.
+
+Use additive, reversible database migrations wherever possible.
+
+Preserve existing API compatibility unless a documented migration is necessary.
+
+If the project already contains a feature, inspect and improve it instead of rebuilding it.
+
+3. COMPLETE PRD-TO-CODE AUDIT
+
+Create a requirement-by-requirement audit matrix.
+
+For EVERY PRD requirement, record:
+
+Requirement ID.
+
+PRD section.
+
+Required behavior.
+
+Existing implementation location.
+
+Backend implementation status.
+
+Frontend implementation status.
+
+Database implementation status.
+
+Security status.
+
+Test coverage.
+
+Evidence.
+
+Remaining gaps.
+
+Required implementation tasks.
+
+Use these statuses:
+
+COMPLETE — implemented and verified.
+
+PARTIAL — some implementation exists, but requirements remain.
+
+MISSING — no valid implementation found.
+
+BROKEN — implementation exists but does not work correctly.
+
+BLOCKED — cannot be completed because of a documented external dependency or permission limitation.
+
+NOT APPLICABLE — only with a clear technical justification.
+
+Do not mark PARTIAL or MISSING requirements as COMPLETE based on UI appearance alone.
+
+Create and maintain:
+
+audit/PRD-COMPLIANCE-MATRIX.md
+
+audit/EXISTING-PROJECT-AUDIT.md
+
+audit/IMPLEMENTATION-PLAN.md
+
+audit/TEST-EVIDENCE.md
+
+STATE.md
+
+Preserve existing documentation and update it rather than creating unnecessary duplicates.
+
+4. IMPLEMENT THE COMPLETE PRODUCT
+
+After the audit, implement all feasible requirements from the authoritative PRD.
+
+Work systematically across the entire product.
+
+The implementation must cover all relevant existing and required modules, including:
+
+A. Core Learning Platform
+
+Authentication and account management.
+
+Onboarding.
+
+Initial diagnostic assessment.
+
+CEFR-aligned Academy.
+
+Structured lessons.
+
+Exercises and assessments.
+
+Vocabulary and collocation learning.
+
+Grammar intelligence.
+
+Reading intelligence.
+
+Listening intelligence.
+
+Writing intelligence.
+
+Speaking Studio.
+
+Pronunciation assessment where technically supported.
+
+AI conversation practice.
+
+Transfer Lab.
+
+Pressure Ladder.
+
+Communication Replay.
+
+Communication DNA.
+
+Mistake Memory Engine.
+
+Evidence-Based Progress.
+
+Adaptive revision and spaced repetition.
+
+Independent communication readiness.
+
+B. AI Intelligence
+
+Implement real backend-connected AI workflows.
+
+Requirements:
+
+Secure server-side provider integration.
+
+Provider abstraction.
+
+Structured AI responses.
+
+Runtime schema validation.
+
+Prompt versioning.
+
+AI evaluation.
+
+Confidence and uncertainty handling.
+
+Provider error handling.
+
+Usage tracking.
+
+Cost monitoring.
+
+Rate limiting.
+
+Retry and timeout handling.
+
+AI output safety.
+
+Prompt injection protection.
+
+Evaluation test datasets.
+
+Do not fabricate AI assessments.
+
+Do not claim phoneme-level pronunciation assessment if the selected provider cannot actually provide it.
+
+Do not present recorded audio processing as real-time voice streaming.
+
+C. Learner Experience
+
+Implement:
+
+Personalized learner dashboard.
+
+Skill-specific progress.
+
+Mistake history.
+
+Learning recommendations.
+
+Revision schedule.
+
+Assessment history.
+
+Speaking session history.
+
+Learning achievements.
+
+Honest empty states.
+
+User settings.
+
+Privacy controls.
+
+Account deletion workflow.
+
+Every displayed metric must come from actual backend records or be explicitly labeled as a demonstration preview.
+
+D. Community and Gamification
+
+Implement the PRD requirements for:
+
+Learning discussions.
+
+Posts and comments.
+
+Reactions.
+
+Reporting.
+
+Blocking.
+
+Moderation.
+
+XP.
+
+Achievements.
+
+Streaks.
+
+Learning challenges.
+
+Leaderboards.
+
+Ensure server-side authorization, abuse protection, duplicate prevention, and auditable reward operations.
+
+Do not introduce private messaging unless its safety and moderation requirements are satisfied and the PRD authorizes it.
+
+E. Admin Control Center
+
+Implement a genuinely functional admin system.
+
+Include:
+
+Admin overview.
+
+Role-based access control.
+
+User management.
+
+Account suspension and restoration.
+
+Curriculum management.
+
+Lesson publishing and versioning.
+
+AI provider monitoring.
+
+AI usage and error monitoring.
+
+Subscription management.
+
+Moderation management.
+
+Support management.
+
+Analytics.
+
+Audit logs.
+
+System configuration.
+
+Every administrative action must call an authorized backend endpoint and persist its result.
+
+Frontend-only admin permissions are not acceptable.
+
+Never expose provider API keys or secrets in admin interfaces.
+
+F. Monetization
+
+Implement the PRD's subscription and entitlement architecture where feasible.
+
+Include:
+
+Plans.
+
+Subscription lifecycle.
+
+Entitlements.
+
+Usage limits.
+
+Payment records.
+
+Payment webhook verification.
+
+Cancellation.
+
+Payment failure handling.
+
+Refund workflows.
+
+Invoices where supported.
+
+AI usage cost tracking.
+
+Verify payment-provider availability and merchant eligibility for the intended operating market before enabling live payments.
+
+Do not invent payment transactions, revenue, or subscriptions.
+
+5. PREMIUM 3D VISUAL DESIGN AND UI/UX
+
+The complete application must have a coherent, premium, high-end visual identity.
+
+Design direction:
+
+Premium futuristic education technology + communication intelligence platform.
+
+Visual requirements:
+
+3D glowing elements.
+
+Animated memory nodes.
+
+Interactive communication networks.
+
+Elegant glassmorphism.
+
+Layered depth.
+
+Soft luminous gradients.
+
+Smooth motion.
+
+High-quality typography.
+
+Premium dark navy and charcoal surfaces.
+
+Carefully selected electric blue and violet accents.
+
+Restrained glow effects.
+
+Sophisticated micro-interactions.
+
+Interactive data visualizations.
+
+Polished loading states.
+
+Meaningful hover and focus states.
+
+Consistent spacing and design tokens.
+
+Special visual treatment
+
+Communication DNA
+
+Create an interactive visual learner profile with connected skill dimensions, evidence indicators, and clear performance details.
+
+Mistake Memory Engine
+
+Use animated memory nodes to represent recurring mistakes, corrections, review schedules, and learning connections.
+
+Show meaningful node relationships, not decorative animations pretending to represent real data.
+
+Communication Improvement Loop
+
+Create an interactive visualization of:
+
+DETECT → EXPLAIN → PERSONALIZE → PRACTICE → TRANSFER → RETEST → UPDATE → REPEAT.
+
+Each step must connect to actual product functionality.
+
+Transfer Lab
+
+Create an immersive scenario interface with realistic communication tasks, conversation progress, assessment feedback, and retry controls.
+
+Progress Dashboard
+
+Use interactive charts and visualizations driven by real assessment and learning records.
+
+Speaking Studio
+
+Design a premium voice-first experience with:
+
+Audio waveform visualization.
+
+Recording controls.
+
+Conversation interface.
+
+Live or recorded processing state clearly identified.
+
+Transcript.
+
+Feedback panels.
+
+Replay.
+
+Retry.
+
+Do not show fake live audio activity.
+
+UI/UX quality requirements
+
+Fully responsive desktop, tablet, and mobile.
+
+Mobile-first usability.
+
+Accessible color contrast.
+
+Keyboard navigation.
+
+Screen-reader-friendly controls.
+
+Reduced-motion support.
+
+Clear loading, success, failure, and empty states.
+
+Consistent component design.
+
+No broken layouts.
+
+No horizontal overflow on mobile.
+
+No decorative buttons without working actions.
+
+No placeholder navigation.
+
+No dead links.
+
+No fake charts.
+
+No non-functional controls.
+
+Use the existing design system and component library where appropriate. Extend it consistently instead of creating unnecessary duplicates.
+
+Animations must remain smooth and performant. Prefer GPU-friendly transforms and opacity. Lazy-load expensive 3D scenes and provide lightweight mobile fallbacks.
+
+Premium visual quality must never compromise accessibility, performance, or actual functionality.
+
+6. BACKEND, DATABASE AND API COMPLETION
+
+Inspect and complete the existing architecture.
+
+Preferred architecture, subject to existing-project audit:
+
+React.
+
+TypeScript.
+
+Vite.
+
+React Router.
+
+Tailwind CSS.
+
+shadcn/ui.
+
+Lucide.
+
+Cloudflare Workers.
+
+Hono.
+
+D1.
+
+R2.
+
+KV.
+
+Durable Objects where justified.
+
+Queues where justified.
+
+Cron Triggers where justified.
+
+Turnstile where appropriate.
+
+API prefix:
+
+/api/v1
+
+Implement and verify all required API modules.
+
+Every endpoint must have:
+
+HTTP method.
+
+Authentication.
+
+Authorization.
+
+Request validation.
+
+Response validation.
+
+Consistent error handling.
+
+Rate limiting where appropriate.
+
+Pagination where necessary.
+
+Idempotency where necessary.
+
+Audit logging where necessary.
+
+Automated tests.
+
+Database requirements:
+
+Inspect existing schema first.
+
+Preserve existing records.
+
+Use versioned migrations.
+
+Add indexes where justified.
+
+Enforce ownership and tenant boundaries where applicable.
+
+Add appropriate foreign keys and constraints.
+
+Use transactions for sensitive multi-step operations.
+
+Prevent duplicate financial and reward operations.
+
+Avoid storing secrets or unnecessary sensitive data.
+
+Define retention and deletion behavior for voice recordings.
+
+Never run destructive production migrations without a reviewed backup and explicit authorization.
+
+7. SECURITY AND PRIVACY AUDIT
+
+Perform a serious security review.
+
+Inspect:
+
+Authentication.
+
+Authorization.
+
+Session management.
+
+Password reset.
+
+CSRF protections where applicable.
+
+XSS.
+
+SQL injection.
+
+IDOR.
+
+Cross-user data leakage.
+
+Privilege escalation.
+
+Prompt injection.
+
+AI abuse.
+
+Quota manipulation.
+
+Rate limiting.
+
+File upload validation.
+
+Audio upload security.
+
+R2 access control.
+
+Secret exposure.
+
+Webhook verification.
+
+Admin audit logs.
+
+Data retention.
+
+Account deletion.
+
+Privacy consent.
+
+Verify that private audio and user records cannot be accessed by unauthorized users.
+
+Use least-privilege permissions.
+
+Keep all provider credentials server-side.
+
+Never request that I paste Cloudflare API tokens, database credentials, or provider secrets into chat, source code, or public GitHub files.
+
+Use secure environment variables and Cloudflare secrets.
+
+If a security issue is discovered, prioritize it before production deployment.
+
+8. TESTING AND REAL FUNCTIONAL VERIFICATION
+
+Do not stop after writing code.
+
+Run the tests supported by the existing project.
+
+At minimum, inspect and run applicable:
+
+TypeScript typecheck.
+
+Lint.
+
+Unit tests.
+
+Integration tests.
+
+API tests.
+
+Database migration tests.
+
+Frontend tests.
+
+Build.
+
+Production preview.
+
+End-to-end tests.
+
+Security checks.
+
+Verify important end-to-end user journeys:
+
+Registration → Login → Onboarding.
+
+Diagnostic assessment → Results.
+
+Academy → Lesson → Exercise → Feedback.
+
+Speaking session → Transcript → Evaluation.
+
+Mistake detection → Mistake Memory → Revision.
+
+Revision → Retest → Progress update.
+
+Transfer Lab → Scenario completion → Assessment.
+
+Dashboard → Actual progress data.
+
+Subscription → Entitlement verification, where payment integration is enabled.
+
+Admin login → Authorized action → Database update → Audit log.
+
+User privacy request → Appropriate data handling.
+
+Mobile navigation and responsive layouts.
+
+Test negative cases too:
+
+Unauthorized access.
+
+Invalid input.
+
+Expired sessions.
+
+Provider timeout.
+
+Network failure.
+
+Duplicate requests.
+
+Empty database.
+
+Missing permissions.
+
+Rate-limit exceeded.
+
+Malformed AI output.
+
+Never claim a test passed unless it actually ran and passed.
+
+Never hide failed tests.
+
+If a test cannot run because of missing infrastructure, clearly document it as BLOCKED.
+
+9. PERFORMANCE AND ACCESSIBILITY
+
+Check:
+
+Initial loading performance.
+
+JavaScript bundle size.
+
+Lazy loading.
+
+Image optimization.
+
+3D rendering performance.
+
+Database query efficiency.
+
+API response time.
+
+Mobile performance.
+
+Memory usage.
+
+Reduced-motion support.
+
+Accessibility.
+
+Keyboard navigation.
+
+Semantic HTML.
+
+Color contrast.
+
+Do not sacrifice mobile performance for unnecessary 3D effects.
+
+10. IMPLEMENTATION EXECUTION STRATEGY
+
+Do not attempt a superficial one-pass implementation.
+
+Execute in controlled phases.
+
+PHASE 1 — Discovery and Baseline Audit
+
+Inspect the complete existing project and produce the requirement matrix.
+
+PHASE 2 — Critical Infrastructure and Security
+
+Resolve architectural, database, authentication, authorization, and security blockers.
+
+PHASE 3 — Core Learning Engine
+
+Complete Academy, assessments, learning records, Mistake Memory, and revision.
+
+PHASE 4 — AI and Communication Systems
+
+Complete Speaking Studio, AI evaluation, Communication DNA, Transfer Lab, and Communication Replay.
+
+PHASE 5 — Learner Dashboard and Product Experience
+
+Complete dashboards, personalization, progress, community, and gamification.
+
+PHASE 6 — Admin and Monetization
+
+Complete real admin operations, subscriptions, entitlements, and supported payment workflows.
+
+PHASE 7 — Premium UI/UX
+
+Complete responsive visual design, 3D elements, animated memory nodes, glassmorphism, motion, and interactive visualizations.
+
+PHASE 8 — Quality Assurance
+
+Run all available automated tests and end-to-end verification. Fix regressions.
+
+PHASE 9 — Production Readiness
+
+Verify production environment configuration, secrets, database migrations, security, monitoring, and rollback strategy.
+
+PHASE 10 — GitHub and Cloudflare Deployment
+
+Commit and push the verified changes to the intended GitHub repository and branch, then deploy the correct application to the correct Cloudflare environment, subject to actual permissions and deployment safety.
+
+After each phase:
+
+Update STATE.md.
+
+Update the PRD compliance matrix.
+
+Record changed files.
+
+Record tests and results.
+
+Record unresolved issues.
+
+Commit logical, verified changes when GitHub access permits.
+
+Do not mark the entire project complete merely because one phase is complete.
+
+Continue until every feasible PRD requirement is implemented and verified, or until a genuine blocker prevents further work.
+
+11. GITHUB REQUIREMENTS
+
+Use the already-connected GitHub repository.
+
+Before making changes:
+
+Verify repository identity.
+
+Verify current branch.
+
+Inspect recent commits.
+
+Check for uncommitted or conflicting changes.
+
+Preserve existing history.
+
+After implementation:
+
+Commit changes with meaningful messages.
+
+Push to the intended branch.
+
+Verify the remote commit.
+
+Do not overwrite unrelated user changes.
+
+Do not force-push.
+
+Do not commit secrets, tokens, private recordings, or sensitive user data.
+
+If repository permissions are insufficient, report the exact limitation instead of claiming a successful push.
+
+12. CLOUDFLARE PRODUCTION DEPLOYMENT
+
+My requested final goal is a real deployment to my connected Cloudflare environment.
+
+First inspect:
+
+Cloudflare account access.
+
+Existing Workers.
+
+Pages projects.
+
+D1 databases.
+
+R2 buckets.
+
+KV namespaces.
+
+Durable Objects.
+
+Queues.
+
+Cron configuration.
+
+Domains.
+
+Environment bindings.
+
+Build and deployment settings.
+
+Do not create duplicate production resources unnecessarily.
+
+Verify the correct production project and deployment target before making changes.
+
+Deployment requirements:
+
+Verify production build.
+
+Configure required environment variables.
+
+Configure secrets securely.
+
+Verify D1 bindings and migration status.
+
+Verify R2, KV, Queues, and Durable Objects bindings where used.
+
+Verify Turnstile configuration where enabled.
+
+Verify domain and routing configuration.
+
+Apply only reviewed, safe migrations.
+
+Deploy the frontend and backend to their correct Cloudflare targets.
+
+Verify deployment status.
+
+Test the live health endpoint.
+
+Test critical public routes.
+
+Test authentication and essential application flows where safe.
+
+Inspect production logs for errors.
+
+Confirm that frontend API requests reach the deployed backend.
+
+Verify that the deployed commit matches the intended GitHub commit.
+
+Do not expose secret values in logs or reports.
+
+Do not claim deployment succeeded unless Cloudflare confirms it and the live application has been checked.
+
+If deployment is blocked by missing credentials, permissions, domain configuration, provider keys, billing, or other external dependencies, explain exactly what is missing and provide the minimum steps needed to unblock it.
+
+Do not invent a live URL.
+
+13. FINAL ACCEPTANCE CRITERIA
+
+The project is ready for production only when:
+
+The full PRD has been audited.
+
+Every requirement has an explicit status.
+
+All feasible critical requirements have working implementations.
+
+Existing functionality remains intact.
+
+Database migrations are safe and verified.
+
+Authentication and authorization work.
+
+Core learning journeys work.
+
+AI integrations work with real configured providers.
+
+Mistake Memory uses actual learning evidence.
+
+Progress metrics use actual records.
+
+Admin actions persist through authorized backend operations.
+
+Security checks have been performed.
+
+Automated tests have been executed.
+
+Production build succeeds.
+
+Responsive UI has been checked.
+
+Cloudflare deployment is verified, if deployment permissions and configuration permit it.
+
+Documentation and STATE.md reflect the actual result.
+
+A visually complete interface is not equivalent to a complete product.
+
+A successful build is not equivalent to a production-ready application.
+
+A deployed URL is not proof that every feature works.
+
+14. FINAL COMPLETION REPORT
+
+At the end, produce a detailed report containing:
+
+Repository and branch used.
+
+Starting commit and final commit.
+
+Initial project audit summary.
+
+Total PRD requirements audited.
+
+COMPLETE count.
+
+PARTIAL count.
+
+MISSING count.
+
+BROKEN count.
+
+BLOCKED count.
+
+Implemented features.
+
+Improved existing features.
+
+Files created.
+
+Files modified.
+
+Files deleted, with justification.
+
+Database migrations created and applied.
+
+API endpoints implemented.
+
+AI providers and capabilities actually configured.
+
+Security fixes.
+
+UI/UX improvements.
+
+Test commands actually executed.
+
+Test results.
+
+Build and typecheck results.
+
+End-to-end verification results.
+
+Remaining limitations.
+
+External dependencies and blockers.
+
+GitHub push status.
+
+Cloudflare deployment status.
+
+Verified production URL, if successfully deployed.
+
+Live health-check evidence.
+
+Remaining work required before full production launch.
+
+Use evidence, not assumptions.
+
+For every claimed completed feature, identify its implementation location and verification evidence where possible.
+
+15. FINAL EXECUTION INSTRUCTION
+
+Begin by inspecting the existing connected GitHub repository and reading the complete PRD.
+
+Do not ask me to rebuild the application.
+
+Do not stop after producing an audit report.
+
+After the audit, implement the missing and broken requirements systematically, preserve existing working code, test every meaningful change, update documentation, push verified work to GitHub, and deploy to my connected Cloudflare environment when all required safety checks and permissions are satisfied.
+
+If you encounter a tool limitation, missing credential, unavailable provider, or external dependency, document it honestly. Never simulate access, invent test results, fabricate data, or pretend a deployment succeeded.
+
+The final objective is a genuinely functional, secure, responsive, premium LINGUAVERSE AI application—not just a beautiful frontend or a collection of unfinished screens.
+
+AUTHORITATIVE MASTER PRD
+
+[LINGUAVERSE AI
+
+MASTER PRODUCT REQUIREMENTS DOCUMENT (PRD)
+
+Version: 6.1 — CONSOLIDATED MASTER EDITION
+Classification: Product Autopsy • Devil’s Advocate • Red Team • Evidence-Based Learning • Production Architecture
+Product: LINGUAVERSE AI
+Category: AI-Powered Language Learning & Communication Intelligence Platform
+Initial Market: Bangladesh and Bangla-speaking English learners
+Global Vision: A multilingual communication-learning ecosystem
+Primary Platform: Responsive Web Application / PWA
+Frontend: React + TypeScript + Vite
+Backend: Cloudflare Workers + Hono
+Database: Cloudflare D1
+Infrastructure: Cloudflare R2, KV, Durable Objects, Queues, Cron Triggers, Turnstile
+Product Positioning: Learn, Speak, Improve, Communicate.
+
+Tagline: Don't Just Learn a Language. Master Real Communication.
+
+Core Promise: Every mistake becomes a learning opportunity. Every practice session creates evidence. Every improvement moves learners closer to real-world communication.
+
+---
+
+MASTER EXECUTIVE DIRECTIVE
+
+Build LINGUAVERSE AI as a premium, intelligent, voice-first language-learning and real-world communication training platform.
+
+LINGUAVERSE AI is not another vocabulary memorization application, grammar quiz platform, or generic AI chatbot.
+
+It must connect five essential activities:
+
+1. Learning a language.
+2. Practicing communication.
+3. Detecting actual mistakes.
+4. Correcting weaknesses.
+5. Measuring whether the learner improves.
+
+The platform must create a continuous, personalized, explainable and evidence-based learning experience.
+
+0.1 Non-negotiable principles
+
+- Never claim functionality that has not been implemented and tested.
+- Never generate fake user activity, learning progress, revenue, reviews, testimonials, approvals or analytics.
+- Never present AI-generated guesses as verified educational assessments.
+- Never award proficiency levels without sufficient assessment evidence.
+- Never claim pronunciation accuracy without appropriate acoustic evidence.
+- Never expose API keys, credentials or provider secrets in frontend code.
+- Never bypass backend authorization.
+- Never use private voice recordings for model training without appropriate consent and legal basis.
+- Never overwrite an existing repository without auditing it.
+- Never create duplicate components, tables, services or API routes unnecessarily.
+- Never delete production data through routine migrations.
+- Every important operation must have a verifiable backend implementation.
+- Every AI evaluation must be testable, explainable and traceable.
+- Every sensitive administrative operation must be audited.
+- Every implementation phase must produce evidence-based completion reports.
+- Accessibility, privacy, reliability, security and performance are product requirements.
+- Do not use mock data as real production data.
+- Do not silently replace unavailable backend functionality with local-only functionality.
+- Clearly distinguish sample previews, test fixtures and actual user records.
+- All critical business rules must be enforced on the server.
+- Do not claim compliance or certification without appropriate verification.
+
+0.2 Product success philosophy
+
+The objective is not to maximize:
+
+- Time spent unnecessarily.
+- Number of AI conversations.
+- Vocabulary cards opened.
+- Daily meaningless page visits.
+- Artificial engagement.
+- Unverified XP or streaks.
+
+The objective is to improve:
+
+- Communication ability.
+- Language comprehension.
+- Sentence construction.
+- Speaking performance.
+- Knowledge retention.
+- Real-world task completion.
+- Contextual language use.
+- Learner confidence, measured separately as self-reported and behaviorally observed information.
+
+0.3 Product truth policy
+
+Every feature must have a defined implementation status:
+
+- NOT STARTED
+- IN PROGRESS
+- IMPLEMENTED
+- TESTED
+- VERIFIED IN RUNTIME
+- PRODUCTION VERIFIED
+- BLOCKED
+- DEFERRED
+
+These statuses must never be treated as interchangeable.
+
+A button existing in the frontend does not prove that its feature works.
+
+An API returning HTTP 200 does not prove that its business operation is correct.
+
+A successful build does not prove that the application works correctly at runtime.
+
+A deployment command succeeding does not prove that the production application is healthy.
+
+---
+
+1. PRODUCT VISION AND POSITIONING
+
+1.1 Vision
+
+Create a global communication intelligence platform that helps people understand, speak, respond and communicate naturally in another language.
+
+LINGUAVERSE AI should become a personalized learning environment that understands what a learner knows, identifies what they struggle with and creates targeted opportunities to improve.
+
+1.2 Initial target market
+
+Start with Bangla-speaking English learners.
+
+Primary users:
+
+- English beginners.
+- School and university students.
+- Job seekers.
+- Professionals.
+- International study applicants.
+- People preparing for interviews.
+- People struggling with speaking confidence.
+- People who understand English but cannot communicate naturally.
+- People who need practical workplace communication.
+
+1.3 Future markets
+
+Support additional learning languages through a configurable language architecture.
+
+Potential languages:
+
+- English.
+- Bengali.
+- Spanish.
+- French.
+- German.
+- Japanese.
+- Korean.
+- Arabic.
+- Other validated languages.
+
+Do not launch a language merely because an AI provider claims to support it.
+
+Validate curriculum quality, speech recognition, pronunciation assessment, localization and evaluation reliability first.
+
+1.4 Product positioning
+
+LINGUAVERSE AI combines:
+
+- Structured language education.
+- AI conversation practice.
+- Personalized mistake tracking.
+- Evidence-based assessment.
+- Practical communication simulation.
+- Adaptive revision.
+- Learning analytics.
+- Examination preparation.
+- Communication readiness assessment.
+
+1.5 Competitive differentiation
+
+The primary competitive advantage must be the Communication Improvement Loop, not a collection of disconnected AI features.
+
+Do not claim that a feature is unique to LINGUAVERSE AI without conducting a current competitor analysis.
+
+---
+
+2. TARGET USERS AND PERSONAS
+
+2.1 Beginner learner
+
+Problems:
+
+- Cannot construct sentences.
+- Knows individual words but struggles to speak.
+- Fears making mistakes.
+- Needs explanations in Bangla.
+- Needs simple, structured lessons.
+
+Requirements:
+
+- Beginner-friendly interface.
+- Bilingual explanations.
+- Slow, guided practice.
+- Short lessons.
+- Immediate feedback.
+- Clear examples.
+- Progressive difficulty.
+
+2.2 Intermediate learner
+
+Problems:
+
+- Understands basic English.
+- Makes recurring grammar mistakes.
+- Struggles with spontaneous conversations.
+- Has limited vocabulary.
+- Cannot respond naturally under pressure.
+
+Requirements:
+
+- Open conversations.
+- Personalized mistake review.
+- Natural sentence alternatives.
+- Practical simulations.
+- Increasing difficulty.
+- Delayed revision.
+
+2.3 Advanced learner
+
+Problems:
+
+- Understands English but lacks natural fluency.
+- Struggles with complex discussions.
+- Needs professional communication.
+- Wants precise language feedback.
+
+Requirements:
+
+- Advanced discussions.
+- Presentation practice.
+- Interview simulations.
+- Nuance and vocabulary improvement.
+- Contextual communication evaluation.
+- Complex writing and listening tasks.
+
+2.4 Job seeker
+
+Requirements:
+
+- Interview preparation.
+- Professional introductions.
+- Answer structuring.
+- Workplace communication.
+- Follow-up questions.
+- Performance ]
+
+EXECUTION START
+
+Start with Phase 1: inspect the existing repository, read the complete PRD, establish the baseline, and produce the full requirement-to-code audit.
+
+Then proceed through the phases in order. Do not skip requirements or silently downgrade acceptance criteria.
+

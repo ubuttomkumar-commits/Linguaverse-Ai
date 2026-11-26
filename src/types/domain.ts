@@ -10,9 +10,94 @@ export type PrimaryGoal =
   | 'academic_ielts'
   | 'workplace';
 
-export type DailyTimeGoalMinutes = 10 | 15 | 25 | 45;
+export type DailyTimeGoalMinutes = 5 | 10 | 15 | 20 | 25 | 30 | 45;
 
-export type SubscriptionPlan = 'free' | 'pro';
+export type LearningGoalId =
+  | 'speak_confidently'
+  | 'improve_pronunciation'
+  | 'improve_grammar'
+  | 'expand_vocabulary'
+  | 'improve_listening'
+  | 'improve_reading'
+  | 'improve_writing'
+  | 'prepare_interviews'
+  | 'workplace_communication'
+  | 'prepare_exams'
+  | 'travel_communication';
+
+export type ExplanationDepth = 'beginner_friendly' | 'balanced' | 'advanced';
+
+export type LearningFormat =
+  | 'voice_first'
+  | 'structured_lessons'
+  | 'mixed_practice'
+  | 'quick_drills';
+
+export type SelfProficiencyChoice =
+  | 'complete_beginner'
+  | 'few_words'
+  | 'simple_sentences'
+  | 'basic_conversations'
+  | 'comfortable'
+  | 'advanced'
+  | 'unsure';
+
+export type MicPermissionState =
+  | 'idle'
+  | 'granted'
+  | 'denied'
+  | 'unsupported'
+  | 'skipped';
+
+export type AssessmentSkillKey =
+  | 'vocabulary'
+  | 'grammar'
+  | 'reading'
+  | 'listening'
+  | 'speaking';
+
+export type AssessmentSkillStatus = 'assessed' | 'not_assessed' | 'unavailable';
+
+export interface FiveSkillResultItem {
+  skill: AssessmentSkillKey;
+  status: AssessmentSkillStatus;
+  scorePercent: number | null;
+  correctCount: number;
+  totalCount: number;
+  noteEn: string;
+  noteBn: string;
+}
+
+export interface PersonalizedLearningPath {
+  startingPointEn: string;
+  startingPointBn: string;
+  strongestSkills: AssessmentSkillKey[];
+  prioritySkills: AssessmentSkillKey[];
+  recommendedFirstLessonId: string;
+  recommendedFirstLessonTitleEn: string;
+  recommendedFirstLessonTitleBn: string;
+  dailyPracticeMinutes: DailyTimeGoalMinutes;
+  nextStepsEn: string[];
+  nextStepsBn: string[];
+}
+
+export interface FiveSkillAssessmentSummary {
+  skills: FiveSkillResultItem[];
+  assessedSkillCount: number;
+  hasSufficientRadarData: boolean;
+  listeningMode: 'speech_synthesis' | 'skipped' | 'unavailable';
+  speakingMode: 'ai_evaluated' | 'recorded_unscored' | 'skipped' | 'unavailable';
+  speakingTranscript?: string;
+  speakingCoachNoteEn?: string;
+  speakingCoachNoteBn?: string;
+  strengthsEn: string[];
+  strengthsBn: string[];
+  opportunitiesEn: string[];
+  opportunitiesBn: string[];
+  personalizedPath: PersonalizedLearningPath;
+}
+
+export type SubscriptionPlan = 'free' | 'pro' | 'institution';
 
 export type SpacedRepetitionPreset = 'standard' | 'intensive' | 'relaxed';
 
@@ -91,6 +176,15 @@ export interface LearnerProfile {
   primaryGoal: PrimaryGoal;
   dailyTimeGoalMinutes: DailyTimeGoalMinutes;
   spacedRepetitionPreset: SpacedRepetitionPreset;
+  nativeLanguage?: string;
+  targetLanguage?: string;
+  learningGoals?: LearningGoalId[];
+  explanationDepth?: ExplanationDepth;
+  learningFormat?: LearningFormat;
+  dailyReminderEnabled?: boolean;
+  dailyReminderTime?: string;
+  selfProficiencyChoice?: SelfProficiencyChoice;
+  microphonePermissionStatus?: MicPermissionState;
   privacyConsent?: PrivacyConsentSettings;
   onboardingCompleted: boolean;
   diagnosticCompleted: boolean;
@@ -182,6 +276,7 @@ export interface EvidenceStartingProfile {
   isCertifiedCefr: false;
   domainBreakdown: DomainBreakdown[];
   items: EvaluatedDiagnosticItem[];
+  fiveSkillSummary?: FiveSkillAssessmentSummary;
 }
 
 export type MistakeSource =
@@ -484,6 +579,8 @@ export interface LessonMasteryRecord {
 // Phase 3: AI Speaking Studio & Communication Replay
 // ============================================================================
 
+export type SpeakingScenarioCategory = 'everyday' | 'professional' | 'academic' | 'travel';
+
 export type SpeakingModeId =
   | 'daily_conversations'
   | 'self_introduction'
@@ -491,7 +588,10 @@ export type SpeakingModeId =
   | 'workplace_communication'
   | 'travel'
   | 'customer_service'
-  | 'unexpected_questions';
+  | 'unexpected_questions'
+  | 'academic_discussion'
+  | 'presentation_pitch'
+  | 'travel_airport_assistance';
 
 export type PressureLadderLevelId =
   | 'level_1_controlled'
@@ -555,16 +655,155 @@ export interface SpeakingSessionRecord {
   totalMistakesDetected: number;
 }
 
+export type ConversationCorrectionStyle = 'gentle' | 'detailed' | 'conversation_first';
+
+export interface SavedConversationVocabItem {
+  id: string;
+  phrase: string;
+  contextSentence: string;
+  scenarioId: SpeakingModeId;
+  savedAt: string;
+}
+
 // ============================================================================
-// Phase 5: Transfer Lab, 5-Level Pressure Ladder & Verified Gamification
+// Phase 5 & Part 11: Transfer Lab, 5-Level Pressure Ladder & Verified Gamification
 // ============================================================================
 
-export type TransferScenarioId =
+export type LegacyTransferScenarioId =
   | 'job_interview_followup'
   | 'workplace_project_delay'
   | 'order_issue_resolution'
   | 'university_admission_interview'
   | 'storytelling_under_pressure';
+
+export type TransferScenarioCategory =
+  | 'daily_life'
+  | 'travel_international'
+  | 'professional'
+  | 'customer_communication'
+  | 'education'
+  | 'emergency_practical';
+
+export type TransferDifficultyLevel =
+  | 'beginner'
+  | 'intermediate'
+  | 'advanced'
+  | 'professional';
+
+export type TransferObjectiveStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'achieved'
+  | 'partially_achieved'
+  | 'not_achieved'
+  | 'not_evaluated';
+
+export type TransferEightDimensionKey =
+  | 'task_completion'
+  | 'communication_clarity'
+  | 'grammar_application'
+  | 'vocabulary_application'
+  | 'contextual_appropriateness'
+  | 'response_relevance'
+  | 'conversation_coherence'
+  | 'problem_solving_communication';
+
+export type TransferInteractionMode = 'text' | 'voice';
+
+/**
+ * Backward-compatible Scenario ID union covering both the 5 Phase 5 scenarios
+ * and all 30 Part 11 Transfer Lab Universe scenarios.
+ */
+export type TransferScenarioId = LegacyTransferScenarioId | (string & {});
+
+export interface TransferObjectiveProgress {
+  objectiveId: string;
+  labelEn: string;
+  labelBn: string;
+  criteriaEn: string;
+  status: TransferObjectiveStatus;
+  evidenceQuote?: string;
+  rationaleEn?: string;
+  rationaleBn?: string;
+}
+
+export interface TransferDimensionEvaluation {
+  dimension: TransferEightDimensionKey;
+  labelEn: string;
+  labelBn: string;
+  evaluated: boolean;
+  /** Strictly null when evaluated === false (missing evidence); 0-100 integer when evaluated */
+  score: number | null;
+  verdict: 'strong' | 'adequate' | 'developing' | 'needs_work' | 'not_evaluated';
+  evidenceFromConversation: string;
+  supportingLearnerResponse: string;
+  identifiedProblemEn: string;
+  identifiedProblemBn: string;
+  explanationEn: string;
+  explanationBn: string;
+  suggestedCorrection: string;
+  betterExample: string;
+  confidence: number; // 0-1
+  limitationsNoteEn: string;
+  limitationsNoteBn: string;
+}
+
+export interface TransferSessionEvaluationReport {
+  sessionId: string;
+  scenarioId: TransferScenarioId;
+  evaluatedAt: string;
+  taskOutcomeStatus: 'achieved' | 'partially_achieved' | 'not_achieved';
+  languageCorrectnessNoteEn: string;
+  languageCorrectnessNoteBn: string;
+  taskVsLanguageDistinctionEn: string;
+  taskVsLanguageDistinctionBn: string;
+  scoringMethodologyEn: string;
+  scoringMethodologyBn: string;
+  evaluatedDimensionCount: number;
+  overallScore: number | null;
+  passed: boolean;
+  objectives: TransferObjectiveProgress[];
+  dimensions: TransferDimensionEvaluation[];
+  strengths: string[];
+  detectedMistakes: SpeakingDetectedMistake[];
+  naturalModelResponse: string;
+  coachSummaryEn: string;
+  coachSummaryBn: string;
+  nextRecommendedActionEn: string;
+  nextRecommendedActionBn: string;
+}
+
+export interface TransferConversationTurn {
+  id: string;
+  role: 'ai' | 'learner';
+  text: string;
+  hintBn?: string;
+  timestamp: string;
+  inputChannel?: SpeakingInputChannel;
+  audioBlobKey?: string;
+  audioDurationSeconds?: number;
+  transcriptionSource?: 'gemini_transcribe' | 'browser_stt' | 'manual_text';
+  coachNudgeEn?: string;
+  coachNudgeBn?: string;
+}
+
+export interface TransferSessionDraft {
+  sessionId: string;
+  scenarioId: TransferScenarioId;
+  pressureLevel: PressureLadderLevelId;
+  interactionMode: TransferInteractionMode;
+  startedAt: string;
+  updatedAt: string;
+  elapsedSeconds: number;
+  messages: TransferConversationTurn[];
+  objectives: TransferObjectiveProgress[];
+  currentPhaseLabel: string;
+  draftInput: string;
+  voiceConsentGranted: boolean;
+  retainAudioConsent: boolean;
+  adaptationSummaryEn?: string;
+  adaptationSummaryBn?: string;
+}
 
 export interface TransferRubricDimensionScore {
   score: number; // 0-100
@@ -586,6 +825,8 @@ export interface TransferRubricEvaluation {
   coach_summary_bn: string;
   unexpected_twist_en?: string;
   unexpected_twist_bn?: string;
+  /** Optional full Part 11 8-dimension + objective criteria evaluation report */
+  part11Report?: TransferSessionEvaluationReport;
 }
 
 export interface TransferAttemptRecord {
@@ -600,6 +841,8 @@ export interface TransferAttemptRecord {
   userResponse: string;
   twistPromptShown?: string;
   twistResponse?: string;
+  /** Full multi-turn conversation transcript when completed in Part 11 Immersive Room (Part 12 Replay ready) */
+  transcript?: TransferConversationTurn[];
   inputChannel: SpeakingInputChannel;
   durationSeconds: number;
   timedOut: boolean;
@@ -648,7 +891,17 @@ export interface AiTelemetryEvent {
   id: string;
   correlationId: string;
   userId?: string;
-  endpoint: 'speaking_evaluate' | 'transfer_evaluate' | 'landing_analyze';
+  endpoint:
+    | 'speaking_evaluate'
+    | 'transfer_evaluate'
+    | 'transfer_turn'
+    | 'transfer_session_evaluate'
+    | 'transfer_transcribe'
+    | 'transfer_tts'
+    | 'landing_analyze'
+    | 'academy_assist'
+    | 'mistake_coach'
+    | 'dna_analyze';
   model: string;
   promptVersion: string;
   latencyMs: number;
@@ -695,6 +948,254 @@ export interface CustomCurriculumOverlay {
   customLessons: CurriculumLesson[];
   updatedAt: string;
 }
+
+// ============================================================================
+// Part 12: Communication Replay — Unified Session Review, Timeline & Diff
+// ============================================================================
+
+export type ReplaySourceType = 'speaking_studio' | 'transfer_lab';
+
+export type ReplayReviewStatus = 'unreviewed' | 'in_review' | 'reviewed';
+
+export type ReplayAudioStatus =
+  | 'available'
+  | 'missing_recording'
+  | 'text_only'
+  | 'unauthorized';
+
+export interface ReplaySessionReviewRecord {
+  sessionId: string;
+  source: ReplaySourceType;
+  status: ReplayReviewStatus;
+  startedReviewAt?: string;
+  updatedAt: string;
+  reviewedAt?: string;
+  lastReviewedTurnId?: string;
+  reviewedComparisonIds?: string[];
+  learnerNote?: string;
+}
+
+export interface ReplayTranscriptTurn {
+  id: string;
+  turnIndex: number;
+  speaker: 'ai' | 'learner';
+  speakerLabelEn: string;
+  speakerLabelBn: string;
+  text: string;
+  hintBn?: string;
+  timestamp: string;
+  hasValidTimestamp?: boolean;
+  inputChannel?: SpeakingInputChannel;
+  audioBlobKey?: string;
+  audioDurationSeconds?: number;
+  hasAuthorizedAudioKey: boolean;
+  correctedText?: string;
+  naturalAlternative?: string;
+  mistakeCount: number;
+  coachNudgeEn?: string;
+  coachNudgeBn?: string;
+}
+
+export interface ReplayMistakeEvent {
+  id: string;
+  turnId?: string;
+  turnIndex?: number;
+  category: string;
+  detectionSourceEn: string;
+  detectionSourceBn: string;
+  original: string;
+  corrected: string;
+  explanationEn: string;
+  explanationBn: string;
+  severity: MistakeSeverity;
+  confidence: number;
+  syncedToMemory: boolean;
+  memoryItemId?: string;
+  memoryStatus?: MistakeStatus;
+  memoryOccurrences?: number;
+  practiceLink: string;
+}
+
+export interface ReplayComparisonItem {
+  id: string;
+  turnIndex: number;
+  turnId: string;
+  original: string;
+  corrected: string;
+  naturalAlternative?: string;
+  explanationEn?: string;
+  explanationBn?: string;
+  hasChanges: boolean;
+  mistakeCategories: string[];
+}
+
+export interface ReplayDimensionSnapshot {
+  key: string;
+  labelEn: string;
+  labelBn: string;
+  evaluated: boolean;
+  score: number | null;
+  verdict?: string;
+  evidence?: string;
+  explanationEn?: string;
+  explanationBn?: string;
+  methodologyEn?: string;
+  limitationsEn?: string;
+  limitationsBn?: string;
+}
+
+export interface ReplayAnalysisSnapshot {
+  hasEvaluation: boolean;
+  evaluationType: 'transfer_8d' | 'transfer_4rubric' | 'speaking_turns' | 'missing';
+  methodologyVersion: string;
+  overallScore: number | null;
+  passed: boolean | null;
+  taskOutcomeStatus?: 'achieved' | 'partially_achieved' | 'not_achieved';
+  summaryEn: string;
+  summaryBn: string;
+  taskVsLanguageEn?: string;
+  taskVsLanguageBn?: string;
+  strengths: string[];
+  dimensions: ReplayDimensionSnapshot[];
+  objectives: TransferObjectiveProgress[];
+  pronunciationNotes: string[];
+  nonAcousticDisclosureEn: string;
+  nonAcousticDisclosureBn: string;
+  nextRecommendedActionEn?: string;
+  nextRecommendedActionBn?: string;
+}
+
+export interface ReplayCorrectionDeepDive {
+  provenance: 'newly_generated_ai_suggestion';
+  promptVersion: string;
+  model: string;
+  generatedAt: string;
+  grammarExplanationEn: string;
+  grammarExplanationBn: string;
+  vocabularyImprovementEn: string;
+  naturalPhrasingEn: string;
+  contextualAlternativeEn: string;
+  formalVersionEn: string;
+  informalVersionEn: string;
+  newContextExampleEn: string;
+  practiceChallengeEn: string;
+  practiceChallengeBn: string;
+}
+
+export interface ReplaySessionAiSummary {
+  provenance: 'newly_generated_ai_summary';
+  promptVersion: string;
+  model: string;
+  generatedAt: string;
+  summaryEn: string;
+  summaryBn: string;
+  evidenceBackedPatterns: Array<{
+    patternEn: string;
+    supportingQuote: string;
+    limitationEn: string;
+  }>;
+  nextPracticeFocusEn: string;
+  nextPracticeFocusBn: string;
+}
+
+/**
+ * Strictly separate Response Replay Practice record.
+ * Never mutates or overwrites historical SpeakingSessionRecord or TransferAttemptRecord.
+ */
+export interface ReplayPracticeAttemptRecord {
+  id: string;
+  userId: string;
+  sessionId: string;
+  source: ReplaySourceType;
+  turnId: string;
+  originalResponse: string;
+  correctedReference?: string;
+  learnerRetryText: string;
+  correctionHiddenDuringAttempt: boolean;
+  createdAt: string;
+  aiFeedback?: {
+    provenance: 'newly_generated_practice_feedback';
+    promptVersion: string;
+    model: string;
+    improvedClarity: boolean;
+    feedbackEn: string;
+    feedbackBn: string;
+    improvedVersionEn: string;
+    remainingIssueEn?: string;
+    nonAcousticNoteEn: string;
+  };
+}
+
+export interface ReplayDnaEvidenceContribution {
+  dnaDimensionId: string;
+  labelEn: string;
+  labelBn: string;
+  contributed: boolean;
+  reasonEn: string;
+  reasonBn: string;
+  sourceLabelEn: string;
+  assessedAt?: string;
+  methodologyVersion: string;
+}
+
+export interface UnifiedReplaySession {
+  id: string;
+  userId: string;
+  source: ReplaySourceType;
+  sourceId: string;
+  titleEn: string;
+  titleBn: string;
+  subtitleEn: string;
+  subtitleBn: string;
+  targetLanguage: string;
+  scenarioCategory: string;
+  categoryLabelEn: string;
+  categoryLabelBn: string;
+  pressureLabelEn: string;
+  pressureLabelBn: string;
+  startedAt: string;
+  completedAt: string;
+  durationSeconds: number;
+  inputChannel: SpeakingInputChannel;
+  hasTranscript: boolean;
+  transcriptGapReasonEn?: string;
+  transcriptGapReasonBn?: string;
+  turns: ReplayTranscriptTurn[];
+  learnerTurnCount: number;
+  aiTurnCount: number;
+  mistakes: ReplayMistakeEvent[];
+  comparisons: ReplayComparisonItem[];
+  analysis: ReplayAnalysisSnapshot;
+  audioKeyCount: number;
+  authorizedAudioKeys: string[];
+  reviewStatus: ReplayReviewStatus;
+  startedReviewAt?: string;
+  reviewedAt?: string;
+  lastReviewedTurnId?: string;
+  reviewedComparisonIds: string[];
+  learnerNote?: string;
+  retryRoute: string;
+  retryLabelEn: string;
+  retryLabelBn: string;
+}
+
+/**
+ * Planned Cloudflare D1 / R2 cloud synchronization contract for Communication Replay.
+ * Currently NOT deployed in this runtime (localStorage + IndexedDB only).
+ */
+export interface ReplayCloudSyncContract {
+  deploymentStatus: 'not_deployed_local_only';
+  plannedEndpoints: {
+    listSessions: '/api/v1/replay/sessions';
+    updateReviewState: '/api/v1/replay/sessions/:sessionId/review';
+    getSignedAudioUrl: '/api/v1/replay/audio/:audioKey';
+    deleteRecording: '/api/v1/replay/sessions/:sessionId/recording';
+  };
+  plannedTables: readonly ['speaking_sessions', 'transfer_attempts', 'replay_session_reviews', 'replay_practice_attempts', 'audio_assets'];
+  plannedObjectStore: 'cloudflare_r2_private_audio_bucket';
+}
+
+
 
 
 

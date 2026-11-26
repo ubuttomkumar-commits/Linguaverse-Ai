@@ -30,15 +30,25 @@ import type {
   ReportFalseCorrectionPayload,
   ReviewFlaggedMistakePayload,
   SaveSpeakingSessionPayload,
+  SubmitDiagnosticOptions,
   UpdateProfilePayload,
 } from './repository';
 
-const TOKEN_STORAGE_KEY = 'linguaverse_cf_token_v1';
+import {
+  clearInMemorySessionToken,
+  getInMemorySessionToken,
+  purgeLegacyStoredTokens,
+  setInMemorySessionToken,
+} from '../sessionTokenMemory';
 
 /**
  * Cloudflare Workers + D1 HTTP Repository Adapter.
  * Automatically activated when VITE_API_BASE_URL is configured.
  * Matches the exact LinguaVerseRepository contract used by LocalPersistenceRepository.
+ *
+ * Security (S9): Never persists bearer JWTs in localStorage. Sessions rely on
+ * server-issued HttpOnly cookies (`credentials: 'include'`) with an ephemeral
+ * in-memory bearer token fallback for the current tab lifecycle only.
  */
 export class CloudflareD1Repository implements LinguaVerseRepository {
   public readonly mode = 'cloudflare-d1' as const;
@@ -46,19 +56,18 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
+    purgeLegacyStoredTokens();
   }
 
   private getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    return getInMemorySessionToken();
   }
 
   private setToken(token: string | null): void {
-    if (typeof window === 'undefined') return;
     if (token) {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      setInMemorySessionToken(token);
     } else {
-      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      clearInMemorySessionToken();
     }
   }
 
@@ -72,6 +81,7 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
+      credentials: 'include',
       headers,
     });
 
@@ -120,7 +130,7 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
   }
 
   async restoreSession(): Promise<AuthResult | null> {
-    if (!this.getToken()) return null;
+    purgeLegacyStoredTokens();
     try {
       return await this.request<AuthResult>('/api/v1/auth/me', { method: 'GET' });
     } catch {
@@ -161,7 +171,8 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
 
   async submitDiagnostic(
     userId: string,
-    answers: DiagnosticUserAnswer[]
+    answers: DiagnosticUserAnswer[],
+    options?: SubmitDiagnosticOptions
   ): Promise<{
     profile: LearnerProfile;
     diagnostic: EvidenceStartingProfile;
@@ -171,7 +182,7 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
       `/api/v1/learners/${encodeURIComponent(userId)}/diagnostic`,
       {
         method: 'POST',
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers, ...(options ?? {}) }),
       }
     );
   }
