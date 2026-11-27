@@ -225,8 +225,10 @@ describe('shouldExposeDevPreviewOtp (OTP leak guard)', () => {
     assert.equal(shouldExposeDevPreviewOtp({ delivered: false, isProduction: true }), false);
     assert.equal(shouldExposeDevPreviewOtp({ delivered: true, isProduction: true }), false);
   });
+
   it('exposes it only for undelivered mail in non-production', () => {
     assert.equal(shouldExposeDevPreviewOtp({ delivered: false, isProduction: false }), true);
     assert.equal(shouldExposeDevPreviewOtp({ delivered: true, isProduction: false }), false);
   });
 });
+

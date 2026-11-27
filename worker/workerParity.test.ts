@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import workerApp from './index';
+import workerApp, { runWorkerScheduledMaintenance } from './index';
 import type {
   D1Database,
   D1PreparedStatement,
@@ -17,11 +17,11 @@ import { computeWebhookHmacHex } from '../src/domain/paymentWebhookEngine';
 const ROOT = process.cwd();
 const MIGRATION_0001 = fs.readFileSync(path.join(ROOT, 'migrations/0001_initial_schema.sql'), 'utf8');
 const MIGRATION_0002 = fs.readFileSync(path.join(ROOT, 'migrations/0002_parts06_12_parity.sql'), 'utf8');
-const ROLLBACK_0002 = fs.readFileSync(path.join(ROOT, 'migrations/ROLLBACK_0002_parts06_12_parity.sql'), 'utf8');
+const ROLLBACK_0002 = fs.readFileSync(path.join(ROOT, 'db/rollbacks/ROLLBACK_0002_parts06_12_parity.sql'), 'utf8');
 const MIGRATION_0003 = fs.readFileSync(path.join(ROOT, 'migrations/0003_p3_community_vocab_billing.sql'), 'utf8');
-const ROLLBACK_0003 = fs.readFileSync(path.join(ROOT, 'migrations/ROLLBACK_0003_p3_community_vocab_billing.sql'), 'utf8');
+const ROLLBACK_0003 = fs.readFileSync(path.join(ROOT, 'db/rollbacks/ROLLBACK_0003_p3_community_vocab_billing.sql'), 'utf8');
 const MIGRATION_0004 = fs.readFileSync(path.join(ROOT, 'migrations/0004_prd61_examinations_labs_providers.sql'), 'utf8');
-const ROLLBACK_0004 = fs.readFileSync(path.join(ROOT, 'migrations/ROLLBACK_0004_prd61_examinations_labs_providers.sql'), 'utf8');
+const ROLLBACK_0004 = fs.readFileSync(path.join(ROOT, 'db/rollbacks/ROLLBACK_0004_prd61_examinations_labs_providers.sql'), 'utf8');
 const CANONICAL_SCHEMA = fs.readFileSync(path.join(ROOT, 'schema.sql'), 'utf8');
 
 /**
@@ -1792,4 +1792,666 @@ test('PRD v6.1 Full Parity: Security Headers, Feature Flags, AI Providers, Admin
   );
   assert.equal(readRes.status, 200);
 });
+
+test('Separate Admin Application Worker parity: one-time initial super_admin bootstrap, production fail-closed, permanent lock, role-gated login & session revocation', async () => {
+  const { env } = createTestWorkerEnv();
+
+  // 1. Fresh D1 reports no admin account yet
+  const statusBefore = await workerApp.request('http://localhost/api/v1/admin/auth/status', {}, env);
+  assert.equal(statusBefore.status, 200);
+  const statusBeforeJson = (await statusBefore.json()) as {
+    hasAdminAccount: boolean;
+    bootstrapAvailable: boolean;
+  };
+  assert.equal(statusBeforeJson.hasAdminAccount, false);
+  assert.equal(statusBeforeJson.bootstrapAvailable, true);
+
+  // 2. Production mode fails closed (503) if ADMIN_BOOTSTRAP_SECRET is missing
+  const prodFailClosed = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/bootstrap',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Root Admin',
+        email: 'root.admin@linguaverse.ai',
+        password: 'SuperAdminPassword123!',
+      }),
+    },
+    { ...env, APP_ENV: 'production', ADMIN_BOOTSTRAP_SECRET: '' }
+  );
+  assert.equal(prodFailClosed.status, 503);
+
+  // 3. Configured ADMIN_BOOTSTRAP_SECRET rejects wrong secret (403)
+  const wrongSecret = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/bootstrap',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Root Admin',
+        email: 'root.admin@linguaverse.ai',
+        password: 'SuperAdminPassword123!',
+        bootstrapSecret: 'wrong-secret',
+      }),
+    },
+    { ...env, APP_ENV: 'production', ADMIN_BOOTSTRAP_SECRET: 'prod-bootstrap-secret-2026!' }
+  );
+  assert.equal(wrongSecret.status, 403);
+
+  // 4. Valid one-time bootstrap creates super_admin and returns Bearer session
+  const bootstrapOk = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/bootstrap',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Root Super Admin',
+        email: 'root.admin@linguaverse.ai',
+        password: 'SuperAdminPassword123!',
+        bootstrapSecret: 'prod-bootstrap-secret-2026!',
+      }),
+    },
+    { ...env, APP_ENV: 'production', ADMIN_BOOTSTRAP_SECRET: 'prod-bootstrap-secret-2026!' }
+  );
+  assert.equal(bootstrapOk.status, 201);
+  const bootstrapJson = (await bootstrapOk.json()) as {
+    user: { role: string; email: string };
+    sessionToken: string;
+  };
+  assert.equal(bootstrapJson.user.role, 'super_admin');
+  assert.ok(bootstrapJson.sessionToken.length > 20);
+
+  // 5. Second bootstrap attempt is permanently locked (409)
+  const secondBootstrap = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/bootstrap',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        password: 'AttackerPassword123!',
+        bootstrapSecret: 'prod-bootstrap-secret-2026!',
+      }),
+    },
+    { ...env, APP_ENV: 'production', ADMIN_BOOTSTRAP_SECRET: 'prod-bootstrap-secret-2026!' }
+  );
+  assert.equal(secondBootstrap.status, 409);
+
+  // 6. Standard learner account is rejected from Separate Admin Application login (403)
+  await registerAndVerifyUser(env, 'plain.learner@example.com', 'Plain Learner');
+  const learnerAdminLogin = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'plain.learner@example.com',
+        password: 'Password123!',
+      }),
+    },
+    env
+  );
+  assert.equal(learnerAdminLogin.status, 403);
+
+  // 7. Provisioned super_admin logs in -> /me 200 -> /logout revokes session -> /me 401
+  const adminLogin = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'root.admin@linguaverse.ai',
+        password: 'SuperAdminPassword123!',
+      }),
+    },
+    env
+  );
+  assert.equal(adminLogin.status, 200);
+  const adminLoginJson = (await adminLogin.json()) as { sessionToken: string };
+
+  const meOk = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/me',
+    { headers: { Authorization: `Bearer ${adminLoginJson.sessionToken}` } },
+    env
+  );
+  assert.equal(meOk.status, 200);
+
+  const logoutRes = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/logout',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminLoginJson.sessionToken}` },
+    },
+    env
+  );
+  assert.equal(logoutRes.status, 200);
+
+  const meRevoked = await workerApp.request(
+    'http://localhost/api/v1/admin/auth/me',
+    { headers: { Authorization: `Bearer ${adminLoginJson.sessionToken}` } },
+    env
+  );
+  assert.equal(meRevoked.status, 401);
+});
+
+test('PRD §6 & §12 Parity: Admin Curriculum Publishing, Public Overlay Sync, Overview & Flagged Mistake Review RBAC', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const learner = await registerAndVerifyUser(env, 'curr.learner@example.com', 'Curr Learner');
+  const contentMgr = await registerAndVerifyUser(env, 'curr.manager@example.com', 'Content Manager');
+  db.prepare(`UPDATE users SET role = 'content_manager' WHERE id = ?`).run(contentMgr.userId);
+
+  // 1. Standard learner is blocked (403) from publishing courses/modules/lessons or reading admin overview
+  const learnerCourseRes = await workerApp.request(
+    'http://localhost/api/v1/admin/curriculum/courses',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${learner.token}`,
+      },
+      body: JSON.stringify({ id: 'course_forged', titleEn: 'Forged Course' }),
+    },
+    env
+  );
+  assert.equal(learnerCourseRes.status, 403);
+
+  const learnerOverviewRes = await workerApp.request(
+    'http://localhost/api/v1/admin/overview',
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(learnerOverviewRes.status, 403);
+
+  // 2. Content Manager publishes custom course -> module -> lesson -> GET /api/v1/curriculum/overlay returns all 3
+  const pubCourse = await workerApp.request(
+    'http://localhost/api/v1/admin/curriculum/courses',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contentMgr.token}`,
+      },
+      body: JSON.stringify({
+        id: 'course_biz_custom',
+        order: 9,
+        cefrRange: 'B1 – B2',
+        titleEn: 'Executive Standup English',
+        titleBn: 'এক্সিকিউটিভ স্ট্যান্ডআপ ইংরেজি',
+        subtitleEn: 'Concise daily status updates without filler hesitation.',
+        subtitleBn: 'দ্বিধাহীন দৈনিক স্ট্যাটাস আপডেট।',
+      }),
+    },
+    env
+  );
+  assert.equal(pubCourse.status, 200);
+
+  const pubMod = await workerApp.request(
+    'http://localhost/api/v1/admin/curriculum/modules',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contentMgr.token}`,
+      },
+      body: JSON.stringify({
+        id: 'mod_biz_custom_1',
+        courseId: 'course_biz_custom',
+        order: 1,
+        titleEn: 'Module 1: Crisp Blockers',
+        titleBn: 'মডিউল ১: স্পষ্ট ব্লকার রিপোর্ট',
+        descriptionEn: 'Communicate blockers cleanly.',
+        descriptionBn: 'স্পষ্টভাবে ব্লকার জানানো।',
+      }),
+    },
+    env
+  );
+  assert.equal(pubMod.status, 200);
+
+  const pubLesson = await workerApp.request(
+    'http://localhost/api/v1/admin/curriculum/lessons',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contentMgr.token}`,
+      },
+      body: JSON.stringify({
+        id: 'les_biz_custom_1',
+        courseId: 'course_biz_custom',
+        moduleId: 'mod_biz_custom_1',
+        order: 1,
+        cefrBand: 'B1',
+        estimatedMinutes: 6,
+        titleEn: 'Reporting Delays Professionally',
+        titleBn: 'পেশাদারভাবে বিলম্ব জানানো',
+        summaryEn: 'State root cause and next ETA clearly.',
+        summaryBn: 'কারণ এবং পরবর্তী সময় স্পষ্ট করুন।',
+      }),
+    },
+    env
+  );
+  assert.equal(pubLesson.status, 200);
+
+  const overlayRes = await workerApp.request('http://localhost/api/v1/curriculum/overlay', {}, env);
+  assert.equal(overlayRes.status, 200);
+  const overlayJson = (await overlayRes.json()) as {
+    customCourses: Array<{ id: string; titleEn: string }>;
+    customModules: Array<{ id: string; courseId: string }>;
+    customLessons: Array<{ id: string; moduleId: string }>;
+  };
+  assert.ok(overlayJson.customCourses.some((c) => c.id === 'course_biz_custom'));
+  assert.ok(overlayJson.customModules.some((m) => m.id === 'mod_biz_custom_1'));
+  assert.ok(overlayJson.customLessons.some((l) => l.id === 'les_biz_custom_1'));
+
+  // 3. Seed a flagged learner mistake -> review via /api/v1/admin/flagged-mistakes/:id/review -> audit logged
+  db.prepare(
+    `INSERT INTO learner_mistakes (
+      id, user_id, source, domain, category, user_example, corrected_example,
+      pattern_en, pattern_bn, explanation_en, explanation_bn, occurrences, status,
+      false_correction_reported, false_correction_reported_at, created_at, last_seen_at
+    ) VALUES (
+      'mst_flag_1', ?, 'speaking_studio', 'grammar', 'Preposition', 'Let us discuss about this',
+      'Let us discuss this', 'Discuss takes a direct object', 'Discuss-এর পর about বসে না',
+      'Discuss takes a direct object without about.', 'Discuss-এর পর about ব্যবহার করা যাবে না।',
+      2, 'active', 1, '2026-11-26T00:00:00Z', '2026-11-26T00:00:00Z', '2026-11-26T00:00:00Z'
+    )`
+  ).run(learner.userId);
+
+  const flaggedRes = await workerApp.request(
+    'http://localhost/api/v1/admin/flagged-mistakes',
+    { headers: { Authorization: `Bearer ${contentMgr.token}` } },
+    env
+  );
+  assert.equal(flaggedRes.status, 200);
+  const flaggedRows = (await flaggedRes.json()) as Array<{ id: string }>;
+  assert.ok(flaggedRows.some((r) => r.id === 'mst_flag_1'));
+
+  const reviewRes = await workerApp.request(
+    'http://localhost/api/v1/admin/flagged-mistakes/mst_flag_1/review',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contentMgr.token}`,
+      },
+      body: JSON.stringify({
+        decision: 'confirmed_accurate',
+        note: 'Verified accurate grammar rule.',
+      }),
+    },
+    env
+  );
+  assert.equal(reviewRes.status, 200);
+
+  const overviewRes = await workerApp.request(
+    'http://localhost/api/v1/admin/overview',
+    { headers: { Authorization: `Bearer ${contentMgr.token}` } },
+    env
+  );
+  assert.equal(overviewRes.status, 200);
+  const overviewJson = (await overviewRes.json()) as { totalUsers: number; flaggedMistakes: number };
+  assert.equal(overviewJson.totalUsers, 2);
+  assert.equal(overviewJson.flaggedMistakes, 0);
+
+  const auditRow = db
+    .prepare(`SELECT action FROM audit_logs WHERE resource_id = 'mst_flag_1' LIMIT 1`)
+    .get() as { action: string } | undefined;
+  assert.equal(auditRow?.action, 'mistakes.confirmed_accurate');
+});
+
+test('PRD Full Parity: Worker Community Delete, Billing Cancel/Refund, Admin Support, Flagged Mistakes CamelCase, CSRF & CMS Reset', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const alice = await registerAndVerifyUser(env, 'alice.p4@example.com', 'Alice P4');
+  const bob = await registerAndVerifyUser(env, 'bob.p4@example.com', 'Bob P4');
+  const admin = await registerAndVerifyUser(env, 'admin.p4@example.com', 'Admin P4');
+  db.prepare(`UPDATE users SET role = 'admin' WHERE id = ?`).run(admin.userId);
+
+  // 1. Health alias + CSRF token endpoint
+  const healthRes = await workerApp.request('http://localhost/api/health', {}, env);
+  assert.equal(healthRes.status, 200);
+  const healthJson = (await healthRes.json()) as { ok: boolean };
+  assert.equal(healthJson.ok, true);
+
+  const csrfRes = await workerApp.request('http://localhost/api/v1/auth/csrf', {}, env);
+  assert.equal(csrfRes.status, 200);
+  const csrfJson = (await csrfRes.json()) as { csrfToken: string };
+  assert.ok(csrfJson.csrfToken.length >= 32);
+
+  // 2. Community post creation -> cross-user DELETE blocked (403) -> owner DELETE (200)
+  const createPost = await workerApp.request(
+    'http://localhost/api/v1/community/posts',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({
+        category: 'question',
+        title: 'Best collocation for taking an exam?',
+        body: 'Should I say take an exam instead of give an exam in English?',
+        tags: ['collocations'],
+      }),
+    },
+    env
+  );
+  assert.equal(createPost.status, 201);
+  const { post } = (await createPost.json()) as { post: { id: string } };
+
+  const bobDelete = await workerApp.request(
+    `http://localhost/api/v1/community/posts/${post.id}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${bob.token}` } },
+    env
+  );
+  assert.equal(bobDelete.status, 403);
+
+  const aliceDelete = await workerApp.request(
+    `http://localhost/api/v1/community/posts/${post.id}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${alice.token}` } },
+    env
+  );
+  assert.equal(aliceDelete.status, 200);
+  const deletedPostRow = db.prepare(`SELECT id FROM community_posts WHERE id = ?`).get(post.id);
+  assert.equal(deletedPostRow, undefined);
+
+  // 3. Subscription checkout -> cross-user cancel/refund blocked (404) -> owner cancel & refund request
+  const checkoutRes = await workerApp.request(
+    'http://localhost/api/v1/subscriptions/checkout-request',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({ planSlug: 'pro', billingInterval: 'monthly' }),
+    },
+    env
+  );
+  assert.equal(checkoutRes.status, 201);
+  const { subscription, invoice } = (await checkoutRes.json()) as {
+    subscription: { id: string };
+    invoice: { id: string };
+  };
+
+  const bobCancel = await workerApp.request(
+    `http://localhost/api/v1/subscriptions/${subscription.id}/cancel`,
+    { method: 'POST', headers: { Authorization: `Bearer ${bob.token}` } },
+    env
+  );
+  assert.equal(bobCancel.status, 404);
+
+  const aliceCancel = await workerApp.request(
+    `http://localhost/api/v1/subscriptions/${subscription.id}/cancel`,
+    { method: 'POST', headers: { Authorization: `Bearer ${alice.token}` } },
+    env
+  );
+  assert.equal(aliceCancel.status, 200);
+  const cancelJson = (await aliceCancel.json()) as { subscription: { status: string } };
+  assert.equal(cancelJson.subscription.status, 'canceled');
+
+  const aliceRefund = await workerApp.request(
+    `http://localhost/api/v1/subscriptions/invoices/${invoice.id}/refund-request`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({ reason: 'Switched back to free plan before activation.' }),
+    },
+    env
+  );
+  assert.equal(aliceRefund.status, 200);
+  const refundJson = (await aliceRefund.json()) as { invoice: { status: string; refundReason: string } };
+  assert.equal(refundJson.invoice.status, 'refund_requested');
+  assert.match(refundJson.invoice.refundReason, /free plan/i);
+
+  // 4. Support ticket creation -> learner PATCH 403 -> admin PATCH 200 + audit log
+  const ticketRes = await workerApp.request(
+    'http://localhost/api/v1/support/tickets',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({
+        category: 'billing',
+        subject: 'Invoice clarification',
+        message: 'Confirming no charge occurred for pending_provider checkout.',
+      }),
+    },
+    env
+  );
+  assert.equal(ticketRes.status, 201);
+  const { ticket } = (await ticketRes.json()) as { ticket: { id: string } };
+
+  const learnerPatchTicket = await workerApp.request(
+    `http://localhost/api/v1/admin/support/${ticket.id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({ status: 'resolved', adminResponse: 'Forged' }),
+    },
+    env
+  );
+  assert.equal(learnerPatchTicket.status, 403);
+
+  const adminPatchTicket = await workerApp.request(
+    `http://localhost/api/v1/admin/support/${ticket.id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({
+        status: 'resolved',
+        adminResponse: 'Confirmed: zero charges occurred while gateway is unconfigured.',
+      }),
+    },
+    env
+  );
+  assert.equal(adminPatchTicket.status, 200);
+  const patchedJson = (await adminPatchTicket.json()) as { ticket: { status: string; handledBy: string } };
+  assert.equal(patchedJson.ticket.status, 'resolved');
+  assert.equal(patchedJson.ticket.handledBy, 'admin.p4@example.com');
+
+  // 5. Learner false-correction report -> Admin flagged-mistakes returns mapped camelCase MistakeMemoryItem
+  const reportRes = await workerApp.request(
+    'http://localhost/api/v1/mistakes/report-false-correction',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${alice.token}`,
+      },
+      body: JSON.stringify({
+        reported: true,
+        reason: 'British English phrasing is acceptable here.',
+        mistake: {
+          id: 'mst_camel_1',
+          source: 'speaking',
+          domain: 'Grammar',
+          category: 'Preposition',
+          userExample: 'At the weekend I study.',
+          correctedExample: 'On the weekend I study.',
+          patternEn: 'Weekend preposition variance',
+          patternBn: 'সপ্তাহান্তের প্রিপজিশন পার্থক্য',
+          explanationEn: 'UK vs US English variance.',
+          explanationBn: 'ব্রিটিশ ও আমেরিকান ইংরেজির পার্থক্য।',
+          occurrences: 1,
+          status: 'active',
+        },
+      }),
+    },
+    env
+  );
+  assert.equal(reportRes.status, 201);
+
+  const adminFlaggedRes = await workerApp.request(
+    'http://localhost/api/v1/admin/flagged-mistakes',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminFlaggedRes.status, 200);
+  const flaggedItems = (await adminFlaggedRes.json()) as Array<{
+    id: string;
+    patternEn: string;
+    userExample: string;
+    falseCorrectionReported: boolean;
+  }>;
+  const camelItem = flaggedItems.find((item) => item.id === 'mst_camel_1');
+  assert.ok(camelItem, 'Expected camelCase flagged mistake in Worker response');
+  assert.equal(camelItem.patternEn, 'Weekend preposition variance');
+  assert.equal(camelItem.userExample, 'At the weekend I study.');
+  assert.equal(camelItem.falseCorrectionReported, true);
+
+  // 6. Admin Analytics & CMS Reset RBAC
+  const learnerAnalytics = await workerApp.request(
+    'http://localhost/api/v1/admin/analytics',
+    { headers: { Authorization: `Bearer ${alice.token}` } },
+    env
+  );
+  assert.equal(learnerAnalytics.status, 403);
+
+  const adminAnalytics = await workerApp.request(
+    'http://localhost/api/v1/admin/analytics',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminAnalytics.status, 200);
+
+  const adminReset = await workerApp.request(
+    'http://localhost/api/v1/admin/cms/reset',
+    { method: 'POST', headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminReset.status, 200);
+});
+
+test('Cloudflare Worker R2 CMS Media (Upload, SVG Block, Sandboxed Serve, Delete) & Cron Scheduled Maintenance', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const learner = await registerAndVerifyUser(env, 'media.learner@example.com', 'Media Learner');
+  const admin = await registerAndVerifyUser(env, 'media.admin@example.com', 'Media Admin');
+  db.prepare(`UPDATE users SET role = 'content_manager' WHERE id = ?`).run(admin.userId);
+
+  // Valid 1x1 PNG magic bytes
+  const validPngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const svgXssBase64 = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>').toString('base64');
+
+  // 1. Learner blocked (403)
+  const learnerUpload = await workerApp.request(
+    'http://localhost/api/v1/admin/media',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${learner.token}`,
+      },
+      body: JSON.stringify({
+        filename: 'banner.png',
+        mimeType: 'image/png',
+        dataBase64: validPngBase64,
+      }),
+    },
+    env
+  );
+  assert.equal(learnerUpload.status, 403);
+
+  // 2. SVG XSS rejected (400)
+  const svgUpload = await workerApp.request(
+    'http://localhost/api/v1/admin/media',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({
+        filename: 'evil.svg',
+        mimeType: 'image/svg+xml',
+        dataBase64: svgXssBase64,
+      }),
+    },
+    env
+  );
+  assert.equal(svgUpload.status, 400);
+
+  // 3. Valid PNG upload -> served with sandboxed CSP -> deleted
+  const okUpload = await workerApp.request(
+    'http://localhost/api/v1/admin/media',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({
+        filename: 'hero-preview.png',
+        mimeType: 'image/png',
+        dataBase64: validPngBase64,
+        altText: 'Hero banner preview',
+      }),
+    },
+    env
+  );
+  assert.equal(okUpload.status, 201);
+  const { asset } = (await okUpload.json()) as { asset: { id: string; url: string } };
+  assert.match(asset.id, /^med_[a-f0-9]{12}$/);
+
+  const serveRes = await workerApp.request(`http://localhost${asset.url}`, {}, env);
+  assert.equal(serveRes.status, 200);
+  assert.equal(serveRes.headers.get('content-type'), 'image/png');
+  assert.equal(serveRes.headers.get('content-security-policy'), "default-src 'none'; sandbox");
+
+  const delRes = await workerApp.request(
+    `http://localhost/api/v1/admin/media/${asset.id}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(delRes.status, 200);
+
+  const afterDelServe = await workerApp.request(`http://localhost${asset.url}`, {}, env);
+  assert.equal(afterDelServe.status, 404);
+
+  // 4. Cron Scheduled Maintenance: purges expired sessions/tokens & creates idempotent due SRS reminder
+  db.prepare(
+    `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
+     VALUES ('ses_expired_1', ?, 'hash_exp', '2020-01-01T00:00:00Z', '2019-12-01T00:00:00Z')`
+  ).run(learner.userId);
+  db.prepare(
+    `INSERT OR REPLACE INTO user_notification_preferences (user_id, reminders_enabled, review_reminders, updated_at)
+     VALUES (?, 1, 1, '2026-11-26T00:00:00Z')`
+  ).run(learner.userId);
+  db.prepare(
+    `INSERT INTO vocabulary_items (
+      id, user_id, word, word_normalized, meaning_en, meaning_bn, example_sentence,
+      source_type, difficulty, review_count, pass_count, consecutive_passes, interval_days,
+      mastery_status, algorithm_version, next_review_at, review_history_json, created_at, updated_at
+    ) VALUES (
+      'voc_due_1', ?, 'make a decision', 'make a decision', 'choose firmly', 'সিদ্ধান্ত নেওয়া',
+      'We need to make a decision today.', 'manual', 'medium', 0, 0, 0, 1, 'new',
+      'srs-v2.0-sm2-lite', '2026-11-25T00:00:00Z', '[]', '2026-11-24T00:00:00Z', '2026-11-24T00:00:00Z'
+    )`
+  ).run(learner.userId);
+
+  const cronRun1 = await runWorkerScheduledMaintenance(env, '2026-11-27T03:00:00Z');
+  assert.ok(cronRun1.purgedSessions >= 1);
+  assert.equal(cronRun1.remindersCreated, 1);
+
+  // Repeat run on same day must be idempotent (0 duplicate reminders)
+  const cronRun2 = await runWorkerScheduledMaintenance(env, '2026-11-27T09:00:00Z');
+  assert.equal(cronRun2.remindersCreated, 0);
+});
+
+
+
+
 

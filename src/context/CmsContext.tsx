@@ -94,7 +94,13 @@ function syncDocumentSeo(config: CmsConfig): void {
   });
 }
 
-export function CmsProvider({ children }: { children: React.ReactNode }) {
+export function CmsProvider({
+  children,
+  skipDocumentSeo = false,
+}: {
+  children: React.ReactNode;
+  skipDocumentSeo?: boolean;
+}) {
   const [config, setConfig] = useState<CmsConfig>(() => createDefaultCmsConfig());
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -114,8 +120,10 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   }, [refreshPublicCms]);
 
   useEffect(() => {
-    syncDocumentSeo(config);
-  }, [config]);
+    if (!skipDocumentSeo) {
+      syncDocumentSeo(config);
+    }
+  }, [config, skipDocumentSeo]);
 
   const applyPublishedConfig = useCallback((next: CmsConfig) => {
     setConfig(next);

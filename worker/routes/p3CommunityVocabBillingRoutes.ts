@@ -438,6 +438,39 @@ export function registerP3CommunityVocabBillingRoutes(
     );
   });
 
+  app.delete('/api/v1/community/posts/:postId', async (c) => {
+    const auth = await requireAuth(c, { requireVerified: true });
+    if (auth instanceof Response) return auth;
+    const postId = c.req.param('postId');
+    const row = await c.env.DB.prepare(
+      `SELECT id, author_user_id, title FROM community_posts WHERE id = ? LIMIT 1`
+    )
+      .bind(postId)
+      .first<{ id: string; author_user_id: string; title: string }>();
+    if (!row) return c.json({ error: 'Post not found.' }, 404);
+    const isMod = ['moderator', 'admin', 'super_admin'].includes(auth.role);
+    if (row.author_user_id !== auth.id && !isMod) {
+      return c.json({ error: 'You can only delete your own community posts.' }, 403);
+    }
+    await c.env.DB.batch([
+      c.env.DB.prepare(`DELETE FROM community_comments WHERE post_id = ?`).bind(postId),
+      c.env.DB.prepare(`DELETE FROM community_posts WHERE id = ?`).bind(postId),
+    ]);
+    if (isMod && row.author_user_id !== auth.id) {
+      await writeAuditLog(c.env, {
+        actorUserId: auth.id,
+        actorEmail: auth.email,
+        actorRole: auth.role,
+        action: 'community.post_deleted_by_moderator',
+        resourceType: 'community_post',
+        resourceId: postId,
+        summaryEn: `Moderator deleted community post "${row.title}".`,
+        summaryBn: `মডারেটর কমিউনিটি পোস্ট "${row.title}" মুছে ফেলেছেন।`,
+      });
+    }
+    return c.json({ deleted: true, postId });
+  });
+
   app.post('/api/v1/community/posts/:postId/comments', async (c) => {
     const auth = await requireAuth(c, { requireVerified: true });
     if (auth instanceof Response) return auth;
@@ -995,6 +1028,82 @@ export function registerP3CommunityVocabBillingRoutes(
     );
   });
 
+  app.post('/api/v1/subscriptions/:subscriptionId/cancel', async (c) => {
+    const auth = await requireAuth(c, { requireVerified: true });
+    if (auth instanceof Response) return auth;
+    const subscriptionId = c.req.param('subscriptionId');
+    const existing = await c.env.DB.prepare(
+      `SELECT * FROM subscriptions WHERE id = ? AND user_id = ? LIMIT 1`
+    )
+      .bind(subscriptionId, auth.id)
+      .first<Record<string, unknown>>();
+    if (!existing) {
+      return c.json({ error: 'Subscription record not found.' }, 404);
+    }
+    const now = new Date().toISOString();
+    await c.env.DB.prepare(
+      `UPDATE subscriptions SET status = 'canceled', updated_at = ? WHERE id = ? AND user_id = ?`
+    )
+      .bind(now, subscriptionId, auth.id)
+      .run();
+    return c.json({
+      subscription: {
+        id: String(existing.id),
+        userId: String(existing.user_id),
+        planSlug: existing.plan_slug as SubscriptionPlan,
+        billingInterval: existing.billing_interval as BillingInterval,
+        status: 'canceled' as SubscriptionRecord['status'],
+        provider: String(existing.provider),
+        createdAt: String(existing.created_at),
+        updatedAt: now,
+      },
+    });
+  });
+
+  app.post('/api/v1/subscriptions/invoices/:invoiceId/refund-request', async (c) => {
+    const auth = await requireAuth(c, { requireVerified: true });
+    if (auth instanceof Response) return auth;
+    const invoiceId = c.req.param('invoiceId');
+    const body = (await c.req.json().catch(() => ({}))) as { reason?: unknown };
+    const reason = sanitizeCommunityPlainText(body.reason, 400);
+    if (reason.length < 5) {
+      return c.json({ error: 'Please provide a brief reason for your refund request.' }, 400);
+    }
+    const existing = await c.env.DB.prepare(
+      `SELECT * FROM subscription_invoices WHERE id = ? AND user_id = ? LIMIT 1`
+    )
+      .bind(invoiceId, auth.id)
+      .first<Record<string, unknown>>();
+    if (!existing) {
+      return c.json({ error: 'Invoice record not found.' }, 404);
+    }
+    const now = new Date().toISOString();
+    await c.env.DB.prepare(
+      `UPDATE subscription_invoices
+       SET status = 'refund_requested', refund_reason = ?, updated_at = ?
+       WHERE id = ? AND user_id = ?`
+    )
+      .bind(reason, now, invoiceId, auth.id)
+      .run();
+    return c.json({
+      invoice: {
+        id: String(existing.id),
+        subscriptionId: String(existing.subscription_id),
+        userId: String(existing.user_id),
+        planSlug: existing.plan_slug as SubscriptionPlan,
+        billingInterval: existing.billing_interval as BillingInterval,
+        amountCents: Number(existing.amount_cents || 0),
+        currency: String(existing.currency || 'USD'),
+        status: 'refund_requested' as SubscriptionInvoiceRecord['status'],
+        provider: String(existing.provider),
+        failureReason: typeof existing.failure_reason === 'string' ? existing.failure_reason : null,
+        refundReason: reason,
+        createdAt: String(existing.created_at),
+        updatedAt: now,
+      },
+    });
+  });
+
   app.post('/api/v1/support/tickets', async (c) => {
     const auth = await requireAuth(c, { requireVerified: true });
     if (auth instanceof Response) return auth;
@@ -1097,6 +1206,63 @@ export function registerP3CommunityVocabBillingRoutes(
     });
 
     return c.json({ subscriptions, invoices, supportTickets, financialMetrics });
+  });
+
+  app.patch('/api/v1/admin/support/:ticketId', async (c) => {
+    const admin = await requireAdmin(c, ['admin', 'super_admin', 'moderator']);
+    if (admin instanceof Response) return admin;
+    const ticketId = c.req.param('ticketId');
+    const existing = await c.env.DB.prepare(
+      `SELECT * FROM support_tickets WHERE id = ? LIMIT 1`
+    )
+      .bind(ticketId)
+      .first<Record<string, unknown>>();
+    if (!existing) {
+      return c.json({ error: 'Support ticket not found.' }, 404);
+    }
+    const body = (await c.req.json().catch(() => ({}))) as {
+      status?: unknown;
+      adminResponse?: unknown;
+    };
+    const status: SupportTicketRecord['status'] =
+      body.status === 'in_progress' || body.status === 'resolved' ? body.status : 'open';
+    const adminResponse = sanitizeCommunityPlainText(body.adminResponse, 1000);
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `UPDATE support_tickets
+       SET status = ?, admin_response = ?, handled_by = ?, updated_at = ?
+       WHERE id = ?`
+    )
+      .bind(status, adminResponse || null, admin.email, now, ticketId)
+      .run();
+
+    await writeAuditLog(c.env, {
+      actorUserId: admin.id,
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: 'support.ticket_updated',
+      resourceType: 'support_ticket',
+      resourceId: ticketId,
+      summaryEn: `Updated support ticket ${ticketId} to status=${status}.`,
+      summaryBn: `সাপোর্ট টিকিট ${ticketId}-এর স্ট্যাটাস ${status} করা হয়েছে।`,
+    });
+
+    return c.json({
+      ticket: {
+        id: String(existing.id),
+        userId: String(existing.user_id),
+        userEmail: String(existing.user_email),
+        category: existing.category as SupportTicketRecord['category'],
+        subject: String(existing.subject),
+        message: String(existing.message),
+        status,
+        adminResponse: adminResponse || null,
+        handledBy: admin.email,
+        createdAt: String(existing.created_at),
+        updatedAt: now,
+      },
+    });
   });
 
   // ==========================================================================

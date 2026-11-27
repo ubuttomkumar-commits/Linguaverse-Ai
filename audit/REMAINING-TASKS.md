@@ -14,11 +14,12 @@
 | R3 | Fix Express `appendServerAuditLog` signature & `ServerAuthUser.plan` (`'institution'`) | `VERIFIED COMPLETE` | `server/prd61Routes.ts`, `server/authStore.ts`, 24/24 live HTTP PoCs |
 | R4 | Fix Cloudflare Worker `system_settings` column parity (`setting_key` / `setting_value`) | `VERIFIED COMPLETE` | `worker/routes/prd61Routes.ts`, `worker/workerParity.test.ts` |
 | R5 | Fix TypeScript field alignment in `AdminAiProvidersTab`, `AdminSystemConfigTab`, and `ProgressPage` | `VERIFIED COMPLETE` | `tsc --noEmit` (0 errors), `npm run build` (clean) |
-| R6 | Add D1 migration `0004` + `ROLLBACK_0004` + PRD v6.1 Worker route integration tests | `VERIFIED COMPLETE` | `worker/workerParity.test.ts` — 173/173 automated tests passing |
-| R7 | Run dependency audit (`bun audit`) and `dist/` secret-leakage scan | `VERIFIED COMPLETE` | 0 vulnerabilities (569 packages); 0 leaked keys in `dist/` |
-| R8 | Run live Express HTTP security/RBAC/CSRF/route PoCs on `http://localhost:3000` | `VERIFIED COMPLETE` | 24/24 live HTTP assertions passing |
-| R9 | Run real headless Chromium desktop (`1440×900`) & mobile (`390×844`) UI verification | `VERIFIED COMPLETE` | Verified via `playwright-cli` (see `audit/TEST-EVIDENCE.md`) |
-| R10 | Create/update `docs/API.md`, `DEPLOYMENT.md`, `README.md`, `CHANGELOG.md`, `STATE.md`, and `audit/*` | `VERIFIED COMPLETE` | All documentation synced to actual verified codebase |
+| R6 | Add D1 migration `0004` + `ROLLBACK_0004` + PRD v6.1 & Separate Admin Worker route integration tests | `VERIFIED COMPLETE` | `worker/workerParity.test.ts` — 179/179 automated tests passing |
+| R7 | Run dependency audit (`bun audit`) and `dist/` + `dist-admin/` secret-leakage scan | `VERIFIED COMPLETE` | 0 vulnerabilities (569 packages); 0 leaked keys in `dist/` and `dist-admin/` |
+| R8 | Run live Express HTTP security/RBAC/CSRF/Admin bootstrap PoCs on `http://localhost:3000` | `VERIFIED COMPLETE` | 24/24 + 16/16 + Separate Admin Auth HTTP lifecycle passing |
+| R9 | Run real headless Chromium desktop (`1440×900`) & mobile (`390×844`) UI verification | `VERIFIED COMPLETE` | Verified User App + all 12/12 tabs of Separate Admin App (`/admin.html`) via `playwright-cli` (`audit/TEST-EVIDENCE.md`) |
+| R10 | Build genuinely Separate Admin Application (`admin.html`, `dist-admin/`, `/api/v1/admin/auth/*` Express+Worker parity, `CmsProvider` mount) | `VERIFIED COMPLETE` | `vite.admin.config.ts`, `src/AdminApp.tsx`, `src/domain/adminBootstrapEngine.test.ts`, Worker Test #146, 12/12 tabs zero errors |
+| R11 | Create/update `docs/PRD_IMPLEMENTATION_TRACKER.md`, `ARCHITECTURE.md`, `DATABASE.md`, `DEPLOYMENT.md`, `SECURITY.md`, `TESTING.md`, `API.md`, `CHANGELOG.md`, `STATE.md`, and `audit/*` | `VERIFIED COMPLETE` | Full documentation suite synchronized to actual verified codebase |
 
 ---
 

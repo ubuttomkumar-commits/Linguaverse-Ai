@@ -59,6 +59,21 @@ function writeOverlay(overlay: CustomCurriculumOverlay): CustomCurriculumOverlay
   return overlay;
 }
 
+export function hydrateCustomCurriculumOverlay(
+  serverOverlay: Partial<CustomCurriculumOverlay>
+): CustomCurriculumOverlay {
+  const normalized: CustomCurriculumOverlay = {
+    schemaVersion: 1,
+    catalogVersion:
+      typeof serverOverlay.catalogVersion === 'number' ? serverOverlay.catalogVersion : 1,
+    customCourses: Array.isArray(serverOverlay.customCourses) ? serverOverlay.customCourses : [],
+    customModules: Array.isArray(serverOverlay.customModules) ? serverOverlay.customModules : [],
+    customLessons: Array.isArray(serverOverlay.customLessons) ? serverOverlay.customLessons : [],
+    updatedAt: serverOverlay.updatedAt ?? new Date().toISOString(),
+  };
+  return writeOverlay(normalized);
+}
+
 /**
  * Pure merger combining static base courses with Admin-published courses, modules, and lessons.
  */

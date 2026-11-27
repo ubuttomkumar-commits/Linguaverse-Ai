@@ -79,6 +79,27 @@ export async function fetchAdminCmsBundle(
   return (await res.json()) as AdminCmsBundle;
 }
 
+export async function fetchAdminAuditLogs(): Promise<{ logs: ServerAuditEntry[] }> {
+  const res = await fetch(`${API_BASE}/api/v1/admin/audit-logs`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: await buildAdminHeaders({ email: '', role: '' }, false),
+  });
+  if (!res.ok) {
+    return { logs: [] };
+  }
+  const data = (await res.json().catch(() => ({}))) as
+    | ServerAuditEntry[]
+    | {
+        auditLogs?: ServerAuditEntry[];
+        logs?: ServerAuditEntry[];
+      };
+  if (Array.isArray(data)) {
+    return { logs: data };
+  }
+  return { logs: data.auditLogs ?? data.logs ?? [] };
+}
+
 export async function saveAdminCmsDraft(
   actor: AdminAuthHeaders,
   patch: Partial<CmsConfig>,

@@ -19,11 +19,12 @@
    - **Japanese-Inspired Shadowing & Chunk Lab**: Curated high-frequency chunks with speech playback and transparent text-overlap practice feedback (never fabricated acoustic phoneme scores).
    - **Human Communication Bridge**: Real-world offline English conversation reflection logs strictly tagged `User-Reported Offline Activity`.
 9. **Evidence-Based Progress, Plateau Recovery & Notifications (`/app/progress`, `/app/settings`)**: Learning Plateau & Recovery Signal detection, Independent Communication Readiness tracking, and server-persisted daily reminder schedules with quiet hours and platform announcements.
-10. **Admin Control Center & Privacy Sovereignty (`/admin`, `/app/settings`)**:
-   - Server-verified RBAC-guarded tabs: **Overview**, **Website CMS**, **Users** (role/status management, session revocation on suspend, confirmation-gated account deletion), **Curriculum Builder**, **AI Ops**, **AI & API Providers** (12-provider masked registry, runtime model/timeout/retry/quota controls, live health checks, write-only local rotation + Cloudflare `wrangler secret put` commands), **Reported Mistakes**, **Moderation & Appeals**, **Subscriptions & Support**, **System & Flags** (interactive Maintenance Mode & feature flags), **Health & Broadcasts**, and **Immutable Audit Log**.
+10. **Separate Admin Application & Control Center (`/admin.html` -> `dist-admin/`, `/admin`, `/app/settings`)**:
+   - Standalone Admin SPA (`vite.admin.config.ts` -> `dist-admin/` for separate Cloudflare Pages deployment `linguaverse-admin`) with dedicated server-backed authentication (`/api/v1/admin/auth/*`), one-time Initial Super Admin Provisioning (production `503` fail-closed secret guard + permanent `409` lock), zero public admin registration, and zero hardcoded credentials.
+   - 12 Server-verified RBAC-guarded tabs: **Overview**, **Website CMS & Analytics**, **Users** (role/status management, session revocation on suspend, confirmation-gated account deletion), **Curriculum Builder**, **AI Ops & Cost**, **AI & API Providers** (12-provider masked registry, runtime model/timeout/retry/quota controls, live health checks, write-only local rotation + Cloudflare `wrangler secret put` commands), **Reported Mistakes**, **Moderation & Appeals**, **Subscriptions & Support**, **System & Flags** (interactive Maintenance Mode & feature flags), **Health & Broadcasts**, and **Immutable Audit Log**.
    - Granular privacy consent switches (**Mic Recording Storage**, **AI Telemetry Logging**), one-click **JSON Learning Data Export**, and **Verified Recordings & Account Deletion**.
 
-For the complete Express + Cloudflare Worker endpoint reference, see [`docs/API.md`](./docs/API.md). For Cloudflare deployment and rollback steps, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+For full project documentation, see [`docs/PRD_IMPLEMENTATION_TRACKER.md`](./docs/PRD_IMPLEMENTATION_TRACKER.md), [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), [`docs/DATABASE.md`](./docs/DATABASE.md), [`docs/SECURITY.md`](./docs/SECURITY.md), [`docs/TESTING.md`](./docs/TESTING.md), [`docs/API.md`](./docs/API.md), and [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md).
 
 ---
 
@@ -44,11 +45,11 @@ The Express + Vite dev server runs on `http://localhost:3000`.
 # TypeScript type-check
 npm run lint
 
-# Full automated test suite (Domain engines, LocalPersistenceRepository, SQLite D1 Migrations 0001-0004 & Rollbacks, Worker Parity & Security Hardening)
-npx tsx --test src/domain/*.test.ts src/services/storage/*.test.ts worker/*.test.ts
+# Full automated test suite (179 tests: Domain engines, LocalPersistenceRepository, SQLite D1 Migrations 0001-0004 & Rollbacks, Worker Parity & Security Hardening)
+npx --yes tsx --test src/domain/*.test.ts src/services/storage/*.test.ts worker/*.test.ts
 
-# Production SPA build
-npm run build
+# Dual production builds: User Web App (dist/) + Separate Admin App (dist-admin/)
+npm run build:all
 ```
 
 ---
@@ -87,13 +88,15 @@ This repository includes production-ready Cloudflare infrastructure configuratio
    npx wrangler secret put GEMINI_API_KEY
    npx wrangler secret put RESEND_API_KEY
    npx wrangler secret put JWT_SIGNING_SECRET
+   npx wrangler secret put ADMIN_BOOTSTRAP_SECRET
    ```
 
-4. **Deploy Worker API & Pages Frontend**
+4. **Deploy Worker API, User Pages & Separate Admin Pages**
    ```bash
    npx wrangler deploy --env production
-   VITE_API_BASE_URL=https://api.linguaverse.ai npm run build
-   npx wrangler pages deploy dist --project-name=linguaverse-ai
+   VITE_API_BASE_URL=https://api.linguaverse.ai npm run build:all
+   npx wrangler pages deploy dist --project-name=linguaverse-web
+   npx wrangler pages deploy dist-admin --project-name=linguaverse-admin
    ```
 
 ---

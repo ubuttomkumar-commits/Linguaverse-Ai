@@ -2,9 +2,20 @@ import type express from 'express';
 import {
   adminDeleteServerUser,
   adminUpdateServerUser,
+  authLoginLimiter,
+  bootstrapInitialServerSuperAdmin,
   getServerAuthStats,
+  hasServerAdminAccount,
   listServerAdminUsers,
+  loginServerAdminUser,
+  parseCookieHeader,
+  revokeSessionByRawToken,
 } from './authStore.ts';
+import {
+  evaluateBootstrapPolicy,
+  isAdminPortalRole,
+  validateInitialAdminBootstrapInput,
+} from '../src/domain/adminBootstrapEngine.ts';
 import { appendServerAuditLog, getServerAuditLogs } from './cmsStore.ts';
 import { getSystemConfigSettings } from './p3Store.ts';
 import {
@@ -13,8 +24,10 @@ import {
   deleteUserHumanBridgeLog,
   getPrd61StoreHealthSummary,
   getServerAiRuntimeConfig,
+  getServerCurriculumOverlay,
   getServerFeatureFlags,
   getUserNotificationPreferences,
+  listServerFlaggedMistakes,
   listServerProviderStatuses,
   listUserExamAttempts,
   listUserHumanBridgeLogs,
@@ -23,6 +36,7 @@ import {
   markPersistedNotificationRead,
   recordServerProviderHealth,
   resolveServerProviderSecret,
+  reviewServerFlaggedMistake,
   rotateServerProviderSecret,
   saveServerAiRuntimeConfig,
   saveServerFeatureFlags,
@@ -31,7 +45,17 @@ import {
   saveUserNotificationPreferences,
   saveUserWritingDiary,
   updateUserWritingRewrite,
+  upsertServerFlaggedMistake,
+  upsertServerPublishedCourse,
+  upsertServerPublishedLesson,
+  upsertServerPublishedModule,
 } from './prd61Store.ts';
+import type {
+  CurriculumCourse,
+  CurriculumLesson,
+  CurriculumModule,
+  MistakeMemoryItem,
+} from '../src/types/domain.ts';
 import {
   evaluateIeltsWithGemini,
   evaluateWritingDiaryWithGemini,
@@ -109,6 +133,179 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       allowNewRegistrations: sys.allowNewRegistrations,
       featureFlags: flags,
     });
+  });
+
+  // ==========================================================================
+  // 1B. Separate Admin Application Auth & One-Time Initial Super Admin Provisioning
+  // ==========================================================================
+  const setExpressAdminSessionCookie = (
+    req: express.Request,
+    res: express.Response,
+    rawToken: string,
+    maxAgeSeconds: number
+  ) => {
+    const isSecure =
+      process.env.NODE_ENV === 'production' ||
+      req.secure ||
+      String(req.headers['x-forwarded-proto'] || '').includes('https');
+    const parts = [
+      `lv_session_token=${encodeURIComponent(rawToken)}`,
+      'Path=/',
+      'HttpOnly',
+      `Max-Age=${maxAgeSeconds}`,
+      isSecure ? 'SameSite=None' : 'SameSite=Lax',
+    ];
+    if (isSecure) {
+      parts.push('Secure', 'Partitioned');
+    }
+    res.setHeader('Set-Cookie', parts.join('; '));
+  };
+
+  app.get('/api/v1/admin/auth/status', (_req, res) => {
+    const hasAdmin = hasServerAdminAccount();
+    const configuredSecret = (process.env.ADMIN_BOOTSTRAP_SECRET ?? '').trim();
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.json({
+      ok: true,
+      hasAdminAccount: hasAdmin,
+      bootstrapAvailable: !hasAdmin && (!isProduction || configuredSecret.length >= 16),
+      requiresBootstrapSecret: configuredSecret.length > 0 || isProduction,
+    });
+  });
+
+  app.post('/api/v1/admin/auth/bootstrap', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const ip = req.ip || 'unknown';
+    const retryAfter = checkPrd61RateLimit(`admin_bootstrap:${ip}`, 5, 15 * 60 * 1000);
+    if (retryAfter !== null) {
+      res.setHeader('Retry-After', String(retryAfter));
+      res.status(429).json({ error: 'Too many bootstrap attempts. Try again later.' });
+      return;
+    }
+
+    const validated = validateInitialAdminBootstrapInput(req.body);
+    if (!validated.ok) {
+      res.status(400).json({ error: validated.error, code: 'INVALID_BOOTSTRAP_INPUT' });
+      return;
+    }
+
+    const policy = evaluateBootstrapPolicy({
+      hasExistingAdmin: hasServerAdminAccount(),
+      isProduction: process.env.NODE_ENV === 'production',
+      configuredSecret: process.env.ADMIN_BOOTSTRAP_SECRET ?? '',
+      providedSecret: validated.data.bootstrapSecret,
+    });
+    if (!policy.allowed) {
+      res.status(policy.status).json({ error: policy.error, code: policy.code });
+      return;
+    }
+
+    const created = bootstrapInitialServerSuperAdmin({
+      name: validated.data.name,
+      email: validated.data.email,
+      password: validated.data.password,
+    });
+    if (!created.ok) {
+      res.status(created.status).json({ error: created.error, code: created.code });
+      return;
+    }
+
+    setExpressAdminSessionCookie(req, res, created.rawToken, 60 * 60 * 24 * 30);
+    appendServerAuditLog({
+      actorEmail: created.user.email,
+      actorRole: created.user.role,
+      action: 'admin.bootstrap.claimed',
+      resource: `user:${created.user.id}`,
+      details: `Provisioned initial super_admin account (${created.user.email}) and locked bootstrap.`,
+    });
+    appendSecurityEvent({
+      eventType: 'admin_bootstrap_claimed',
+      severity: 'warning',
+      actorEmail: created.user.email,
+      path: '/api/v1/admin/auth/bootstrap',
+      summary: `Initial super_admin provisioned (${created.user.email}); one-time bootstrap permanently locked.`,
+    });
+
+    res.status(201).json({
+      user: created.user,
+      sessionToken: created.rawToken,
+      expiresAt: created.session.expiresAt,
+    });
+  });
+
+  app.post('/api/v1/admin/auth/login', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const ip = req.ip || 'unknown';
+    const body = (req.body || {}) as { email?: string; password?: string; rememberMe?: boolean };
+    const normalizedEmail = String(body.email || '').trim().toLowerCase();
+    const rateCheck = authLoginLimiter.consume(`admin_login:${ip}:${normalizedEmail}`);
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfterSeconds));
+      res.status(429).json({
+        error: 'Too many administrator login attempts. Please wait before retrying.',
+        code: 'RATE_LIMITED',
+      });
+      return;
+    }
+    if (!normalizedEmail || typeof body.password !== 'string' || !body.password) {
+      res.status(400).json({ error: 'Email and password are required.', code: 'MISSING_CREDENTIALS' });
+      return;
+    }
+
+    const result = loginServerAdminUser({
+      email: normalizedEmail,
+      password: body.password,
+      rememberMe: Boolean(body.rememberMe),
+    });
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error, code: result.code });
+      return;
+    }
+
+    const ttlSec = body.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+    setExpressAdminSessionCookie(req, res, result.rawToken, ttlSec);
+    appendServerAuditLog({
+      actorEmail: result.user.email,
+      actorRole: result.user.role,
+      action: 'admin.auth.login',
+      resource: `user:${result.user.id}`,
+      details: `Authenticated administrator session via Separate Admin Application (${result.user.role}).`,
+    });
+
+    res.json({
+      user: result.user,
+      sessionToken: result.rawToken,
+      expiresAt: result.session.expiresAt,
+    });
+  });
+
+  app.get('/api/v1/admin/auth/me', (req, res) => {
+    const resolved = resolveRequestSession(req);
+    if (!resolved) {
+      res.status(401).json({ error: 'Administrator authentication required.', code: 'UNAUTHORIZED' });
+      return;
+    }
+    if (!isAdminPortalRole(resolved.user.role)) {
+      res.status(403).json({
+        error: 'Administrator privileges are required to access the Admin Application.',
+        code: 'ADMIN_ROLE_REQUIRED',
+      });
+      return;
+    }
+    res.json({ user: resolved.user });
+  });
+
+  app.post('/api/v1/admin/auth/logout', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const authHeader = req.headers.authorization;
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+    const cookies = parseCookieHeader(req.headers.cookie);
+    const token = bearer || cookies.lv_session_token;
+    if (token) {
+      revokeSessionByRawToken(token);
+    }
+    setExpressAdminSessionCookie(req, res, '', 0);
+    res.json({ ok: true });
   });
 
   // ==========================================================================
@@ -757,4 +954,195 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
     });
     res.status(201).json({ notification });
   });
+
+  // ==========================================================================
+  // 8. Public Curriculum Overlay & Express <-> Worker Admin Curriculum/Mistakes Parity
+  // ==========================================================================
+  app.get('/api/v1/curriculum/overlay', (_req, res) => {
+    res.json(getServerCurriculumOverlay());
+  });
+
+  app.get('/api/v1/admin/overview', (req, res) => {
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => isAdminPortalRole(role),
+      'Admin overview requires an administrator role.'
+    );
+    if (!admin) return;
+    const authStats = getServerAuthStats();
+    const summary = getPrd61StoreHealthSummary();
+    res.json({
+      totalUsers: authStats.totalUsers,
+      verifiedUsers: authStats.verifiedUsers,
+      suspendedUsers: authStats.suspendedUsers,
+      lessonsCompleted: summary.examinationAttemptsCount,
+      speakingSessions: summary.writingDiaryEntriesCount,
+      transferAttempts: summary.humanBridgeLogsCount,
+      aiCalls: 0,
+      activeMistakes: summary.flaggedMistakesCount,
+      flaggedMistakes: summary.flaggedMistakesCount,
+      customCourses: summary.customCoursesCount,
+      customModules: summary.customModulesCount,
+      customLessons: summary.customLessonsCount,
+    });
+  });
+
+  app.post('/api/v1/admin/curriculum/courses', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => role === 'super_admin' || role === 'admin' || role === 'content_manager',
+      'Publishing courses requires Super Admin, Admin, or Content Manager role.'
+    );
+    if (!admin) return;
+    const course = (req.body || {}) as Partial<CurriculumCourse>;
+    if (!course.id || !course.titleEn?.trim()) {
+      res.status(400).json({ error: 'Course id and titleEn are required.' });
+      return;
+    }
+    const { course: saved, overlay } = upsertServerPublishedCourse(course as CurriculumCourse);
+    appendServerAuditLog({
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: 'curriculum.course_published',
+      resource: `curriculum:${saved.id}`,
+      details: `Published course "${saved.titleEn}" (v${saved.version ?? 1}).`,
+    });
+    res.status(201).json({
+      id: saved.id,
+      catalogVersion: overlay.catalogVersion,
+      course: saved,
+      overlay,
+    });
+  });
+
+  app.post('/api/v1/admin/curriculum/modules', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => role === 'super_admin' || role === 'admin' || role === 'content_manager',
+      'Publishing modules requires Super Admin, Admin, or Content Manager role.'
+    );
+    if (!admin) return;
+    const mod = (req.body || {}) as Partial<CurriculumModule>;
+    if (!mod.id || !mod.courseId?.trim() || !mod.titleEn?.trim()) {
+      res.status(400).json({ error: 'Module id, courseId, and titleEn are required.' });
+      return;
+    }
+    const { module: saved, overlay } = upsertServerPublishedModule(mod as CurriculumModule);
+    appendServerAuditLog({
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: 'curriculum.module_published',
+      resource: `curriculum:${saved.id}`,
+      details: `Published module "${saved.titleEn}" under course ${saved.courseId}.`,
+    });
+    res.status(201).json({
+      id: saved.id,
+      courseId: saved.courseId,
+      catalogVersion: overlay.catalogVersion,
+      module: saved,
+      overlay,
+    });
+  });
+
+  app.post('/api/v1/admin/curriculum/lessons', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => role === 'super_admin' || role === 'admin' || role === 'content_manager',
+      'Publishing lessons requires Super Admin, Admin, or Content Manager role.'
+    );
+    if (!admin) return;
+    const lesson = (req.body || {}) as Partial<CurriculumLesson>;
+    if (!lesson.id || !lesson.courseId?.trim() || !lesson.moduleId?.trim() || !lesson.titleEn?.trim()) {
+      res.status(400).json({ error: 'Lesson id, courseId, moduleId, and titleEn are required.' });
+      return;
+    }
+    const { lesson: saved, overlay } = upsertServerPublishedLesson(lesson as CurriculumLesson);
+    appendServerAuditLog({
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: 'curriculum.lesson_published',
+      resource: `curriculum:${saved.id}`,
+      details: `Published 7-stage lesson "${saved.titleEn}" (v${saved.version ?? 1}).`,
+    });
+    res.status(201).json({
+      id: saved.id,
+      catalogVersion: overlay.catalogVersion,
+      lesson: saved,
+      overlay,
+    });
+  });
+
+  app.post('/api/v1/mistakes/report-false-correction', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const user = requireSignedInUser(req, res);
+    if (!user) return;
+    const body = (req.body || {}) as Partial<MistakeMemoryItem>;
+    if (!body.id || !body.userExample?.trim()) {
+      res.status(400).json({ error: 'Mistake id and userExample are required.' });
+      return;
+    }
+    const saved = upsertServerFlaggedMistake({
+      ...(body as MistakeMemoryItem),
+      userId: user.id,
+      falseCorrectionReported: true,
+      falseCorrectionReportedAt: body.falseCorrectionReportedAt ?? new Date().toISOString(),
+    });
+    res.status(201).json({ mistake: saved });
+  });
+
+  app.get('/api/v1/admin/flagged-mistakes', (req, res) => {
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => isAdminPortalRole(role),
+      'Viewing reported mistakes requires an administrator role.'
+    );
+    if (!admin) return;
+    res.json({ mistakes: listServerFlaggedMistakes() });
+  });
+
+  app.post('/api/v1/admin/flagged-mistakes/:mistakeId/review', (req, res) => {
+    if (!verifyCsrf(req, res)) return;
+    const admin = requireExpressAdmin(
+      req,
+      res,
+      (role) => isAdminPortalRole(role),
+      'Reviewing reported mistakes requires an administrator role.'
+    );
+    if (!admin) return;
+    const mistakeId = String(req.params.mistakeId || '').trim();
+    const body = (req.body || {}) as {
+      decision?: 'upheld_false_positive' | 'confirmed_accurate';
+      note?: string;
+    };
+    const decision =
+      body.decision === 'upheld_false_positive' ? 'upheld_false_positive' : 'confirmed_accurate';
+    const result = reviewServerFlaggedMistake(mistakeId, decision, admin.email, body.note);
+    if (!result.updated) {
+      res.status(404).json({ error: 'Flagged mistake not found.' });
+      return;
+    }
+    appendServerAuditLog({
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: `mistakes.${decision}`,
+      resource: `mistake_review:${mistakeId}`,
+      details: `Reviewed flagged mistake ${mistakeId} as ${decision}.`,
+    });
+    res.json({
+      ok: true,
+      mistakeId,
+      decision,
+      updatedMistake: result.updated,
+      flaggedMistakes: result.flaggedMistakes,
+    });
+  });
 }
+

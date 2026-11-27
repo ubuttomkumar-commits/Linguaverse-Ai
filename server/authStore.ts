@@ -39,7 +39,7 @@ export interface ServerAuthUser {
   name: string;
   email: string;
   plan: 'free' | 'pro' | 'institution';
-  role: 'super_admin' | 'admin' | 'content_manager' | 'ai_ops' | 'learner';
+  role: 'super_admin' | 'admin' | 'content_manager' | 'ai_ops' | 'moderator' | 'learner';
   emailVerified: boolean;
   accountStatus: 'active' | 'suspended';
   passwordSalt: string;
@@ -797,4 +797,127 @@ export function getServerAuthStats() {
     activeSessions,
   };
 }
+
+export function hasServerAdminAccount(): boolean {
+  const store = readStore();
+  return Object.values(store.users).some(
+    (u) => u.role === 'admin' || u.role === 'super_admin'
+  );
+}
+
+export function bootstrapInitialServerSuperAdmin(input: {
+  name: string;
+  email: string;
+  password: string;
+}):
+  | {
+      ok: true;
+      user: ReturnType<typeof sanitizeUser>;
+      rawToken: string;
+      session: ServerAuthSession;
+    }
+  | { ok: false; status: number; code: string; error: string } {
+  const store = readStore();
+  const existingAdmin = Object.values(store.users).some(
+    (u) => u.role === 'admin' || u.role === 'super_admin'
+  );
+  if (existingAdmin) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'ADMIN_ALREADY_PROVISIONED',
+      error: 'Initial administrator has already been provisioned. Sign in with an existing admin account.',
+    };
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const duplicate = Object.values(store.users).find(
+    (u) => u.email.toLowerCase() === normalizedEmail
+  );
+  if (duplicate) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'EMAIL_EXISTS',
+      error: 'An account with this email already exists.',
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { salt, hash } = hashPasswordScrypt(input.password);
+  const user: ServerAuthUser = {
+    id: `usr_${crypto.randomBytes(8).toString('hex')}`,
+    name: input.name.trim(),
+    email: normalizedEmail,
+    plan: 'institution',
+    role: 'super_admin',
+    emailVerified: true,
+    accountStatus: 'active',
+    passwordSalt: salt,
+    passwordHash: hash,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+  store.users[user.id] = user;
+  writeStore(store);
+
+  const { rawToken, session } = createServerSession(user.id, true);
+  return {
+    ok: true,
+    user: sanitizeUser(user),
+    rawToken,
+    session,
+  };
+}
+
+export function loginServerAdminUser(input: {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}):
+  | {
+      ok: true;
+      user: ReturnType<typeof sanitizeUser>;
+      rawToken: string;
+      session: ServerAuthSession;
+    }
+  | { ok: false; status: number; code: string; error: string } {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const store = readStore();
+  const user = Object.values(store.users).find(
+    (u) => u.email.toLowerCase() === normalizedEmail
+  );
+  if (!user || !verifyPasswordScrypt(input.password, user.passwordSalt, user.passwordHash)) {
+    return {
+      ok: false,
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+      error: 'Invalid administrator email or password.',
+    };
+  }
+  if (user.accountStatus === 'suspended') {
+    return {
+      ok: false,
+      status: 403,
+      code: 'ACCOUNT_SUSPENDED',
+      error: 'This administrator account is suspended.',
+    };
+  }
+  if (user.role === 'learner') {
+    return {
+      ok: false,
+      status: 403,
+      code: 'ADMIN_ROLE_REQUIRED',
+      error: 'Administrator privileges are required to sign into the Admin Application.',
+    };
+  }
+  const { rawToken, session } = createServerSession(user.id, Boolean(input.rememberMe));
+  return {
+    ok: true,
+    user: sanitizeUser(user),
+    rawToken,
+    session,
+  };
+}
+
 

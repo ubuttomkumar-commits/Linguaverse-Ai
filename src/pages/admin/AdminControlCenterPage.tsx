@@ -26,8 +26,19 @@ import { AdminSubscriptionsTab } from '../../components/admin/AdminSubscriptions
 import { AdminSystemConfigTab } from '../../components/admin/AdminSystemConfigTab';
 import { AdminAiProvidersTab } from '../../components/admin/AdminAiProvidersTab';
 import { AdminSystemHealthTab } from '../../components/admin/AdminSystemHealthTab';
-import { deleteAdminUserAccount } from '../../services/prd61Api';
-import type { ServerAuditEntry } from '../../services/cmsApi';
+import { deleteAdminUserAccount, fetchAdminSystemHealth } from '../../services/prd61Api';
+import {
+  fetchServerAdminUsers,
+  fetchServerCurriculumOverlay,
+  fetchServerFlaggedMistakes,
+  patchServerAdminUser,
+  publishServerCourse,
+  publishServerLesson,
+  publishServerModule,
+  reviewServerFlaggedMistakeApi,
+  type AdminPortalUser,
+} from '../../services/adminPortalApi';
+import { fetchAdminAuditLogs, type ServerAuditEntry } from '../../services/cmsApi';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -41,6 +52,7 @@ import {
 } from '../../domain/adminGovernanceEngine';
 import { getAllCourses } from '../../domain/curriculumData';
 import {
+  hydrateCustomCurriculumOverlay,
   readCustomCurriculumOverlay,
   upsertPublishedCourse,
   upsertPublishedLesson,
@@ -99,10 +111,14 @@ const MISTAKE_CATEGORIES: MistakeCategory[] = [
   'Grammar',
 ];
 
-export function AdminControlCenterPage() {
+export function AdminControlCenterPage({
+  standaloneAdmin,
+}: {
+  standaloneAdmin?: AdminPortalUser;
+} = {}) {
   const { lang } = useLanguage();
   const {
-    user,
+    user: learnerAuthUser,
     storageMode,
     updateProfile,
     getFlaggedMistakes,
@@ -112,6 +128,8 @@ export function AdminControlCenterPage() {
     updateAdminUserAccount,
   } = useAuth();
 
+  const user = standaloneAdmin ?? learnerAuthUser;
+  const isStandaloneAdmin = Boolean(standaloneAdmin);
   const activeRole: AdminRole = user?.role ?? 'learner';
   const canAccessAdmin = hasAdminPermission(activeRole, 'admin:access');
   const canReadOverview = hasAdminPermission(activeRole, 'overview:read');
@@ -226,7 +244,71 @@ export function AdminControlCenterPage() {
     const events = listAiTelemetryEvents();
     setTelemetryEvents(events);
     setAuditLogs(listAuditLogs());
+    try {
+      const serverOverlay = await fetchServerCurriculumOverlay();
+      if (
+        serverOverlay &&
+        (serverOverlay.customCourses.length > 0 ||
+          serverOverlay.customModules.length > 0 ||
+          serverOverlay.customLessons.length > 0)
+      ) {
+        hydrateCustomCurriculumOverlay(serverOverlay);
+      }
+    } catch {
+      // Fall back cleanly to locally cached overlay when offline
+    }
     setCatalogTick((t) => t + 1);
+    if (isStandaloneAdmin) {
+      const [serverFlagged, localFlagged, serverUsersRes, serverHealthRes, serverAuditRes] =
+        await Promise.all([
+          fetchServerFlaggedMistakes().catch(() => [] as MistakeMemoryItem[]),
+          getFlaggedMistakes().catch(() => [] as MistakeMemoryItem[]),
+          canManageUsers
+            ? fetchServerAdminUsers(userSearchQuery).catch(() => ({ users: [] }))
+            : Promise.resolve({ users: [] }),
+          fetchAdminSystemHealth().catch(() => null),
+          canReadAudit
+            ? fetchAdminAuditLogs().catch(() => ({ logs: [] as ServerAuditEntry[] }))
+            : Promise.resolve({ logs: [] as ServerAuditEntry[] }),
+        ]);
+      const mergedFlaggedMap = new Map<string, MistakeMemoryItem>();
+      for (const item of [...localFlagged, ...serverFlagged]) {
+        mergedFlaggedMap.set(item.id, item);
+      }
+      const flagged = Array.from(mergedFlaggedMap.values());
+      setFlaggedMistakes(flagged);
+      setServerAuditLogs(serverAuditRes.logs ?? []);
+      setAdminUsers(
+        (serverUsersRes.users ?? []).map((u: AdminPortalUser): AdminUserSummary => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: (u.role === 'moderator' ? 'content_manager' : u.role) as AdminRole,
+          emailVerified: u.emailVerified,
+          accountStatus: u.accountStatus,
+          plan: u.plan === 'pro' ? 'pro' : 'free',
+          createdAt: u.createdAt,
+          lessonsCompleted: 0,
+          speakingSessions: 0,
+          activeMistakes: 0,
+        }))
+      );
+      if (serverHealthRes) {
+        setOverviewStats({
+          totalUsers: serverHealthRes.counts.totalUsers,
+          verifiedUsers: serverHealthRes.counts.verifiedUsers ?? serverHealthRes.counts.totalUsers,
+          suspendedUsers: serverHealthRes.counts.suspendedUsers ?? 0,
+          lessonsCompleted: serverHealthRes.counts.examinationAttempts,
+          speakingSessions: serverHealthRes.counts.writingDiaryEntries,
+          transferAttempts: serverHealthRes.counts.humanBridgeLogs,
+          aiCalls: events.length,
+          activeMistakes: flagged.length,
+          flaggedMistakes: flagged.length,
+        });
+      }
+      return;
+    }
+
     const [flagged, stats, usersList] = await Promise.all([
       getFlaggedMistakes(),
       getAdminOverviewStats(events.length),
@@ -235,7 +317,15 @@ export function AdminControlCenterPage() {
     setFlaggedMistakes(flagged);
     setOverviewStats(stats);
     setAdminUsers(usersList);
-  }, [getFlaggedMistakes, getAdminOverviewStats, listAdminUsers, userSearchQuery]);
+  }, [
+    canManageUsers,
+    canReadAudit,
+    getFlaggedMistakes,
+    getAdminOverviewStats,
+    isStandaloneAdmin,
+    listAdminUsers,
+    userSearchQuery,
+  ]);
 
   useEffect(() => {
     void refreshGovernanceData();
@@ -293,7 +383,11 @@ export function AdminControlCenterPage() {
     patch: { role?: AdminRole; accountStatus?: AccountStatus }
   ) => {
     if (!user || !canManageUsers) return;
-    await updateAdminUserAccount(target.id, patch);
+    if (isStandaloneAdmin) {
+      await patchServerAdminUser(target.id, patch);
+    } else {
+      await updateAdminUserAccount(target.id, patch);
+    }
     const summaryParts: string[] = [];
     if (patch.role) summaryParts.push(`role -> ${patch.role}`);
     if (patch.accountStatus) summaryParts.push(`status -> ${patch.accountStatus}`);
@@ -366,7 +460,7 @@ export function AdminControlCenterPage() {
     setBuilderError(null);
   };
 
-  const handlePublishCourse = (e: React.FormEvent) => {
+  const handlePublishCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !canWriteCurriculum) return;
     if (!courseTitleEn.trim() || !courseSubtitleEn.trim()) {
@@ -396,18 +490,39 @@ export function AdminControlCenterPage() {
       version: existing ? (existing.version ?? 1) + 1 : 1,
     });
 
+    let starterModule = !existing
+      ? buildPublishedModule({
+          courseId: built.id,
+          order: 1,
+          titleEn: 'Module 1: Core Practice',
+          titleBn: 'মডিউল ১: মূল অনুশীলন',
+          descriptionEn: 'Primary lessons published in this course.',
+          descriptionBn: 'এই কোর্সে প্রকাশিত মূল লেসনসমূহ।',
+        })
+      : null;
+
+    try {
+      const serverCourseRes = await publishServerCourse(built);
+      if (starterModule) {
+        const serverModRes = await publishServerModule(starterModule);
+        if (serverModRes.overlay) {
+          hydrateCustomCurriculumOverlay(serverModRes.overlay);
+        }
+      } else if (serverCourseRes.overlay) {
+        hydrateCustomCurriculumOverlay(serverCourseRes.overlay);
+      }
+    } catch (err) {
+      if (isStandaloneAdmin) {
+        setBuilderError(
+          err instanceof Error ? err.message : 'Unable to persist course to server.'
+        );
+        return;
+      }
+    }
+
     upsertPublishedCourse(built);
 
-    // Ensure brand-new custom courses start with a ready module so lessons can be added immediately
-    if (!existing) {
-      const starterModule = buildPublishedModule({
-        courseId: built.id,
-        order: 1,
-        titleEn: 'Module 1: Core Practice',
-        titleBn: 'মডিউল ১: মূল অনুশীলন',
-        descriptionEn: 'Primary lessons published in this course.',
-        descriptionBn: 'এই কোর্সে প্রকাশিত মূল লেসনসমূহ।',
-      });
+    if (starterModule) {
       upsertPublishedModule(starterModule);
       setLessonCourseId(built.id);
       setLessonModuleId(starterModule.id);
@@ -438,9 +553,14 @@ export function AdminControlCenterPage() {
     setBuilderError(null);
     setCatalogTick((t) => t + 1);
     setAuditLogs(listAuditLogs());
+    if (isStandaloneAdmin && canReadAudit) {
+      fetchAdminAuditLogs()
+        .then((res) => setServerAuditLogs(res.logs ?? []))
+        .catch(() => {});
+    }
   };
 
-  const handlePublishModule = (e: React.FormEvent) => {
+  const handlePublishModule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !canWriteCurriculum) return;
     const parent = courses.find((c) => c.id === moduleCourseId);
@@ -461,6 +581,20 @@ export function AdminControlCenterPage() {
       descriptionEn: moduleDescEn || 'Structured Bangla-aware English practice module.',
       descriptionBn: moduleDescBn || 'বাংলাভাষীদের জন্য কাঠামোগত ইংরেজি অনুশীলন মডিউল।',
     });
+
+    try {
+      const serverModRes = await publishServerModule(built);
+      if (serverModRes.overlay) {
+        hydrateCustomCurriculumOverlay(serverModRes.overlay);
+      }
+    } catch (err) {
+      if (isStandaloneAdmin) {
+        setBuilderError(
+          err instanceof Error ? err.message : 'Unable to persist module to server.'
+        );
+        return;
+      }
+    }
 
     upsertPublishedModule(built);
     const logEntry = appendAuditLog({
@@ -489,9 +623,14 @@ export function AdminControlCenterPage() {
     setBuilderError(null);
     setCatalogTick((t) => t + 1);
     setAuditLogs(listAuditLogs());
+    if (isStandaloneAdmin && canReadAudit) {
+      fetchAdminAuditLogs()
+        .then((res) => setServerAuditLogs(res.logs ?? []))
+        .catch(() => {});
+    }
   };
 
-  const handlePublishLesson = (e: React.FormEvent) => {
+  const handlePublishLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !canWriteCurriculum) return;
     const parentCourse = courses.find((c) => c.id === lessonCourseId);
@@ -547,6 +686,20 @@ export function AdminControlCenterPage() {
       version: existing ? (existing.version ?? 1) + 1 : 1,
     });
 
+    try {
+      const serverLessonRes = await publishServerLesson(built);
+      if (serverLessonRes.overlay) {
+        hydrateCustomCurriculumOverlay(serverLessonRes.overlay);
+      }
+    } catch (err) {
+      if (isStandaloneAdmin) {
+        setBuilderError(
+          err instanceof Error ? err.message : 'Unable to persist lesson to server.'
+        );
+        return;
+      }
+    }
+
     upsertPublishedLesson(built);
     const logEntry = appendAuditLog({
       actorUserId: user.id,
@@ -586,6 +739,11 @@ export function AdminControlCenterPage() {
     setBuilderError(null);
     setCatalogTick((t) => t + 1);
     setAuditLogs(listAuditLogs());
+    if (isStandaloneAdmin && canReadAudit) {
+      fetchAdminAuditLogs()
+        .then((res) => setServerAuditLogs(res.logs ?? []))
+        .catch(() => {});
+    }
   };
 
   const handleReviewMistake = async (
@@ -596,12 +754,26 @@ export function AdminControlCenterPage() {
     setReviewBusyId(mistake.id);
     try {
       const note = reviewNotes[mistake.id] ?? '';
-      const res = await reviewFlaggedMistake({
-        mistakeId: mistake.id,
-        decision,
-        note,
-      });
-      setFlaggedMistakes(res.flaggedMistakes);
+      if (isStandaloneAdmin) {
+        const serverRes = await reviewServerFlaggedMistakeApi(mistake.id, { decision, note });
+        if (Array.isArray(serverRes.flaggedMistakes)) {
+          setFlaggedMistakes(serverRes.flaggedMistakes);
+        } else {
+          setFlaggedMistakes(await fetchServerFlaggedMistakes().catch(() => []));
+        }
+        if (canReadAudit) {
+          fetchAdminAuditLogs()
+            .then((res) => setServerAuditLogs(res.logs ?? []))
+            .catch(() => {});
+        }
+      } else {
+        const res = await reviewFlaggedMistake({
+          mistakeId: mistake.id,
+          decision,
+          note,
+        });
+        setFlaggedMistakes(res.flaggedMistakes);
+      }
       appendAuditLog({
         actorUserId: user.id,
         actorEmail: user.email,
@@ -642,15 +814,7 @@ export function AdminControlCenterPage() {
     }
   };
 
-  return (
-    <LearnerShell
-      title={lang === 'bn' ? 'অ্যাডমিন কন্ট্রোল সেন্টার' : 'Admin Control Center'}
-      subtitle={
-        lang === 'bn'
-          ? 'ভূমিকা-ভিত্তিক প্রবেশাধিকার (RBAC), লাইভ কারিকুলাম প্রকাশনা, বাস্তব AI অপারেশনস মনিটরিং এবং অপরিবর্তনীয় অডিট লগ।'
-          : 'Role-based governance (RBAC), live Curriculum Builder, real AI Operations telemetry, Reported Mistakes triage, and immutable Audit Log.'
-      }
-    >
+  const adminBody = (
       <div className="space-y-6">
         {/* RBAC Role & Permission Guard Bar */}
         <section className="rounded-xl border border-slate-800 bg-[#111827] p-5">
@@ -679,37 +843,59 @@ export function AdminControlCenterPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {ADMIN_ROLES.map((roleKey) => {
-                const isSelected = activeRole === roleKey;
-                return (
-                  <button
-                    key={roleKey}
-                    type="button"
-                    disabled={roleUpdating}
-                    aria-pressed={isSelected}
-                    onClick={() => void handleRoleSwitch(roleKey)}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                      isSelected
-                        ? roleKey === 'learner'
-                          ? 'border-amber-500/60 bg-amber-500/15 text-amber-200'
-                          : 'border-[#3B82F6] bg-[#3B82F6] text-white'
-                        : 'border-slate-700 bg-[#0A0F1C] text-slate-300 hover:border-slate-600 hover:text-white'
-                    }`}
-                  >
-                    {lang === 'bn'
-                      ? ADMIN_ROLE_LABELS[roleKey].bn
-                      : ADMIN_ROLE_LABELS[roleKey].en}
-                  </button>
-                );
-              })}
-            </div>
+            {isStandaloneAdmin ? (
+              <div className="rounded-lg border border-emerald-500/35 bg-emerald-950/30 px-3.5 py-2 text-xs text-emerald-200 shrink-0">
+                <p className="font-mono font-semibold uppercase">
+                  Server-Verified RBAC · {activeRole}
+                </p>
+                <p className="mt-0.5 text-[11px] text-emerald-300/80">
+                  Separate Admin Application · All actions verified via backend session
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <a
+                  href="/admin.html"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/45 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 whitespace-nowrap"
+                >
+                  <span>{lang === 'bn' ? 'স্বতন্ত্র অ্যাডমিন অ্যাপ' : 'Separate Admin App'}</span>
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+                {ADMIN_ROLES.map((roleKey) => {
+                  const isSelected = activeRole === roleKey;
+                  return (
+                    <button
+                      key={roleKey}
+                      type="button"
+                      disabled={roleUpdating}
+                      aria-pressed={isSelected}
+                      onClick={() => void handleRoleSwitch(roleKey)}
+                      className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                        isSelected
+                          ? roleKey === 'learner'
+                            ? 'border-amber-500/60 bg-amber-500/15 text-amber-200'
+                            : 'border-[#3B82F6] bg-[#3B82F6] text-white'
+                          : 'border-slate-700 bg-[#0A0F1C] text-slate-300 hover:border-slate-600 hover:text-white'
+                      }`}
+                    >
+                      {lang === 'bn'
+                        ? ADMIN_ROLE_LABELS[roleKey].bn
+                        : ADMIN_ROLE_LABELS[roleKey].en}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <p className="mt-3 border-t border-slate-800/80 pt-3 text-[11px] text-slate-400">
-            {lang === 'bn'
-              ? `স্টোরেজ মোড: ${storageMode === 'cloudflare-d1' ? 'Cloudflare Workers + D1 (JWT RBAC সক্রিয়)' : 'লোকাল D1-সক্ষম অ্যাডাপ্টার (প্রোডাকশনে Cloudflare Workers সাইনড JWT ক্লেইম দিয়ে সার্ভার-সাইডে RBAC যাচাই করে)'}।`
-              : `Storage Mode: ${storageMode === 'cloudflare-d1' ? 'Cloudflare Workers + D1 (Server-Side JWT RBAC Active)' : 'Local D1-Ready Adapter (In Cloudflare production, Workers enforce these exact role claims server-side via signed JWT + D1 users.role)'}.`}
+            {isStandaloneAdmin
+              ? lang === 'bn'
+                ? 'সংযোগ মোড: সরাসরি সার্ভার-যাচাইকৃত অ্যাডমিন API (/api/v1/admin/*) ও অপরিবর্তনীয় অডিট লগ সক্রিয়।'
+                : 'Connection Mode: Direct server-verified Admin API (/api/v1/admin/*) with HttpOnly session + RBAC enforcement active.'
+              : lang === 'bn'
+                ? `স্টোরেজ মোড: ${storageMode === 'cloudflare-d1' ? 'Cloudflare Workers + D1 (JWT RBAC সক্রিয়)' : 'লোকাল D1-সক্ষম অ্যাডাপ্টার (প্রোডাকশনে Cloudflare Workers সাইনড JWT ক্লেইম দিয়ে সার্ভার-সাইডে RBAC যাচাই করে)'}।`
+                : `Storage Mode: ${storageMode === 'cloudflare-d1' ? 'Cloudflare Workers + D1 (Server-Side JWT RBAC Active)' : 'Local D1-Ready Adapter (In Cloudflare production, Workers enforce these exact role claims server-side via signed JWT + D1 users.role)'}.`}
           </p>
         </section>
 
@@ -842,8 +1028,8 @@ export function AdminControlCenterPage() {
                     },
                     {
                       id: 'audit' as const,
-                      labelEn: `Audit Log (${auditLogs.length})`,
-                      labelBn: `অডিট লগ (${auditLogs.length})`,
+                      labelEn: `Audit Log (${isStandaloneAdmin ? serverAuditLogs.length : auditLogs.length + serverAuditLogs.length})`,
+                      labelBn: `অডিট লগ (${isStandaloneAdmin ? serverAuditLogs.length : auditLogs.length + serverAuditLogs.length})`,
                       icon: ClipboardList,
                       allowed: canReadAudit,
                     },
@@ -2018,13 +2204,13 @@ export function AdminControlCenterPage() {
                   </select>
                 </div>
 
-                {filteredAuditLogs.length === 0 ? (
+                {filteredAuditLogs.length === 0 && serverAuditLogs.length === 0 ? (
                   <div className="mt-5 rounded-lg border border-slate-800 bg-[#0A0F1C] p-5 text-sm text-slate-400">
                     {lang === 'bn'
                       ? 'এই ফিল্টারে এখনও কোনো অডিট এন্ট্রি নেই।'
                       : 'No audit log entries recorded for this filter yet.'}
                   </div>
-                ) : (
+                ) : filteredAuditLogs.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead>
@@ -2062,12 +2248,12 @@ export function AdminControlCenterPage() {
                       </tbody>
                     </table>
                   </div>
-                )}
+                ) : null}
 
                 {serverAuditLogs.length > 0 && (
                   <div className="mt-6 border-t border-slate-800 pt-5">
                     <h3 className="text-sm font-bold text-white">
-                      Server-Persisted CMS & Media Audit Log ({serverAuditLogs.length})
+                      Server-Persisted Audit Log ({serverAuditLogs.length})
                     </h3>
                     <div className="mt-3 overflow-x-auto">
                       <table className="w-full text-left text-xs">
@@ -2111,6 +2297,22 @@ export function AdminControlCenterPage() {
           </>
         )}
       </div>
+  );
+
+  if (isStandaloneAdmin) {
+    return adminBody;
+  }
+
+  return (
+    <LearnerShell
+      title={lang === 'bn' ? 'অ্যাডমিন কন্ট্রোল সেন্টার' : 'Admin Control Center'}
+      subtitle={
+        lang === 'bn'
+          ? 'ভূমিকা-ভিত্তিক প্রবেশাধিকার (RBAC), লাইভ কারিকুলাম প্রকাশনা, বাস্তব AI অপারেশনস মনিটরিং এবং অপরিবর্তনীয় অডিট লগ।'
+          : 'Role-based governance (RBAC), live Curriculum Builder, real AI Operations telemetry, Reported Mistakes triage, and immutable Audit Log.'
+      }
+    >
+      {adminBody}
     </LearnerShell>
   );
 }

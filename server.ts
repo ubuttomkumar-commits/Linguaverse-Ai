@@ -2449,6 +2449,13 @@ async function startServer() {
     });
   } else {
     const distDir = path.resolve(__dirname, 'dist');
+    const distAdminDir = path.resolve(__dirname, 'dist-admin');
+    if (fs.existsSync(distAdminDir)) {
+      app.use('/admin-portal', express.static(distAdminDir));
+      app.get('/admin-portal/*', (_req, res) => {
+        res.sendFile(path.join(distAdminDir, 'index.html'));
+      });
+    }
     app.use(express.static(distDir));
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/')) {

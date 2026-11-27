@@ -1,6 +1,19 @@
-import { generateRandomId } from '../services/crypto';
-import type { D1Database, WorkerEnv } from '../types';
+import {
+  generateRandomId,
+  generateSaltHex,
+  hashPasswordPbkdf2,
+  sha256Hex,
+  signSessionJwt,
+  verifyPasswordPbkdf2,
+} from '../services/crypto';
+import type { D1Database, WorkerAdminRole, WorkerEnv } from '../types';
 import type { WorkerApp, WorkerRouteDeps } from './parts06To12Routes';
+import { resolveWorkerJwtSecret } from '../../src/domain/securityPolicy';
+import {
+  evaluateBootstrapPolicy,
+  isAdminPortalRole,
+  validateInitialAdminBootstrapInput,
+} from '../../src/domain/adminBootstrapEngine';
 import {
   DEFAULT_AI_RUNTIME_CONFIG,
   DEFAULT_FEATURE_FLAGS,
@@ -162,6 +175,264 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
       allowNewRegistrations: sys.allowNewRegistrations ?? true,
       featureFlags: flags,
     });
+  });
+
+  // 1B. Separate Admin Application Auth & One-Time Initial Super Admin Provisioning (D1 Parity)
+  const setWorkerAdminCookie = (
+    c: { env: WorkerEnv; header: (name: string, value: string) => void },
+    token: string,
+    maxAgeSeconds: number
+  ) => {
+    const isProd = c.env.APP_ENV === 'production' || c.env.APP_ENV === 'staging';
+    const attrs = [
+      `lv_session=${encodeURIComponent(token)}`,
+      'Path=/',
+      'HttpOnly',
+      isProd ? 'SameSite=None' : 'SameSite=Lax',
+      `Max-Age=${maxAgeSeconds}`,
+    ];
+    if (isProd) attrs.push('Secure', 'Partitioned');
+    c.header('Set-Cookie', attrs.join('; '));
+  };
+
+  app.get('/api/v1/admin/auth/status', async (c) => {
+    const row = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS cnt FROM users WHERE role IN ('admin', 'super_admin')`
+    ).first<{ cnt: number }>();
+    const hasAdmin = Number(row?.cnt ?? 0) > 0;
+    const isProduction = c.env.APP_ENV === 'production';
+    const configuredSecret = (c.env.ADMIN_BOOTSTRAP_SECRET ?? '').trim();
+    return c.json({
+      ok: true,
+      hasAdminAccount: hasAdmin,
+      bootstrapAvailable: !hasAdmin && (!isProduction || configuredSecret.length >= 16),
+      requiresBootstrapSecret: configuredSecret.length > 0 || isProduction,
+    });
+  });
+
+  app.post('/api/v1/admin/auth/bootstrap', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const validated = validateInitialAdminBootstrapInput(body);
+    if (!validated.ok) {
+      return c.json({ error: validated.error, code: 'INVALID_BOOTSTRAP_INPUT' }, 400);
+    }
+
+    const existingAdminRow = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS cnt FROM users WHERE role IN ('admin', 'super_admin')`
+    ).first<{ cnt: number }>();
+    const policy = evaluateBootstrapPolicy({
+      hasExistingAdmin: Number(existingAdminRow?.cnt ?? 0) > 0,
+      isProduction: c.env.APP_ENV === 'production',
+      configuredSecret: c.env.ADMIN_BOOTSTRAP_SECRET ?? '',
+      providedSecret: validated.data.bootstrapSecret,
+    });
+    if (!policy.allowed) {
+      return c.json({ error: policy.error, code: policy.code }, policy.status);
+    }
+
+    const dup = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ? LIMIT 1`)
+      .bind(validated.data.email)
+      .first();
+    if (dup) {
+      return c.json({ error: 'An account with this email already exists.', code: 'EMAIL_EXISTS' }, 409);
+    }
+
+    const nowIso = new Date().toISOString();
+    const userId = generateRandomId('usr');
+    const sessionId = generateRandomId('sess');
+    const salt = generateSaltHex(16);
+    const passwordHash = await hashPasswordPbkdf2(validated.data.password, salt);
+    const ttlSeconds = 60 * 60 * 24 * 30;
+    const expSec = Math.floor(Date.now() / 1000) + ttlSeconds;
+    const expiresAtIso = new Date(expSec * 1000).toISOString();
+
+    const jwtSecret = resolveWorkerJwtSecret({
+      JWT_SIGNING_SECRET: c.env.JWT_SIGNING_SECRET,
+      APP_ENV: c.env.APP_ENV,
+    });
+    const sessionToken = await signSessionJwt(
+      {
+        sub: userId,
+        sid: sessionId,
+        email: validated.data.email,
+        role: 'super_admin',
+        iat: Math.floor(Date.now() / 1000),
+        exp: expSec,
+      },
+      jwtSecret
+    );
+
+    const tokenHash = await sha256Hex(sessionToken);
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        `INSERT INTO users (
+          id, name, email, password_salt, password_hash, email_verified,
+          account_status, plan, role, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 1, 'active', 'institution', 'super_admin', ?, ?)`
+      ).bind(userId, validated.data.name, validated.data.email, salt, passwordHash, nowIso, nowIso),
+      c.env.DB.prepare(
+        `INSERT INTO sessions (id, user_id, token_hash, user_agent, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(sessionId, userId, tokenHash, c.req.header('User-Agent') || null, expiresAtIso, nowIso),
+    ]);
+
+    await writeAuditLog(c.env, {
+      actorUserId: userId,
+      actorEmail: validated.data.email,
+      actorRole: 'super_admin',
+      action: 'admin.bootstrap.claimed',
+      resourceType: 'user_account',
+      resourceId: userId,
+      summaryEn: `Provisioned initial super_admin account (${validated.data.email}) and locked bootstrap.`,
+      summaryBn: `প্রাথমিক সুপার অ্যাডমিন অ্যাকাউন্ট তৈরি করা হয়েছে এবং বুটস্ট্র্যাপ লক করা হয়েছে।`,
+    });
+
+    setWorkerAdminCookie(c, sessionToken, ttlSeconds);
+    return c.json(
+      {
+        user: {
+          id: userId,
+          name: validated.data.name,
+          email: validated.data.email,
+          plan: 'institution',
+          role: 'super_admin',
+          emailVerified: true,
+          accountStatus: 'active',
+          createdAt: nowIso,
+        },
+        sessionToken,
+        expiresAt: expiresAtIso,
+      },
+      201
+    );
+  });
+
+  app.post('/api/v1/admin/auth/login', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      email?: string;
+      password?: string;
+      rememberMe?: boolean;
+    };
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required.', code: 'MISSING_CREDENTIALS' }, 400);
+    }
+
+    const row = await c.env.DB.prepare(
+      `SELECT id, name, email, password_salt, password_hash, email_verified, account_status, plan, role, created_at
+       FROM users WHERE email = ? LIMIT 1`
+    )
+      .bind(email)
+      .first<{
+        id: string;
+        name: string;
+        email: string;
+        password_salt: string;
+        password_hash: string;
+        email_verified: number;
+        account_status: 'active' | 'suspended';
+        plan: string;
+        role: WorkerAdminRole;
+        created_at: string;
+      }>();
+
+    if (!row || !(await verifyPasswordPbkdf2(password, row.password_salt, row.password_hash))) {
+      return c.json({ error: 'Invalid administrator email or password.', code: 'INVALID_CREDENTIALS' }, 401);
+    }
+    if (row.account_status === 'suspended') {
+      return c.json({ error: 'This administrator account is suspended.', code: 'ACCOUNT_SUSPENDED' }, 403);
+    }
+    if (!isAdminPortalRole(row.role)) {
+      return c.json(
+        {
+          error: 'Administrator privileges are required to sign into the Admin Application.',
+          code: 'ADMIN_ROLE_REQUIRED',
+        },
+        403
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const sessionId = generateRandomId('sess');
+    const ttlSeconds = body.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+    const expSec = Math.floor(Date.now() / 1000) + ttlSeconds;
+    const expiresAtIso = new Date(expSec * 1000).toISOString();
+    const jwtSecret = resolveWorkerJwtSecret({
+      JWT_SIGNING_SECRET: c.env.JWT_SIGNING_SECRET,
+      APP_ENV: c.env.APP_ENV,
+    });
+    const sessionToken = await signSessionJwt(
+      {
+        sub: row.id,
+        sid: sessionId,
+        email: row.email,
+        role: row.role,
+        iat: Math.floor(Date.now() / 1000),
+        exp: expSec,
+      },
+      jwtSecret
+    );
+    const tokenHash = await sha256Hex(sessionToken);
+    await c.env.DB.prepare(
+      `INSERT INTO sessions (id, user_id, token_hash, user_agent, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind(sessionId, row.id, tokenHash, c.req.header('User-Agent') || null, expiresAtIso, nowIso)
+      .run();
+
+    await writeAuditLog(c.env, {
+      actorUserId: row.id,
+      actorEmail: row.email,
+      actorRole: row.role,
+      action: 'admin.auth.login',
+      resourceType: 'user_account',
+      resourceId: row.id,
+      summaryEn: `Authenticated administrator session via Separate Admin Application (${row.role}).`,
+      summaryBn: `অ্যাডমিন অ্যাপ্লিকেশনে লগইন সফল হয়েছে।`,
+    });
+
+    setWorkerAdminCookie(c, sessionToken, ttlSeconds);
+    return c.json({
+      user: {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        plan: row.plan,
+        role: row.role,
+        emailVerified: Boolean(row.email_verified),
+        accountStatus: row.account_status,
+        createdAt: row.created_at,
+      },
+      sessionToken,
+      expiresAt: expiresAtIso,
+    });
+  });
+
+  app.get('/api/v1/admin/auth/me', async (c) => {
+    const user = await requireAuth(c, { requireVerified: false });
+    if (user instanceof Response) return user;
+    if (!isAdminPortalRole(user.role)) {
+      return c.json(
+        {
+          error: 'Administrator privileges are required to access the Admin Application.',
+          code: 'ADMIN_ROLE_REQUIRED',
+        },
+        403
+      );
+    }
+    return c.json({ user });
+  });
+
+  app.post('/api/v1/admin/auth/logout', async (c) => {
+    const user = await requireAuth(c, { requireVerified: false });
+    if (!(user instanceof Response)) {
+      await c.env.DB.prepare(`UPDATE sessions SET revoked_at = ? WHERE id = ?`)
+        .bind(new Date().toISOString(), user.sessionId)
+        .run();
+    }
+    setWorkerAdminCookie(c, '', 0);
+    return c.json({ ok: true });
   });
 
   // 2. Admin Feature Flags

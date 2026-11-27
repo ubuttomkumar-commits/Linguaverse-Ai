@@ -53,6 +53,7 @@ export interface KVNamespace {
 export interface WorkerEnv {
   DB: D1Database;
   AUDIO_BUCKET?: R2Bucket;
+  MEDIA_BUCKET?: R2Bucket;
   LINGUAVERSE_KV?: KVNamespace;
   SESSION_KV?: KVNamespace;
   RATE_LIMIT_KV?: KVNamespace;
@@ -82,6 +83,7 @@ export interface WorkerEnv {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
+  ADMIN_BOOTSTRAP_SECRET?: string;
 }
 
 export interface SessionJwtPayload {

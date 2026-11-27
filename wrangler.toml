@@ -1,14 +1,23 @@
-# LINGUAVERSE AI — Cloudflare Pages + Workers + D1 + R2 + KV Configuration (PRD v5.0)
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+# LINGUAVERSE AI — Cloudflare Workers + D1 + R2 + KV + Cron Configuration (PRD v6.1)
+# Validated against Wrangler v4.168.0 (`npx wrangler deploy --dry-run --env staging|production`)
+#
+# NOTE: Learner PWA (`dist/`) and Separate Admin App (`dist-admin/`) deploy via separate
+# Cloudflare Pages projects (`npx wrangler pages deploy dist --project-name linguaverse-ai`
+# and `npx wrangler pages deploy dist-admin --project-name linguaverse-admin`).
+# Do NOT add `pages_build_output_dir` here so `wrangler deploy` targets the Worker cleanly.
 
 name = "linguaverse-ai-api"
 main = "worker/index.ts"
 compatibility_date = "2026-03-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Pages static asset output (Vite SPA build)
-pages_build_output_dir = "dist"
+[observability]
+enabled = true
 
+# ============================================================================
+# Top-Level (Local Development via `npx wrangler dev`)
+# Replace placeholder UUIDs below with your real Cloudflare resource IDs.
+# ============================================================================
 [vars]
 APP_ENV = "development"
 DEFAULT_UI_LANGUAGE = "en"
@@ -22,22 +31,22 @@ AUDIO_RETENTION_DAYS = "30"
 RATE_LIMIT_REQUESTS_PER_MINUTE = "30"
 EMAIL_FROM = "LINGUAVERSE AI <noreply@linguaverse.ai>"
 
-# Normalized Relational Database (Cloudflare D1 — SQLite)
-# Apply schema via: npx wrangler d1 execute linguaverse-db --file=./schema.sql
 [[d1_databases]]
 binding = "DB"
-database_name = "linguaverse-db"
+database_name = "linguaverse-db-dev"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
-# Private Voice Recording Storage (Cloudflare R2 — Zero-Egress Object Storage)
-# Stores learner self-review audio clips only when store_mic_recordings consent = 1
 [[r2_buckets]]
 binding = "AUDIO_BUCKET"
-bucket_name = "linguaverse-audio"
+bucket_name = "linguaverse-audio-dev"
 preview_bucket_name = "linguaverse-audio-preview"
 
-# Session Store, OTP Cooldown & Edge Rate-Limiting (Cloudflare KV)
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "linguaverse-media-dev"
+preview_bucket_name = "linguaverse-media-preview"
+
 [[kv_namespaces]]
 binding = "LINGUAVERSE_KV"
 id = "00000000000000000000000000000001"
@@ -53,22 +62,131 @@ binding = "RATE_LIMIT_KV"
 id = "00000000000000000000000000000005"
 preview_id = "00000000000000000000000000000006"
 
-# Secrets (NEVER commit real keys; set via `npx wrangler secret put <NAME>`):
-# - GEMINI_API_KEY
-# - RESEND_API_KEY (or EMAIL_PROVIDER_API_KEY for Brevo)
-# - JWT_SIGNING_SECRET
-# - ADMIN_BOOTSTRAP_SECRET
+[triggers]
+crons = ["0 3 * * *", "0 */6 * * *"]
 
-[observability]
-enabled = true
-
+# ============================================================================
+# Staging / Preview Environment (`--env staging`)
+# Wrangler v4 does NOT inherit vars/bindings/triggers into named environments,
+# so staging defines its own isolated D1, R2, KV, vars, and Cron triggers.
+# ============================================================================
 [env.staging]
 name = "linguaverse-ai-api-staging"
-vars = { APP_ENV = "staging", AUDIO_RETENTION_DAYS = "14" }
 
+[env.staging.vars]
+APP_ENV = "staging"
+DEFAULT_UI_LANGUAGE = "en"
+GEMINI_PRIMARY_MODEL = "gemini-4-hydrogen"
+GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite"
+GEMINI_TRANSCRIBE_MODEL = "gemini-3.5-transcribe"
+GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts"
+SPEAKING_PROMPT_VERSION = "speaking-eval-v5.0"
+TRANSFER_PROMPT_VERSION = "transfer-rubric-v5.1"
+AUDIO_RETENTION_DAYS = "14"
+RATE_LIMIT_REQUESTS_PER_MINUTE = "30"
+EMAIL_FROM = "LINGUAVERSE AI Staging <noreply@linguaverse.ai>"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "linguaverse-db-staging"
+database_id = "00000000-0000-0000-0000-000000000010"
+migrations_dir = "migrations"
+
+[[env.staging.r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "linguaverse-audio-staging"
+preview_bucket_name = "linguaverse-audio-preview"
+
+[[env.staging.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "linguaverse-media-staging"
+preview_bucket_name = "linguaverse-media-preview"
+
+[[env.staging.kv_namespaces]]
+binding = "LINGUAVERSE_KV"
+id = "00000000000000000000000000000011"
+preview_id = "00000000000000000000000000000012"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSION_KV"
+id = "00000000000000000000000000000013"
+preview_id = "00000000000000000000000000000014"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000015"
+preview_id = "00000000000000000000000000000016"
+
+[env.staging.triggers]
+crons = ["0 3 * * *", "0 */6 * * *"]
+
+# ============================================================================
+# Production Environment (`--env production`)
+# Replace placeholder UUIDs with real production Cloudflare resource IDs
+# before running `npx wrangler deploy --env production`.
+# ============================================================================
 [env.production]
 name = "linguaverse-ai-api-prod"
-vars = { APP_ENV = "production", AUDIO_RETENTION_DAYS = "30", RATE_LIMIT_REQUESTS_PER_MINUTE = "25" }
-routes = [
-  { pattern = "api.linguaverse.ai/*", zone_name = "linguaverse.ai" }
-]
+# Uncomment and set your real Cloudflare domain/zone after DNS onboarding:
+# routes = [
+#   { pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }
+# ]
+
+[env.production.vars]
+APP_ENV = "production"
+DEFAULT_UI_LANGUAGE = "en"
+GEMINI_PRIMARY_MODEL = "gemini-4-hydrogen"
+GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite"
+GEMINI_TRANSCRIBE_MODEL = "gemini-3.5-transcribe"
+GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts"
+SPEAKING_PROMPT_VERSION = "speaking-eval-v5.0"
+TRANSFER_PROMPT_VERSION = "transfer-rubric-v5.1"
+AUDIO_RETENTION_DAYS = "30"
+RATE_LIMIT_REQUESTS_PER_MINUTE = "25"
+EMAIL_FROM = "LINGUAVERSE AI <noreply@linguaverse.ai>"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "linguaverse-db"
+database_id = "00000000-0000-0000-0000-000000000020"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "linguaverse-audio"
+preview_bucket_name = "linguaverse-audio-preview"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "linguaverse-media"
+preview_bucket_name = "linguaverse-media-preview"
+
+[[env.production.kv_namespaces]]
+binding = "LINGUAVERSE_KV"
+id = "00000000000000000000000000000021"
+preview_id = "00000000000000000000000000000022"
+
+[[env.production.kv_namespaces]]
+binding = "SESSION_KV"
+id = "00000000000000000000000000000023"
+preview_id = "00000000000000000000000000000024"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000025"
+preview_id = "00000000000000000000000000000026"
+
+[env.production.triggers]
+crons = ["0 3 * * *", "0 */6 * * *"]
+
+# Production Secrets (NEVER commit real values; inject via `npx wrangler secret put <NAME> --env production`):
+# Required core secrets:
+# - GEMINI_API_KEY
+# - JWT_SIGNING_SECRET (min 32 random chars)
+# - ADMIN_BOOTSTRAP_SECRET (min 16 random chars; used once for initial Super Admin provisioning)
+# - CORS_ALLOWED_ORIGIN (exact comma-separated origins, e.g. https://app.yourdomain.com,https://admin.yourdomain.com)
+# Optional external integrations (gracefully disabled / fail-closed 503 until configured):
+# - RESEND_API_KEY (or EMAIL_PROVIDER_API_KEY for Brevo)
+# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+# - STRIPE_WEBHOOK_SECRET / SSLCOMMERZ_STORE_PASSWD / PADDLE_WEBHOOK_SECRET
+# - DEEPGRAM_API_KEY / OPENAI_API_KEY / ELEVENLABS_API_KEY / AZURE_SPEECH_KEY / TURNSTILE_SECRET_KEY

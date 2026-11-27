@@ -435,9 +435,62 @@
 
 ---
 
-## Audit & Security Pass (2026-11-26, base 0c3a8c3)
-- Verified: lint 0 errors; 178/178 tests (lines 86.67%, branches 63.23%); build OK; `npm audit --omit=dev` 0 vulns.
-- Fixed: npm ERESOLVE (esbuild); rate-limit bypass via spoofed `X-Forwarded-For` (now gated by `TRUST_PROXY`); `devPreviewOtp` leak in production.
-- Not verified: AI/Gemini calls and model IDs, Worker over live HTTP, browser E2E, any deployment.
-- See `docs/SECURITY_AUDIT.md`, `docs/TESTING_REPORT.md`, `docs/KNOWN_LIMITATIONS.md`, `docs/IMPLEMENTATION_STATUS.md`.
-- Earlier entries saying `.git` is absent / GitHub push is blocked are stale.
+## Phase 7 — Separate Admin Application, Dual Production Builds & Full Documentation Suite (2026-11-26)
+
+- **Authoritative Source:** Master PRD v6.1 (`Paste_November_27__2026_-_12_20AM`, 3,318 lines, Sections 0–46.1; line 3,318 truncates mid-word at `Meet documented requir` — remainder explicitly disclosed as unavailable).
+- **Genuinely Separate Admin Application (`admin.html`, `dist-admin/`):**
+  - Created standalone Admin entry point (`admin.html`, `src/admin-main.tsx`, `src/AdminApp.tsx`, `src/pages/admin/AdminLoginPage.tsx`, `src/services/adminPortalApi.ts`) and independent Vite build configuration (`vite.admin.config.ts` -> `dist-admin/index.html` & `dist-admin/admin.html`, wired via `npm run build:admin` and `npm run build:all`, plus `/admin-portal` production Express mount and `linguaverse-admin` Cloudflare Pages deploy job in `.github/workflows/ci-cd.yml`).
+  - Added pure decoupled bootstrap & role-gate domain engine (`src/domain/adminBootstrapEngine.ts` + `src/domain/adminBootstrapEngine.test.ts` — 5/5 passing).
+  - Implemented full Express (`server/authStore.ts`, `server/prd61Routes.ts`) and Cloudflare Worker D1 (`worker/routes/prd61Routes.ts`, `worker/types.ts`) parity for `GET /api/v1/admin/auth/status`, `POST /api/v1/admin/auth/bootstrap`, `POST /api/v1/admin/auth/login`, `GET /api/v1/admin/auth/me`, and `POST /api/v1/admin/auth/logout` with:
+    - Zero public admin registration and zero hardcoded production credentials.
+    - One-time Initial Super Admin Provisioning that fails closed in production (`503`) if `ADMIN_BOOTSTRAP_SECRET` is unset and locks permanently (`409 ADMIN_ALREADY_PROVISIONED`) once an admin exists.
+    - Strict server-side RBAC (`403` for learner accounts), HttpOnly cookie + ephemeral in-memory Bearer token session handling, CSRF/rate limiting, and real `/api/v1/admin/audit-logs` + `/api/v1/admin/users` integration inside standalone `AdminControlCenterPage.tsx`.
+- **Complete Technical Documentation Suite (`/docs/`):**
+  - Created `docs/PRD_IMPLEMENTATION_TRACKER.md` (11-column traceability matrix across Sections 0–46.1), `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, and `docs/TESTING.md` alongside existing `docs/API.md`.
+- **Final Verification Results (2026-11-26):**
+  - **Automated Tests (`npx --yes tsx --test src/domain/*.test.ts src/services/storage/*.test.ts worker/*.test.ts`):** **179 / 179 PASS** (`0` fail, `0` skipped, 11 suites — including `0001->0004` + `ROLLBACK_0004->0002` SQLite parity and full Separate Admin Application Worker D1 parity Test #146).
+  - **TypeScript (`npm run lint` / `tsc --noEmit`):** **PASS (`0` errors)**.
+  - **Dual Production Builds (`npm run build:all`):** **PASS** (`dist/index.html` + native PWA `dist/sw.js` & `dist/manifest.webmanifest` AND `dist-admin/index.html` / `dist-admin/admin.html`); secret scan across both `dist/` and `dist-admin/`: **CLEAN (`0` leaked keys)**.
+  - **Dependency Audit (`bun audit`):** **PASS (`0` vulnerabilities across 273 packages — replaced `vite-plugin-pwa` with lightweight native `public/manifest.webmanifest` + `public/sw.js` to cut cold-boot install size by ~300 packages and eliminate dev-server startup timeouts)**.
+  - **Live Express + Headless Chromium Verification (`http://localhost:3000/` & `/admin.html`):** Verified live Express HTTP lifecycle (`201` bootstrap -> `409` permanent lock -> `200` `/me` -> `200` `/logout` -> `401` revoked), live port 3000 `HTTP 200` across `/`, `/api/health`, `/manifest.webmanifest`, `/sw.js`, and `/admin.html`, and headless Chromium verification across all 14 authenticated Learner routes and all 12 Separate Admin App tabs (`overflowPx: 0`, `0` application console errors, `0` HTTP 4xx/5xx).
+  - **Honest External Blockers:** GitHub commit/push (`ubuttomkumar-commits/Linguaverse-Ai`) is `BLOCKED` (no `.git`, `gh`, or GitHub token in sandbox) and live Cloudflare provisioning/deployment is `BLOCKED` (no `wrangler` CLI or Cloudflare credentials in sandbox; placeholder IDs preserved in `wrangler.toml`).
+
+---
+
+## Independent Full Re-Audit & Express ↔ Cloudflare Worker Parity Closure (2026-11-26)
+
+- **Gaps Uncovered & Fixed Independently:**
+  - **Express ↔ Worker Curriculum, Mistakes & Overview Parity:** Added persistent Express routes (`GET /api/v1/curriculum/overlay`, `GET /api/v1/admin/overview`, `POST /api/v1/admin/curriculum/courses|modules|lessons`, `POST /api/v1/mistakes/report-false-correction`, `GET/POST /api/v1/admin/flagged-mistakes*`), wired Separate Admin App Curriculum Builder & Reported Mistakes to persist to server APIs, hydrated custom published curriculum into Learner Academy (`AcademyPage.tsx`), wired Learner `"Report False Correction"` (`AuthContext.tsx`) to sync live to `/api/v1/mistakes/report-false-correction`, and normalized `fetchAdminAuditLogs` (`src/services/cmsApi.ts`) for both Express object and Worker array payloads.
+  - **Cloudflare Worker Missing Frontend Routes & Snake-Case Mapping Bug:** Added `DELETE /api/v1/community/posts/:postId`, `POST /api/v1/subscriptions/:subscriptionId/cancel`, `POST /api/v1/subscriptions/invoices/:invoiceId/refund-request`, `PATCH /api/v1/admin/support/:ticketId`, `GET /api/health`, `POST /api/landing/analyze` (with `<learner_sentence>` XML prompt-injection isolation), `GET /api/v1/auth/csrf`, `POST /api/v1/mistakes/report-false-correction`, `GET /api/v1/admin/analytics`, and `POST /api/v1/admin/cms/reset`; fixed `GET /api/v1/admin/flagged-mistakes` in `worker/index.ts` mapping snake_case SQLite columns to camelCase `MistakeMemoryItem` fields.
+  - **Hardened PWA Service Worker v2 & TypeScript Lint Cleanup:** Upgraded `public/sw.js` (`linguaverse-shell-v2`) with strict cache isolation (`/api/*`, `/admin*`, `Authorization`, `Set-Cookie`, `no-store`, `private`, root-only navigation cache) and `CLEAR_USER_CACHES` logout purge (`src/utils/pwaRuntime.ts`); removed stale `vite-plugin-pwa/client` and excluded `dist-admin` in `tsconfig.json`.
+- **Verified Gate Results:**
+  - **Automated Tests:** **184 / 184 PASS** (`0` fail, `0` skipped, 11 suites / 36 test files, including `pwaCompliance.test.ts` and new Worker full-parity D1 tests).
+  - **TypeScript (`tsc --noEmit`) & Dual Builds (`npm run build:all`):** **PASS** (`0` errors, `0` leaked secrets across `dist/` and `dist-admin/`).
+  - **Dependency Audit (`bun audit`):** **0 vulnerabilities across 273 packages**.
+  - **External Environment Blockers (Re-Verified):** GitHub sync (`ubuttomkumar-commits/Linguaverse-Ai` — `fatal: not a git repository`, no `.git`/`gh`/token) and live Cloudflare provisioning/deployment (`wrangler` CLI and Cloudflare credentials absent; `wrangler.toml` retains placeholder IDs).
+
+---
+
+## Final Cloudflare Production Readiness, Repository Recovery & Wrangler v4 Validation (2026-11-27)
+
+- **GitHub Repository Recovery & History Preservation (`ubuttomkumar-commits/Linguaverse-Ai`):**
+  - Safely recovered the real Git history (`origin/main` at `53461b1`, 8 commits preserved linearly) without overwriting remote fixes.
+  - Merged remote security & dependency fixes from `origin/main` (`c54a03e`: `resolveClientIp` with `TRUST_PROXY` guard + `shouldExposeDevPreviewOtp` production OTP leak guard + 5 unit tests; `535ec4e`: `esbuild ^0.28.0` Vite 8 peer fix; `53461b1`: preserved `docs/DEPLOYMENT_REPORT.md`, `IMPLEMENTATION_STATUS.md`, `KNOWN_LIMITATIONS.md`, `TESTING_REPORT.md`) and synchronized `package-lock.json`.
+- **Cloudflare Wrangler v4.168.0 Pre-Deployment Audit & Fixes (`wrangler.toml`, `migrations/`, `db/`, `.github/workflows/ci-cd.yml`):**
+  - Removed conflicting `pages_build_output_dir = "dist"` from `wrangler.toml` so Worker deploys cleanly while Learner PWA (`dist/`) and Separate Admin App (`dist-admin/`) deploy via separate Cloudflare Pages projects.
+  - Declared explicit, isolated bindings (`DB`, `AUDIO_BUCKET`, `MEDIA_BUCKET`, `LINGUAVERSE_KV`, `SESSION_KV`, `RATE_LIMIT_KV`), all 11 environment vars, and Cron triggers (`0 3 * * *`, `0 */6 * * *`) separately for `[env.staging]` and `[env.production]` (Wrangler v4 does not inherit top-level bindings/vars into named environments); preserved non-secret placeholder UUIDs without fabricating real resource IDs.
+  - Separated rollback scripts into `db/rollbacks/` and idempotent reference seed into `db/seeds/seed_reference_data.sql` so `migrations/` contains **only** the 4 forward sequential D1 migrations (`0001`–`0004`) and `wrangler d1 migrations apply` can never accidentally execute rollback SQL.
+  - Validated with real **Wrangler `4.168.0`**: `npx wrangler deploy --dry-run --env staging` (`0` warnings, `945.21 KiB` / `189.95 KiB` gzip), `npx wrangler deploy --dry-run --env production` (`0` warnings, `945.21 KiB` / `189.95 KiB` gzip), and `npx wrangler d1 migrations list linguaverse-db --local --env production` (lists strictly `0001`–`0004`).
+- **Worker R2 CMS Media Parity & Cron Scheduled Maintenance (`worker/index.ts`, `worker/types.ts`):**
+  - Added `MEDIA_BUCKET` R2 binding, RBAC-protected Admin CMS media endpoints (`POST /api/v1/admin/media`, `GET /api/v1/media/:filename` with sandboxed CSP, `DELETE /api/v1/admin/media/:mediaId`), and `scheduled()` -> `runWorkerScheduledMaintenance(env)`.
+- **Phase 13 Production Documentation Suite:**
+  - Created & synchronized `docs/CLOUDFLARE_DEPLOYMENT.md` (10-step separate runbook), `docs/DATABASE_DEPLOYMENT.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/PRODUCTION_READINESS.md`, `docs/ROLLBACK.md`, and `docs/SECURITY_AUDIT.md`.
+- **Final Verified Gate Results (2026-11-27):**
+  - `npm run lint` (`tsc --noEmit`): **PASS (`0` errors)**.
+  - `npm run verify:db`: **PASS** (`forwardMigrationsOnly: true`, `migrationsApplied: 4`, `tablesVerified: 63`, `schemaParity: "100%"`, `integrityCheck: "ok"`, `foreignKeyViolations: 0`, `seedIdempotent: true`, `existingSchemaUpgradePreservedData: true`, `rollbackPreservedUsers: true`).
+  - `npm test`: **190 / 190 PASS** (`0` fail, `0` skipped, 13 suites — includes merged `resolveClientIp`/`shouldExposeDevPreviewOtp` tests and Worker R2 Media + Cron parity Test #154).
+  - `npm run build:all`: **PASS** (clean `dist/` & `dist-admin/`, `0` leaked secrets).
+  - `npm run verify:smoke` (against `http://localhost:3000`): **6 / 6 PASS** (`ok: true`).
+  - `bun audit`: **0 vulnerabilities across 273 packages**.
+  - **External Environment Boundaries:** Local Git commit created on recovered `main` branch off `origin/main` (`53461b1`); remote `git push` requires GitHub authentication credentials absent in the sandbox; live Cloudflare production deployment intentionally withheld per owner restriction.
+

@@ -25,6 +25,8 @@ import { CourseArtworkCard } from '../../components/academy/CourseArtworkCard';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { getAllCourses } from '../../domain/curriculumData';
+import { fetchServerCurriculumOverlay } from '../../services/adminPortalApi';
+import { hydrateCustomCurriculumOverlay } from '../../services/curriculumStore';
 import {
   buildCourseSummaries,
   buildLearningCategories,
@@ -107,13 +109,39 @@ export function AcademyPage() {
     readUserAcademyState(user?.id)
   );
   const [savingPreset, setSavingPreset] = useState(false);
+  const [catalogTick, setCatalogTick] = useState(0);
 
   useEffect(() => {
     setAcademyState(readUserAcademyState(user?.id));
     return subscribeAcademyState(user?.id, setAcademyState);
   }, [user?.id]);
 
-  const courses = useMemo(() => getAllCourses(), []);
+  useEffect(() => {
+    let active = true;
+    fetchServerCurriculumOverlay()
+      .then((overlay) => {
+        if (!active || !overlay) return;
+        if (
+          overlay.customCourses.length > 0 ||
+          overlay.customModules.length > 0 ||
+          overlay.customLessons.length > 0
+        ) {
+          hydrateCustomCurriculumOverlay(overlay);
+          setCatalogTick((t) => t + 1);
+        }
+      })
+      .catch(() => {
+        // Offline or unreachable server — static + cached overlay continues smoothly
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const courses = useMemo(() => {
+    void catalogTick;
+    return getAllCourses();
+  }, [catalogTick]);
   const currentPreset: SpacedRepetitionPreset =
     profile?.spacedRepetitionPreset ?? 'standard';
 

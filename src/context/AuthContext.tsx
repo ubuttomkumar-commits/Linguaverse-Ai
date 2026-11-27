@@ -26,6 +26,8 @@ import { clearUserSpeakingState } from '../services/speakingStateStore';
 import { clearUserDnaAnalysisState } from '../services/dnaAnalysisStore';
 import { clearUserTransferState } from '../services/transferSessionStore';
 import { clearUserReplayState } from '../services/replayStateStore';
+import { notifyServiceWorkerLogout } from '../utils/pwaRuntime';
+import { reportServerFalseCorrection } from '../services/adminPortalApi';
 import type {
   AccountStatus,
   ActivityLedgerSummary,
@@ -328,6 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await syncServerLogout();
     await repository.logout();
+    notifyServiceWorkerLogout();
     setUser(null);
     setProfile(null);
     setLatestDiagnostic(null);
@@ -479,6 +482,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user) throw new Error('Not authenticated.');
       const res = await repository.reportFalseCorrection(user.id, payload);
       setMistakes(res.mistakes);
+      reportServerFalseCorrection({
+        mistake: res.updatedMistake,
+        reported: payload.reported,
+        reason: payload.reason,
+      }).catch(() => {
+        // Local persistence already succeeded; server sync degrades safely when offline.
+      });
       return res.updatedMistake;
     },
     [user]
@@ -595,6 +605,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearUserDnaAnalysisState(user.id);
     clearUserTransferState(user.id);
     clearUserReplayState(user.id);
+    notifyServiceWorkerLogout();
     setUser(null);
     setProfile(null);
     setLatestDiagnostic(null);

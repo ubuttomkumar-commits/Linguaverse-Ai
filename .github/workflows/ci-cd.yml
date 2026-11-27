@@ -47,19 +47,22 @@ jobs:
       - name: TypeScript typecheck
         run: npm run lint
 
+      - name: Verify D1 SQLite migrations (0001 -> 0004), foreign keys, seed idempotency & rollbacks
+        run: npm run verify:db
+
       - name: Run domain, storage, and Cloudflare Worker parity tests
-        run: npx --yes tsx --test src/domain/*.test.ts src/services/storage/*.test.ts worker/*.test.ts
+        run: npm test
 
-      - name: Build frontend production bundle
-        run: npm run build
+      - name: Build User Application and Separate Admin Application production bundles
+        run: npm run build:all
 
-      - name: Scan frontend bundle for accidental secret leakage
+      - name: Scan frontend bundles (dist/ and dist-admin/) for accidental secret leakage
         run: |
-          if grep -rnE "AIza[0-9A-Za-z_-]{20,}|re_[0-9A-Za-z]{20,}|sk_live_[0-9A-Za-z]{16,}|whsec_[0-9A-Za-z]{12,}|JWT_SIGNING_SECRET|GEMINI_API_KEY=" dist/; then
-            echo "ERROR: Potential secret detected in dist/ output!"
+          if grep -rnE "AIza[0-9A-Za-z_-]{20,}|re_[0-9A-Za-z]{20,}|sk_live_[0-9A-Za-z]{16,}|whsec_[0-9A-Za-z]{12,}|JWT_SIGNING_SECRET|GEMINI_API_KEY=" dist/ dist-admin/; then
+            echo "ERROR: Potential secret detected in dist/ or dist-admin/ output!"
             exit 1
           fi
-          echo "Bundle secret scan passed."
+          echo "Bundle secret scan passed for both User App and Separate Admin App."
 
   deploy-cloudflare:
     name: Deploy D1 Migrations, Worker API & Pages
@@ -96,23 +99,21 @@ jobs:
             npm install
           fi
 
-      - name: Apply additive D1 migrations sequentially (0001 -> 0002 -> 0003 -> 0004)
+      - name: Apply additive D1 migrations sequentially (0001 -> 0004) & idempotent reference seed
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx wrangler d1 execute linguaverse-db --remote --file=./migrations/0001_initial_schema.sql
-          npx wrangler d1 execute linguaverse-db --remote --file=./migrations/0002_parts06_12_parity.sql
-          npx wrangler d1 execute linguaverse-db --remote --file=./migrations/0003_p3_community_vocab_billing.sql
-          npx wrangler d1 execute linguaverse-db --remote --file=./migrations/0004_prd61_examinations_labs_providers.sql
+          npx wrangler d1 migrations apply linguaverse-db --remote --env production
+          npx wrangler d1 execute linguaverse-db --remote --env production --file=./db/seeds/seed_reference_data.sql
 
-      - name: Deploy Cloudflare Worker API
+      - name: Deploy Cloudflare Worker API (production environment)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy
+        run: npx wrangler deploy --env production
 
-      - name: Build & deploy frontend to Cloudflare Pages
+      - name: Build & deploy User Application to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -120,3 +121,12 @@ jobs:
         run: |
           npm run build
           npx wrangler pages deploy dist --project-name=linguaverse-ai
+
+      - name: Build & deploy Separate Admin Application to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          npm run build:admin
+          npx wrangler pages deploy dist-admin --project-name=linguaverse-admin
