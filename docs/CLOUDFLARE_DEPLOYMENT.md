@@ -128,4 +128,4 @@ node scripts/smoke-test-deployment.mjs `
 ```
 
 ### 10. Backup & Rollback
-- Full pre-migration backup (`wrangler d1 export`), D1 Time Travel restore, Worker `wrangler rollback --env production`, Pages deployment rollback, and non-destructive SQL rollbacks (`db/rollbacks/ROLLBACK_0004..0002*.sql`) are documented in `docs/DATABASE_DEPLOYMENT.md` and `docs/ROLLBACK.md`.
+- Full pre-migration backup (`wrangler d1 export`), D1 Time Travel restore, explicit versioned Worker rollback (`npx wrangler versions list --env production` -> `npx wrangler rollback <version-id> --env production --message "..."`), Pages deployment rollback, and non-destructive SQL rollbacks (`db/rollbacks/ROLLBACK_0004..0002*.sql`) are documented in `docs/DATABASE_DEPLOYMENT.md` and `docs/ROLLBACK.md`.

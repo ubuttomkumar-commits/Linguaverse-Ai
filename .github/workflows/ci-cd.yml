@@ -68,9 +68,7 @@ jobs:
     name: Deploy D1 Migrations, Worker API & Pages
     needs: verify
     runs-on: ubuntu-latest
-    if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.deploy_cloudflare == 'true')
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_cloudflare == 'true'
     environment: production
     steps:
       - name: Checkout repository
