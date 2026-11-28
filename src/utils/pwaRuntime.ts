@@ -11,7 +11,7 @@ export function registerLinguaVerseServiceWorker(): void {
   if (window.location.pathname.startsWith('/admin')) return;
   if (!import.meta.env.PROD) return;
 
-  window.addEventListener('load', () => {
+  const runRegistration = () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .then((registration) => {
@@ -46,7 +46,13 @@ export function registerLinguaVerseServiceWorker(): void {
       .catch(() => {
         // Non-blocking in restricted iframe or private browsing contexts
       });
-  });
+  };
+
+  if (document.readyState === 'complete') {
+    runRegistration();
+  } else {
+    window.addEventListener('load', runRegistration, { once: true });
+  }
 }
 
 export function notifyServiceWorkerLogout(): void {

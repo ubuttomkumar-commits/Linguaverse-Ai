@@ -8,7 +8,11 @@ import { defineConfig } from 'vite';
  * Dedicated Vite Production Build for the Separate Admin Application (`dist-admin/`).
  * Deploy independently to Cloudflare Pages (e.g. `linguaverse-admin` / `admin.linguaverse.ai`).
  */
-export default defineConfig(() => ({
+export default defineConfig(({ command }) => {
+  if (command === 'build') {
+    process.env.NODE_ENV = 'production';
+  }
+  return {
   base: '/',
   plugins: [
     react(),
@@ -80,4 +84,5 @@ export default defineConfig(() => ({
       },
     },
   },
-}));
+  };
+});

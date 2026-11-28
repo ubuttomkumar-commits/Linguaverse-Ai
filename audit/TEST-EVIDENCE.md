@@ -243,7 +243,61 @@ Executed via `playwright-cli` against live `http://localhost:3000`:
   - **K (Blocked Entry JS Boot Watchdog Recovery):** `title: "Unable to Finish Loading"`, `hasRetryBtn: true` — **PASS**
   - **L (Production Assets HTTP/MIME Check):** `/` (`200 text/html`), `/assets/index-*.js` (`200 text/javascript`), `/assets/index-*.css` (`200 text/css`), `/sw.js` (`200 text/javascript`), `/manifest.webmanifest` (`200 application/manifest+json`) — **PASS**
   - **M (Zero Blank Screen & Zero Uncaught Page Errors):** `pageErrors: []` — **PASS**
-- **External Blockers:** `git push origin main` blocked (no GitHub PAT/SSH credentials in container); live Cloudflare Worker/Pages staging & production deploy blocked (`wrangler whoami` unauthenticated, no `CLOUDFLARE_API_TOKEN` in container).
+- **External Blockers (Resolved on 2026-11-28 — see Section 11 below):** Resolved via authorized GitHub push and Cloudflare Staging + Production deployments.
+
+---
+
+## 11. Live GitHub CI, Staging & Production Verification Evidence (2026-11-28)
+
+### GitHub & CI/CD
+- **Repository:** `https://github.com/ubuttomkumar-commits/Linguaverse-Ai` (`main`)
+- **Commit Pushed:** `9d4fc8dd8366d43892d11af54859cf639d2e191b` (prior to docs/SW follow-up commit)
+- **GitHub Actions CI Run `#46124166122`:** `status: completed` | `conclusion: success` (`https://github.com/ubuttomkumar-commits/Linguaverse-Ai/actions/runs/46124166122`)
+
+### Cloudflare Staging Deployment & Live Checks
+- **D1 (`linguaverse-db-staging`, `19181902-a6d5-4d95-9d5f-a7e71016ecc9`):** `0005_performance_indexes.sql` (`✅`, 8 cmds / `1.91ms`), `0006_global_query_indexes.sql` (`✅`, 11 cmds / `1.88ms`).
+- **Worker (`linguaverse-ai-api-staging`):** Version `4e404245-e170-4d5b-89ce-c4afc061d6ad`
+  - `GET /api/health` -> `HTTP 200` (`146ms`), `{"ok":true,"service":"linguaverse-ai-worker","env":"staging","aiConfigured":false,"emailConfigured":false}`
+  - `GET /api/v1/cms/public` -> `HTTP 200`, valid full CMS payload, `access-control-allow-origin: https://staging.linguaverse-web-1s7.pages.dev`, `cache-control: public, max-age=30, s-maxage=60, stale-while-revalidate=300`
+- **Pages Deployments:**
+  - `linguaverse-web` (branch `staging`): `9d3b3bcf` -> `https://staging.linguaverse-web-1s7.pages.dev`
+  - `linguaverse-admin` (branch `staging`): `50659b66` -> `https://staging.linguaverse-admin.pages.dev`
+- **Live Staging Browser Checks (Headless Chromium):**
+  - Homepage: `mounted: true`, `rootChildren: 1`, `textLen: 5509` — **PASS**
+  - Repeated Reloads (`5×`): `minTextLen: 5509`, `allNonBlank: true` — **PASS**
+  - Simulated `{"config":null}` CMS: `mounted: true`, `textLen: 5509` — **PASS**
+  - `/login` & `/register`: `hasEmailInput: true` on both — **PASS**
+  - `EN ⇄ বাংলা`: `bnRendered: true`, `enRestored: true` — **PASS**
+  - Mobile `390×844`: `textLen: 5414`, `overflowPx: 0` — **PASS**
+  - Service Worker: `active: https://staging.linguaverse-web-1s7.pages.dev/sw.js`, `cacheKeys: ["linguaverse-shell-v4","linguaverse-fonts-v4"]`, `controlled: true` on reload — **PASS**
+  - Admin Portal (`#admin-root`): `mounted: true`, `adminRootChildren: 1`, `textLen: 524`, `hasEmailInput: true` — **PASS**
+  - Uncaught `pageErrors`: `[]`, `hasReactDevWarning: false` — **PASS**
+
+### Cloudflare Production Deployment & Live Checks
+- **D1 (`linguaverse-db`, `820f66eb-f97d-4b9a-a516-467d01578c4c`):** Migrations `0001`–`0006` + `db/seeds/seed_reference_data.sql` applied (`wrangler d1 migrations list`: `✅ No migrations to apply!`).
+- **Worker (`linguaverse-ai-api-prod`):** Version `d5d22bdd-01ee-466e-9191-c96929af7a60`
+  - `GET /api/health` -> `HTTP 200` (`155ms`), `{"ok":true,"service":"linguaverse-ai-worker","env":"production","aiConfigured":false,"emailConfigured":false}`
+  - `GET /api/v1/cms/public` -> `HTTP 200`, `access-control-allow-origin: https://linguaverse-web-1s7.pages.dev`, `access-control-allow-credentials: true`
+- **Pages Deployments:**
+  - `linguaverse-web` (branch `main`): `6c24a980` -> `https://linguaverse-web-1s7.pages.dev`
+  - `linguaverse-admin` (branch `main`): `15c9740b` -> `https://linguaverse-admin.pages.dev`
+- **Live Production Asset HTTP/MIME Verification:**
+  - `/` -> `HTTP 200 | text/html; charset=utf-8`
+  - `/assets/index-DGRrbeSu.js` -> `HTTP 200 | application/javascript`
+  - `/assets/index-nRVljr71.css` -> `HTTP 200 | text/css; charset=utf-8`
+  - `/sw.js` -> `HTTP 200 | application/javascript`
+  - `/manifest.webmanifest` -> `HTTP 200 | application/manifest+json`
+  - `https://linguaverse-admin.pages.dev/` -> `HTTP 200 | text/html; charset=utf-8`
+- **Live Production Browser Checks (Headless Chromium):**
+  - Homepage: `mounted: true`, `rootChildren: 1`, `textLen: 5509` — **PASS**
+  - Repeated Reloads (`5×`): `minTextLen: 5509`, `allNonBlank: true` — **PASS**
+  - Service Worker: `active: https://linguaverse-web-1s7.pages.dev/sw.js`, `controlled: true`, `cacheKeys: ["linguaverse-shell-v4","linguaverse-fonts-v4"]` — **PASS**
+  - `EN ⇄ বাংলা`: `bnRendered: true`, `enRestored: true` — **PASS**
+  - `/login` & `/register`: `hasEmailInput: true` on both — **PASS**
+  - Simulated `{"config":null}` CMS: `mounted: true`, `textLen: 5509` — **PASS**
+  - Production Admin Portal (`#admin-root`): `mounted: true`, `adminRootChildren: 1`, `textLen: 716`, displays fail-closed `ADMIN_BOOTSTRAP_SECRET` notice cleanly — **PASS**
+  - Uncaught `pageErrors`: `[]`, `hasReactDevWarning: false` — **PASS**
+
 
 
 

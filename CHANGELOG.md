@@ -1,8 +1,22 @@
 # Changelog — LINGUAVERSE AI
 
-All notable changes verified in the workspace are documented here. Entries distinguish clearly between **Locally Verified** changes and **Blocked** external release actions (GitHub push / live Cloudflare deployment).
+All notable changes verified in the workspace and live deployments are documented here.
 
-## [Unreleased — Critical Production Blank-Screen Recovery, SW v4 & Boot Watchdog Hardening] - 2026-11-27
+## [Live Production & Staging Release — SW Registration & Prod Minification Fix] - 2026-11-28
+
+### Fixed During Live Staging Verification
+- **Deterministic Production Builds (`vite.config.ts`, `vite.admin.config.ts`, `package.json`)**: Enforced `process.env.NODE_ENV = 'production'` when `command === 'build'` and added `--mode production` to `build` / `build:admin` scripts so container `NODE_ENV=development` cannot accidentally produce React dev builds or strip Service Worker registration. Cut `vendor-react` by `45%` (`470.39 kB` -> `257.68 kB`, `81.89 kB` gzip) and Learner entry `index.js` from `369.65 kB` -> `307.30 kB` (`80.91 kB` gzip).
+- **Immediate Service Worker Registration (`src/utils/pwaRuntime.ts`)**: Checked `document.readyState === 'complete'` before attaching a `load` listener so fast ES module loads always register `/sw.js` (`linguaverse-shell-v4`) and upgrade returning visitors.
+
+### Deployed & Verified Live
+- **GitHub `main`**: Pushed `9d4fc8dd8366d43892d11af54859cf639d2e191b` (`9d4fc8d`); GitHub Actions CI run `#46124166122` passed (`completed / success`).
+- **Cloudflare Staging**: Applied D1 migrations `0005`–`0006` on `linguaverse-db-staging`; deployed Worker `linguaverse-ai-api-staging` (`4e404245-e170-4d5b-89ce-c4afc061d6ad`), Learner Pages `linguaverse-web` (`9d3b3bcf` -> `https://staging.linguaverse-web-1s7.pages.dev`), and Admin Pages `linguaverse-admin` (`50659b66` -> `https://staging.linguaverse-admin.pages.dev`).
+- **Cloudflare Production**: Applied D1 migrations `0001`–`0006` + reference seed on `linguaverse-db`; deployed Worker `linguaverse-ai-api-prod` (`d5d22bdd-01ee-466e-9191-c96929af7a60`, `CORS_ALLOWED_ORIGIN` + `JWT_SIGNING_SECRET`), Learner Pages `linguaverse-web` (`6c24a980` -> `https://linguaverse-web-1s7.pages.dev`), and Admin Pages `linguaverse-admin` (`15c9740b` -> `https://linguaverse-admin.pages.dev`).
+- **Live Headless Chromium Verification**: Both Staging and Production passed homepage render, `5×` reloads non-blank, simulated `{"config":null}` CMS resilience, `/login` & `/register`, `EN ⇄ বাংলা` switch, active `/sw.js` (`linguaverse-shell-v4`, `controlled: true`), `HTTP 200` asset MIME types, Admin Portal `#admin-root` render, and `0` uncaught `pageErrors`.
+
+---
+
+## [Critical Production Blank-Screen Recovery, SW v4 & Boot Watchdog Hardening] - 2026-11-27
 
 ### Root Cause Reproduced on Live Staging (`https://staging.linguaverse-web-1s7.pages.dev`)
 - Confirmed live in headless Chromium: first visit renders the landing page from synchronous default CMS state, then collapses into a blank dark navy (`#05091F`) screen when stale deployed Staging Worker (`linguaverse-ai-api-staging`) responds `{"config":null}` to `GET /api/v1/cms/public` and stale deployed bundle (`index-BNuKe6hs.js`, pre-ErrorBoundary) throws `TypeError: Cannot read properties of null (reading 'sections')` (`~11.6s` cold, `~317ms` on reload).

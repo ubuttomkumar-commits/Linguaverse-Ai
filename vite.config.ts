@@ -4,7 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({command}) => {
+  if (command === 'build') {
+    process.env.NODE_ENV = 'production';
+  }
   return {
     base: '/',
     plugins: [

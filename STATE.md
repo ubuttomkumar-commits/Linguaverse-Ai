@@ -549,7 +549,35 @@
   - **Isolated Feature & Section Boundaries (`src/components/common/RootErrorBoundary.tsx`, `src/components/landing/HeroCommunicationCore.tsx`, `src/pages/LandingPage.tsx`):** Added `SafeFeatureBoundary` around lazy `<ThreeLanguageGlobe />` (graceful SVG fallback on WebGL/chunk failure) and around all non-hero landing sections, plus `unhandledrejection` chunk-error listener.
   - **API Timeout & Explicit Vite Base Paths (`src/services/cmsApi.ts`, `vite.config.ts`, `vite.admin.config.ts`, `.github/workflows/ci-cd.yml`):** Added 10s `AbortController` timeout to `fetchPublicCmsConfig()`, explicit `base: '/'` in both Vite configs, and synced CI migration step descriptions to `0001 -> 0006`.
 - **Verified Gate Results:** `npm run lint` (`0` errors), `npm test` (**206 / 206 PASS**, 13 suites), `npm run verify:db` (`6` migrations, `63` tables, `100%` parity), `npm run build:all` (`dist/` + `dist-admin/`), `bun audit` (`0` vulnerabilities / `273` packages), bundle secret scan (`0` hits), Wrangler staging & production dry-runs (`1011.84 KiB` / `203.25 KiB` gzip, `0` warnings), `scripts/smoke-test-deployment.mjs` (**6 / 6 PASS**), and all **13 Mandatory Browser Regression Scenarios (A–M)** PASS on built `dist/` (`5×` reloads non-blank, `{"config":null}` + `500` API non-blank, slow network non-blocking, boot failure fallback verified, `EN ⇄ বাংলা` verified, mobile `390×844` `0px` overflow + menu verified, `0` uncaught page errors).
-- **Remaining External Blockers:** `git push origin main` (no GitHub PAT/SSH in container) and live Cloudflare Worker/Pages production & staging deployment (no `CLOUDFLARE_API_TOKEN` in container; `wrangler whoami` unauthenticated).
+- **Remaining External Blockers (Resolved on 2026-11-28 — see section below):** Resolved via authorized GitHub push and Cloudflare Staging + Production deployment.
+
+## Live GitHub Sync, Staging & Production Cloudflare Deployment Checkpoint (2026-11-28)
+
+- **GitHub Synchronization & CI/CD Verification:**
+  - Repository: `https://github.com/ubuttomkumar-commits/Linguaverse-Ai` (`main` branch).
+  - Recovery & Performance Commit Pushed: `9d4fc8dd8366d43892d11af54859cf639d2e191b` (`9d4fc8d`, `62 files changed, 4862 insertions(+), 670 deletions(-)`).
+  - GitHub Actions CI Run: `#46124166122` (`https://github.com/ubuttomkumar-commits/Linguaverse-Ai/actions/runs/46124166122`) — **`completed / success`** (TypeScript typecheck, D1 migration & rollback verification, `206/206` unit & Worker parity tests, dual production builds, and bundle secret scan).
+- **Live Browser Verification Catch & Fix Applied Before Production:**
+  - Live Staging inspection detected two subtle production build/runtime issues:
+    1. Container `NODE_ENV=development` caused Vite builds to bundle React development mode and strip `if (!import.meta.env.PROD)` Service Worker registration. Fixed by forcing `process.env.NODE_ENV = 'production'` for `command === 'build'` in `vite.config.ts` and `vite.admin.config.ts`, plus `--mode production` in `package.json`. Result: `vendor-react` shrunk from `470.39 kB` (`143.11 kB` gzip) to **`257.68 kB` (`81.89 kB` gzip)** (`-45%`), and `index.js` shrunk from `369.65 kB` to **`307.30 kB` (`80.91 kB` gzip)**.
+    2. `registerLinguaVerseServiceWorker()` in `src/utils/pwaRuntime.ts` attached only to `window.addEventListener('load', ...)`, missing already-complete ES module loads. Fixed by checking `document.readyState === 'complete'` first. Verified live in Chromium: `/sw.js` active with `linguaverse-shell-v4` & `linguaverse-fonts-v4` caches and `controlled: true` on reload.
+- **Cloudflare Staging Environment (Account `fa6ffb91f755b6a7066cd0cf4ce70556`):**
+  - **D1 (`linguaverse-db-staging`, `19181902-a6d5-4d95-9d5f-a7e71016ecc9`):** Applied `0005_performance_indexes.sql` (`✅`, `1.91ms`) and `0006_global_query_indexes.sql` (`✅`, `1.88ms`) non-destructively (preserving all existing data).
+  - **Worker API (`linguaverse-ai-api-staging`):** Version `4e404245-e170-4d5b-89ce-c4afc061d6ad` -> `https://linguaverse-ai-api-staging.uttombarmon45.workers.dev/api/health` (`HTTP 200`, `146ms`, `{"ok":true,"env":"staging"}`).
+  - **Learner PWA (`linguaverse-web`, branch `staging`):** Deployment `9d3b3bcf` -> `https://staging.linguaverse-web-1s7.pages.dev` (`https://9d3b3bcf.linguaverse-web-1s7.pages.dev`).
+  - **Admin Portal (`linguaverse-admin`, branch `staging`):** Deployment `50659b66` -> `https://staging.linguaverse-admin.pages.dev` (`https://50659b66.linguaverse-admin.pages.dev`).
+- **Cloudflare Production Environment (Account `fa6ffb91f755b6a7066cd0cf4ce70556`):**
+  - **D1 (`linguaverse-db`, `820f66eb-f97d-4b9a-a516-467d01578c4c`):** Applied `0001`–`0006` + idempotent `db/seeds/seed_reference_data.sql` (`wrangler d1 migrations list`: `✅ No migrations to apply!`).
+  - **Worker API (`linguaverse-ai-api-prod`):** Version `d5d22bdd-01ee-466e-9191-c96929af7a60` -> `https://linguaverse-ai-api-prod.uttombarmon45.workers.dev/api/health` (`HTTP 200`, `155ms`, `{"ok":true,"env":"production"}`), configured with `CORS_ALLOWED_ORIGIN` (`https://linguaverse-web-1s7.pages.dev,https://linguaverse-admin.pages.dev`) and CSPRNG `JWT_SIGNING_SECRET`.
+  - **Learner PWA (`linguaverse-web`, branch `main`):** Deployment `6c24a980` -> `https://linguaverse-web-1s7.pages.dev` (`https://6c24a980.linguaverse-web-1s7.pages.dev`).
+  - **Admin Portal (`linguaverse-admin`, branch `main`):** Deployment `15c9740b` -> `https://linguaverse-admin.pages.dev` (`https://15c9740b.linguaverse-admin.pages.dev`).
+- **Live Headless Chromium Verification (Both Staging & Production):**
+  - Homepage renders (`textLen: 5509`, `mounted: true`), `5×` consecutive reloads non-blank, simulated `{"config":null}` CMS handled cleanly (`textLen: 5509`), `/login` & `/register` verified, `EN ⇄ বাংলা` verified, Service Worker `/sw.js` active (`linguaverse-shell-v4`, `linguaverse-fonts-v4`, `controlled: true`), all JS/CSS/SW/Manifest assets `HTTP 200` with valid MIME types, Admin Portal `#admin-root` renders cleanly, `0` uncaught `pageErrors`, `hasReactDevWarning: false`.
+- **Remaining Owner-Configured Optional Production Secrets:**
+  - `ADMIN_BOOTSTRAP_SECRET` (required before creating the initial Production Super Admin; fails closed cleanly in Production Admin UI until set via Cloudflare Dashboard / `wrangler secret put ADMIN_BOOTSTRAP_SECRET --env production`).
+  - `GEMINI_API_KEY` (required to enable live AI Speaking/Transfer evaluations in Staging & Production Workers).
+  - Cloudflare R2 activation (Dashboard toggle, API code `10042`) for server-side voice/media object storage.
+
 
 
 
