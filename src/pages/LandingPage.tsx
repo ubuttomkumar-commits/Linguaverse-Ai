@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCms } from '../context/CmsContext';
 import { resolveLandingRoutes } from '../domain/suppliedLandingCopy';
 import type { CmsSectionId } from '../domain/cmsEngine';
+import { SafeFeatureBoundary } from '../components/common/RootErrorBoundary';
 
 export function LandingPage() {
   const { lang } = useLanguage();
@@ -228,7 +229,17 @@ export function LandingPage() {
 
       <PublicHeader />
 
-      <main>{orderedSections.map((section) => renderSection(section.id))}</main>
+      <main>
+        {orderedSections.map((section) =>
+          section.id === 'hero' ? (
+            renderSection(section.id)
+          ) : (
+            <SafeFeatureBoundary key={section.id} fallback={null}>
+              {renderSection(section.id)}
+            </SafeFeatureBoundary>
+          )
+        )}
+      </main>
 
       <PublicFooter />
     </div>

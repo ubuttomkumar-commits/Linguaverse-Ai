@@ -107,5 +107,17 @@ test('Service Worker enforces strict cache isolation for /api/*, /admin*, Set-Co
   assert.ok(swCode.includes("cacheControl.includes('private')"), 'SW must respect Cache-Control: private');
   assert.ok(swCode.includes("url.pathname === '/'"), 'SW must only cache static root shell for navigation');
   assert.ok(swCode.includes("data.type === 'CLEAR_USER_CACHES'"), 'SW must clear user runtime caches on logout');
+  assert.ok(swCode.includes("data.type === 'PURGE_ALL_CACHES'"), 'SW must support full cache purge on recovery');
   assert.ok(swCode.includes("data.type === 'SKIP_WAITING'"), 'SW must support safe update handoff');
+  assert.ok(swCode.includes("X-LV-Chunk-Mismatch"), 'SW must reject HTML fallback served for missing hashed /assets/* chunks');
+  assert.ok(
+    swCode.indexOf("request.mode === 'navigate'") < swCode.indexOf("PRECACHE_URLS.includes(url.pathname)"),
+    'SW must evaluate navigate mode BEFORE PRECACHE_URLS so root HTML is fetched fresh online'
+  );
+
+  const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+  assert.ok(indexHtml.includes('__LV_APP_MOUNTED__'), 'index.html must include zero-JS boot watchdog');
+  assert.ok(adminHtml.includes('__LV_APP_MOUNTED__'), 'admin.html must include zero-JS boot watchdog');
 });
+

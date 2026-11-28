@@ -1,28 +1,30 @@
 # LINGUAVERSE AI — Testing & Verification Guide
 
-## 1. Automated Test Suite (`179 / 179 PASS`)
+## 1. Automated Test Suite (`194 / 194 PASS`)
 
 Run the full automated domain, storage, SQLite migration/rollback, and Cloudflare Worker parity suite:
 
 ```bash
-npx --yes tsx --test src/domain/*.test.ts src/services/storage/*.test.ts worker/*.test.ts
+npm test
 ```
 
 ### Suite Coverage Breakdown
 - **Domain Unit Tests (`src/domain/*.test.ts`):**
-  - Auth & security policies (`authSecurityEngine`, `otpVerification`, `securityPolicy`, `adminBootstrapEngine`, `paymentWebhookEngine`)
+  - Auth & security policies (`authSecurityEngine`, `otpVerification`, `securityPolicy`, `adminBootstrapEngine`, `paymentWebhookEngine`, `cmsEngine` protocol-relative URL sanitization)
   - Onboarding, 5-skill diagnostic, Dashboard 8-stage loop, Academy 7-stage SRS mastery cap
   - Speaking Studio, rolling conversation context, Mistake Memory analytics & neural map, Communication DNA
   - Transfer Lab 30-scenario engine & anti-fabrication objective merging, Communication Replay immutability & measured PCM waveforms
   - Vocabulary SM-2 SRS deck, Community moderation & DM ban, Subscriptions & honest finance, Verified idempotent gamification
-  - IELTS examination engine, Writing Diary / Shadowing / Human Bridge labs, AI Provider Registry & Feature Flags
+  - IELTS examination engine, Writing Diary / Shadowing / Human Bridge labs, AI Provider Registry & Feature Flags, PWA Compliance (`pwaCompliance.test.ts`)
 - **Storage Repository Tests (`src/services/storage/localRepository.test.ts`):**
   - End-to-end persistence for auth, onboarding, diagnostic, Academy lessons, Speaking Studio, Mistake Memory, and Transfer Lab idempotent XP.
-- **Database Migration & Cloudflare Worker Parity Tests (`worker/workerParity.test.ts`, `worker/workerHardening.test.ts`):**
-  - **Test #136:** Executes real SQLite D1 migrations `0001 -> 0002 -> 0003 -> 0004` against Node 22 `node:sqlite`, verifies exact table parity with canonical `schema.sql`, and verifies non-destructive rollbacks (`ROLLBACK_0004 -> ROLLBACK_0003 -> ROLLBACK_0002`) preserve existing rows.
-  - **Tests #137–145:** Full Worker parity for Auth recovery, Parts 06–12 AI & cloud state, R2 owner-scoped deletion, Vocabulary SRS, Community RBAC, Subscriptions & HMAC-SHA256 webhooks, Security Headers, Feature Flags, AI Providers, IELTS, Writing/Human Bridge, and Notifications.
-  - **Test #146:** Separate Admin Application Worker parity — initial status, production fail-closed (`503`) without `ADMIN_BOOTSTRAP_SECRET`, invalid secret rejection (`403`), one-time `super_admin` provisioning (`201`), permanent lock (`409`), standard learner rejection (`403`), admin login (`200`), `/me` (`200`), and `/logout` revocation (`401`).
-  - **Test #147 (4 subtests):** Worker hardening S6 (JWT fail-closed), S7 (strict CORS allowlist), S10 (D1 mic consent + MIME allowlist), and S11 (rate limit `429` + `Retry-After`).
+- **Database Migration & Cloudflare Worker Parity Tests (`worker/workerParity.test.ts`, `worker/workerSecurity.test.ts`, `npm run verify:db`):**
+  - Verifies real SQLite D1 forward-only migrations `0001`–`0005` (`0005_performance_indexes.sql`), `63` tables matching canonical `schema.sql`, and non-destructive rollbacks (`ROLLBACK_0005`–`ROLLBACK_0002`).
+  - Full Worker parity for Auth recovery, Parts 06–12 AI & cloud state, R2 media & Cron maintenance, Vocabulary SRS, Community RBAC, Subscriptions & HMAC-SHA256 webhooks, Security Headers, Feature Flags, AI Providers, IELTS, Writing/Human Bridge, and Notifications.
+  - **Fresh Empty-D1 CMS Hydration Regression Test:** Guarantees `GET /api/v1/cms/public` and Admin CMS routes return a complete default `CmsConfig` (never `null`) on empty D1, preventing the Staging blank-screen crash.
+  - **Worker Edge KV Caching & Private Security Invariant Test:** Verifies `X-Cache: MISS -> HIT`, instant KV invalidation on Admin mutations, and strict `Cache-Control: no-store, no-cache, must-revalidate, private` on `/api/v1/admin/*` and `/api/v1/auth/*`.
+  - **Admin RBAC Escalation & Brute-Force Lockout Hardening Tests:** Verifies regular `admin` cannot escalate to or modify/delete `super_admin` (`403`), invalid roles return `400`, demotion to `learner` revokes active sessions (`401`), `5` failed logins lock learner & admin accounts across distinct IPs (`429 ACCOUNT_LOCKED` + `Retry-After`), and `/api/v1/admin/auth/bootstrap` enforces IP rate limits (`429 RATE_LIMITED`).
+  - **Separate Admin Application Parity & Hardening S6/S7/S10/S11:** One-time `super_admin` provisioning (`201`), permanent lock (`409`), learner block (`403`), logout revocation (`401`), JWT fail-closed, strict CORS allowlist, D1 consent, and rate limiting.
 
 ---
 

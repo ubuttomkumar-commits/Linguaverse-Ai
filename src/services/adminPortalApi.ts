@@ -49,12 +49,26 @@ async function adminPortalFetch<T>(
     : {};
   headers = attachAuthBearerHeader(headers);
 
-  const response = await fetch(resolveApiUrl(path), {
-    method,
-    credentials: getApiCredentialsMode(),
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 10_000) : null;
+
+  let response: Response;
+  try {
+    response = await fetch(resolveApiUrl(path), {
+      method,
+      credentials: getApiCredentialsMode(),
+      headers,
+      signal: controller?.signal,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Administrator API timed out. Please check your connection and retry.');
+    }
+    throw err;
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
 
   const data = (await response.json().catch(() => ({}))) as { error?: string; code?: string } & T;
   if (!response.ok) {
@@ -66,8 +80,15 @@ async function adminPortalFetch<T>(
   return data;
 }
 
+let inFlightAdminStatus: Promise<AdminAuthStatusResponse> | null = null;
+
 export function fetchAdminAuthStatus(): Promise<AdminAuthStatusResponse> {
-  return adminPortalFetch<AdminAuthStatusResponse>('/api/v1/admin/auth/status');
+  if (!inFlightAdminStatus) {
+    inFlightAdminStatus = adminPortalFetch<AdminAuthStatusResponse>('/api/v1/admin/auth/status').finally(() => {
+      inFlightAdminStatus = null;
+    });
+  }
+  return inFlightAdminStatus;
 }
 
 export async function bootstrapInitialAdmin(payload: {

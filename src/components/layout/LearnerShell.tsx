@@ -41,10 +41,16 @@ import {
   searchWorkspaceResources,
 } from '../../domain/dashboardIntelligence';
 import {
+  clearPrd61ClientCache,
   fetchLearnerNotifications,
   fetchPublicSystemStatus,
+  invalidateNotificationsCache,
+  invalidateSystemStatusCache,
   markNotificationAsRead,
 } from '../../services/prd61Api';
+import { runOptimisticMutation } from '../../services/queryCache';
+import { prefetchRouteChunk } from '../../utils/routePrefetch';
+import { useRealtimeEvents } from '../../hooks/useRealtimeEvents';
 import type { PersistedUserNotification } from '../../domain/notificationsEngine';
 
 interface LearnerShellProps {
@@ -85,15 +91,27 @@ function getInitials(name: string | undefined): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
+const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lv_sidebar_collapsed_v1';
+
+function loadSidebarCollapsed(): boolean {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    return window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
   const { lang, t } = useLanguage();
   const { user, profile, latestDiagnostic, lessonMastery, mistakes, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(loadSidebarCollapsed);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const [activePopover, setActivePopover] = useState<'notifications' | 'help' | 'user' | null>(
     null
   );
@@ -108,7 +126,19 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
   }>({ active: false, en: '', bn: '' });
 
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const topActionsRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleSidebarCollapsed = (next: boolean) => {
+    setSidebarCollapsed(next);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, next ? '1' : '0');
+      }
+    } catch {
+      // Ignore storage quota errors
+    }
+  };
 
   useEffect(() => {
     setReadNotifIds(loadReadNotificationIds(user?.id));
@@ -141,8 +171,67 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
     };
   }, [user?.id]);
 
+  useRealtimeEvents({
+    enabled: Boolean(user?.id),
+    onEvent: (event) => {
+      if (event.type === 'notification.created') {
+        const payload = event.payload as unknown as Partial<PersistedUserNotification>;
+        if (typeof payload.id === 'string' && typeof payload.titleEn === 'string') {
+          invalidateNotificationsCache();
+          setServerNotifications((prev) => {
+            if (prev.some((n) => n.id === payload.id)) return prev;
+            return [
+              {
+                id: payload.id!,
+                userId: typeof payload.userId === 'string' ? payload.userId : '*',
+                type:
+                  (payload.type as PersistedUserNotification['type']) || 'system_broadcast',
+                titleEn: payload.titleEn!,
+                titleBn: typeof payload.titleBn === 'string' ? payload.titleBn : payload.titleEn!,
+                bodyEn: typeof payload.bodyEn === 'string' ? payload.bodyEn : '',
+                bodyBn: typeof payload.bodyBn === 'string' ? payload.bodyBn : '',
+                actionRoute:
+                  typeof payload.actionRoute === 'string' ? payload.actionRoute : undefined,
+                readAt: null,
+                createdAt:
+                  typeof payload.createdAt === 'string'
+                    ? payload.createdAt
+                    : new Date().toISOString(),
+              },
+              ...prev,
+            ].slice(0, 50);
+          });
+        }
+      } else if (event.type === 'system.status_updated') {
+        invalidateSystemStatusCache();
+        const payload = event.payload as {
+          maintenanceMode?: boolean;
+          maintenanceBannerEn?: string;
+          maintenanceBannerBn?: string;
+        };
+        setMaintenanceNotice({
+          active: Boolean(payload.maintenanceMode),
+          en:
+            payload.maintenanceBannerEn ||
+            'Scheduled platform maintenance is active. Some write actions may be paused.',
+          bn:
+            payload.maintenanceBannerBn ||
+            'প্ল্যাটফর্ম রক্ষণাবেক্ষণ চালু আছে। কিছু ফিচার সাময়িকভাবে সীমিত থাকতে পারে।',
+        });
+      }
+    },
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setActivePopover(null);
+        setSearchOpen(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
       if (e.key === 'Escape') {
         setActivePopover(null);
         setSearchOpen(false);
@@ -208,23 +297,54 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
   );
 
   const markNotificationRead = (id: string) => {
-    setReadNotifIds((prev) => {
-      if (prev.includes(id)) return prev;
-      const next = [...prev, id];
-      saveReadNotificationIds(user?.id, next);
-      return next;
-    });
-    if (serverNotifications.some((n) => n.id === id)) {
-      void markNotificationAsRead(id).catch(() => {});
+    const isServerNotif = serverNotifications.some((n) => n.id === id);
+    const previousReadIds = readNotifIds;
+
+    const applyLocalRead = () => {
+      setReadNotifIds((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        saveReadNotificationIds(user?.id, next);
+        return next;
+      });
+    };
+
+    if (!isServerNotif) {
+      applyLocalRead();
+      return;
     }
+
+    void runOptimisticMutation({
+      applyOptimistic: applyLocalRead,
+      rollback: () => {
+        setReadNotifIds(previousReadIds);
+        saveReadNotificationIds(user?.id, previousReadIds);
+      },
+      commit: () => markNotificationAsRead(id),
+    });
   };
 
   const markAllNotificationsRead = () => {
+    const previousReadIds = readNotifIds;
     const allIds = Array.from(new Set([...readNotifIds, ...notifications.map((n) => n.id)]));
-    setReadNotifIds(allIds);
-    saveReadNotificationIds(user?.id, allIds);
-    serverNotifications.forEach((n) => {
-      if (!n.readAt) void markNotificationAsRead(n.id).catch(() => {});
+    const unreadServer = serverNotifications.filter((n) => !n.readAt);
+
+    if (unreadServer.length === 0) {
+      setReadNotifIds(allIds);
+      saveReadNotificationIds(user?.id, allIds);
+      return;
+    }
+
+    void runOptimisticMutation({
+      applyOptimistic: () => {
+        setReadNotifIds(allIds);
+        saveReadNotificationIds(user?.id, allIds);
+      },
+      rollback: () => {
+        setReadNotifIds(previousReadIds);
+        saveReadNotificationIds(user?.id, previousReadIds);
+      },
+      commit: () => Promise.all(unreadServer.map((n) => markNotificationAsRead(n.id))),
     });
   };
 
@@ -298,6 +418,7 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
   ];
 
   const handleLogout = async () => {
+    clearPrd61ClientCache();
     await logout();
     navigate('/', { replace: true });
   };
@@ -313,6 +434,9 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                onMouseEnter={() => prefetchRouteChunk(item.to)}
+                onFocus={() => prefetchRouteChunk(item.to)}
+                onTouchStart={() => prefetchRouteChunk(item.to)}
                 onClick={onItemClick}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
@@ -347,6 +471,9 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  onMouseEnter={() => prefetchRouteChunk(item.to)}
+                  onFocus={() => prefetchRouteChunk(item.to)}
+                  onTouchStart={() => prefetchRouteChunk(item.to)}
                   onClick={onItemClick}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
@@ -460,7 +587,7 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
             {!sidebarCollapsed && (
               <button
                 type="button"
-                onClick={() => setSidebarCollapsed(true)}
+                onClick={() => toggleSidebarCollapsed(true)}
                 aria-label={lang === 'bn' ? 'সাইডবার সংকুচিত করুন' : 'Collapse sidebar'}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-[#101A3E] hover:text-white transition-colors cursor-pointer"
               >
@@ -473,7 +600,7 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
             <div className="flex justify-center border-b border-slate-800/80 py-2">
               <button
                 type="button"
-                onClick={() => setSidebarCollapsed(false)}
+                onClick={() => toggleSidebarCollapsed(false)}
                 aria-label={lang === 'bn' ? 'সাইডবার প্রসারিত করুন' : 'Expand sidebar'}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-[#101A3E] hover:text-white transition-colors cursor-pointer"
               >
@@ -530,7 +657,7 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
                 aria-label={lang === 'bn' ? 'নেভিগেশন মেনু খুলুন' : 'Open navigation menu'}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-[#0B122C] text-slate-200 hover:border-cyan-400/40 lg:hidden cursor-pointer"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#0B122C] text-slate-200 hover:border-cyan-400/40 lg:hidden cursor-pointer"
               >
                 <Menu className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -539,7 +666,7 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
               </h1>
             </div>
 
-            {/* Live Workspace Search (md+) */}
+            {/* Live Workspace Quick-Switcher Search (md+, Ctrl/Cmd+K) */}
             <div ref={searchContainerRef} className="relative hidden max-w-md flex-1 md:block">
               <label htmlFor="workspace-command-search" className="sr-only">
                 {lang === 'bn'
@@ -552,21 +679,47 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                   aria-hidden="true"
                 />
                 <input
+                  ref={searchInputRef}
                   id="workspace-command-search"
                   type="search"
                   value={searchQuery}
                   onFocus={() => setSearchOpen(true)}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
+                    setActiveSearchIndex(0);
                     setSearchOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!searchOpen || searchResults.length === 0) return;
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setActiveSearchIndex((i) => (i + 1) % searchResults.length);
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setActiveSearchIndex((i) => (i - 1 + searchResults.length) % searchResults.length);
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const picked = searchResults[activeSearchIndex] ?? searchResults[0];
+                      if (picked) {
+                        setSearchOpen(false);
+                        setSearchQuery('');
+                        navigate(picked.to);
+                      }
+                    }
                   }}
                   placeholder={
                     lang === 'bn'
-                      ? 'লেসন, ট্রান্সফার সিনারিও, বা ভুল খুঁজুন...'
+                      ? 'লেসন, সিনারিও, ভুল খুঁজুন...'
                       : 'Search lessons, scenarios, mistakes...'
                   }
-                  className="lv-auth-input w-full rounded-xl py-2 pl-9 pr-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                  className="lv-auth-input w-full rounded-xl py-2 pl-9 pr-14 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
                 />
+                <kbd
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-slate-700/80 bg-[#0A1334] px-1.5 py-0.5 font-mono text-[10px] text-slate-400"
+                >
+                  Ctrl+K
+                </kbd>
               </div>
 
               {searchOpen && searchQuery.trim().length > 0 && (
@@ -583,16 +736,22 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                     </p>
                   ) : (
                     <ul className="max-h-72 divide-y divide-slate-800/80 overflow-y-auto">
-                      {searchResults.map((res) => (
+                      {searchResults.map((res, idx) => (
                         <li key={res.id}>
                           <button
                             type="button"
+                            onMouseEnter={() => {
+                              setActiveSearchIndex(idx);
+                              prefetchRouteChunk(res.to);
+                            }}
                             onClick={() => {
                               setSearchOpen(false);
                               setSearchQuery('');
                               navigate(res.to);
                             }}
-                            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-[#111E47] transition-colors cursor-pointer"
+                            className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
+                              idx === activeSearchIndex ? 'bg-[#111E47]' : 'hover:bg-[#111E47]'
+                            }`}
                           >
                             <div className="min-w-0">
                               <p className="truncate text-xs font-semibold text-white">
@@ -874,10 +1033,10 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (56px compact, 5 core touch targets >= 44px) */}
+      {/* Mobile Bottom Navigation Bar (compact 56px + safe-area inset, 5 core touch targets >= 44px) */}
       <nav
         aria-label="Mobile learner navigation"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-cyan-400/15 bg-[#070D24]/95 backdrop-blur-xl lg:hidden"
+        className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-cyan-400/15 bg-[#070D24]/95 backdrop-blur-md lg:hidden"
       >
         <div className="grid h-14 grid-cols-5">
           {mobileBottomItems.map((item) => {
@@ -887,8 +1046,10 @@ export function LearnerShell({ title, subtitle, children }: LearnerShellProps) {
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                onTouchStart={() => prefetchRouteChunk(item.to)}
+                onFocus={() => prefetchRouteChunk(item.to)}
                 className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+                  `flex min-h-[44px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
                     isActive ? 'text-[#00D9FF]' : 'text-slate-400 hover:text-slate-200'
                   }`
                 }

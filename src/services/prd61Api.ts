@@ -1,5 +1,6 @@
 import { buildCsrfHeaders } from './authApi';
 import { attachAuthBearerHeader, getApiCredentialsMode, resolveApiUrl } from './apiBase';
+import { fetchWithTimeout, sharedQueryCache } from './queryCache';
 import type {
   AiRuntimeConfig,
   PlatformFeatureFlags,
@@ -38,12 +39,16 @@ async function prd61FetchJson<T>(
     : {};
   headers = attachAuthBearerHeader(headers);
 
-  const response = await fetch(resolveApiUrl(path), {
-    method,
-    credentials: getApiCredentialsMode(),
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  const response = await fetchWithTimeout(
+    resolveApiUrl(path),
+    {
+      method,
+      credentials: getApiCredentialsMode(),
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    },
+    12_000
+  );
 
   const data = (await response.json().catch(() => ({}))) as { error?: string; code?: string } & T;
   if (!response.ok) {
@@ -64,8 +69,33 @@ export interface PublicSystemStatusResponse {
   featureFlags: PlatformFeatureFlags;
 }
 
-export function fetchPublicSystemStatus(): Promise<PublicSystemStatusResponse> {
-  return prd61FetchJson<PublicSystemStatusResponse>('/api/v1/system/status');
+const SYSTEM_STATUS_CACHE_KEY = 'public:system_status';
+const LEARNER_NOTIFICATIONS_CACHE_KEY = 'learner:notifications';
+
+export function invalidateSystemStatusCache(): void {
+  sharedQueryCache.invalidate(SYSTEM_STATUS_CACHE_KEY);
+}
+
+export function invalidateNotificationsCache(): void {
+  sharedQueryCache.invalidate(LEARNER_NOTIFICATIONS_CACHE_KEY);
+}
+
+export function clearPrd61ClientCache(): void {
+  sharedQueryCache.clear();
+}
+
+export function fetchPublicSystemStatus(options?: {
+  forceRefresh?: boolean;
+}): Promise<PublicSystemStatusResponse> {
+  return sharedQueryCache.fetchWithCache(
+    SYSTEM_STATUS_CACHE_KEY,
+    () => prd61FetchJson<PublicSystemStatusResponse>('/api/v1/system/status'),
+    {
+      ttlMs: 60_000,
+      staleWhileRevalidateMs: 120_000,
+      forceRefresh: options?.forceRefresh,
+    }
+  );
 }
 
 // ============================================================================
@@ -294,22 +324,38 @@ export interface NotificationsResponse {
   notifications: UserNotificationRecord[];
 }
 
-export function fetchLearnerNotifications(): Promise<NotificationsResponse> {
-  return prd61FetchJson('/api/v1/notifications');
+export function fetchLearnerNotifications(options?: {
+  forceRefresh?: boolean;
+}): Promise<NotificationsResponse> {
+  return sharedQueryCache.fetchWithCache(
+    LEARNER_NOTIFICATIONS_CACHE_KEY,
+    () => prd61FetchJson<NotificationsResponse>('/api/v1/notifications'),
+    {
+      ttlMs: 30_000,
+      staleWhileRevalidateMs: 60_000,
+      forceRefresh: options?.forceRefresh,
+    }
+  );
 }
 
 export function updateNotificationPreferences(
   patch: Partial<NotificationPreferences>
 ): Promise<{ preferences: NotificationPreferences }> {
+  invalidateNotificationsCache();
   return prd61FetchJson('/api/v1/notifications/preferences', {
     method: 'PUT',
     body: patch,
   });
 }
 
-export function markNotificationAsRead(notificationId: string): Promise<{ ok: boolean }> {
-  return prd61FetchJson(`/api/v1/notifications/${encodeURIComponent(notificationId)}/read`, {
-    method: 'POST',
-    body: {},
-  });
+export async function markNotificationAsRead(notificationId: string): Promise<{ ok: boolean }> {
+  const result = await prd61FetchJson<{ ok: boolean }>(
+    `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
+    {
+      method: 'POST',
+      body: {},
+    }
+  );
+  invalidateNotificationsCache();
+  return result;
 }

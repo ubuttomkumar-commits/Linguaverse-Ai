@@ -52,11 +52,6 @@ export class WorkspaceErrorBoundary extends React.Component<
                   ? 'আপনার শেখার ডেটা নিরাপদ আছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
                   : 'Your saved learning records are safe. Retry rendering this view without losing your progress.'}
               </p>
-              {this.state.errorMessage && (
-                <p className="mt-2 font-mono text-xs text-rose-300/90">
-                  {this.state.errorMessage}
-                </p>
-              )}
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   type="button"

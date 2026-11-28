@@ -68,6 +68,17 @@ export interface WorkerRouteDeps {
     }
   ) => Promise<string>;
   clearSessionCookie: (c: WorkerContext) => void;
+  checkAccountLockout: (
+    env: WorkerEnv,
+    scope: string,
+    email: string
+  ) => Promise<{ locked: boolean; retryAfterSeconds: number }>;
+  recordFailedLogin: (
+    env: WorkerEnv,
+    scope: string,
+    email: string
+  ) => Promise<{ locked: boolean; attempts: number; retryAfterSeconds: number }>;
+  clearFailedLogin: (env: WorkerEnv, scope: string, email: string) => Promise<void>;
 }
 
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;

@@ -494,3 +494,64 @@
   - `bun audit`: **0 vulnerabilities across 273 packages**.
   - **External Environment Boundaries:** Local Git commit created on recovered `main` branch off `origin/main` (`53461b1`); remote `git push` requires GitHub authentication credentials absent in the sandbox; live Cloudflare production deployment intentionally withheld per owner restriction.
 
+---
+
+## Blank-Screen Root Cause Repair & Extreme Mobile Performance Checkpoint (2026-11-27)
+
+- **Live Staging Blank-Screen Root Cause Confirmed in Mobile Chromium (`390×844`):**
+  - Deployed Staging Worker (`linguaverse-ai-api-staging`) is still running the pre-fix build returning `{"config":null}` from `GET /api/v1/cms/public` on fresh D1, causing the pre-fix monolithic `index-BNuKe6hs.js` on `linguaverse-web` to throw `TypeError: Cannot read properties of null (reading 'sections')` (on `/`) and `Cannot destructure property 'seo' of 'e' as it is null` (on `/login`), unmounting `#root` into a blank `#05091F` screen due to missing top-level ErrorBoundary and empty initial HTML shells.
+- **Fixes Applied & Verified Locally (`192 / 192` tests PASS, `6 / 6` smoke PASS, `0` TS errors, `0` warnings on Wrangler staging dry-run):**
+  - Added `src/components/common/RootErrorBoundary.tsx` wrapping both `src/main.tsx` and `src/admin-main.tsx` with automatic one-shot stale-chunk cache recovery (`vite:preloadError`) and sanitized public fallback UI (zero stack trace/error exposure; also sanitized `WorkspaceErrorBoundary.tsx`).
+  - Added instant zero-JS initial branded loading shells to `index.html` (`#root`) and `admin.html` (`#admin-root`), achieving `FCP: 76 ms`, `LCP: 920 ms`, `CLS: 0` on built desktop Learner bundle.
+  - Lazy-loaded `LocalPersistenceRepository` in `src/services/storage/index.ts` so Cloudflare Staging/Production builds exclude offline catalogs from initial load (`AuthContext`: `453.13 kB -> 59.96 kB`, `-86.8%`; mobile Learner initial JS gzip: `979.18 kB -> 317.94 kB`, `-67.5%`).
+  - Added 10s `AbortController` timeouts (`d1ApiRepository.ts`, `adminPortalApi.ts`), network Retry Connection banner (`AdminApp.tsx`), and Service Worker `v3` cache purge + Cache-First `/assets/*` with non-HTML MIME guard (`public/sw.js`).
+- **Remaining External Blockers:** Live Cloudflare Worker/Pages redeploy, remote D1 migration `0005`, live Staging Admin provisioning, and `git push origin main` are blocked solely because neither `CLOUDFLARE_API_TOKEN` nor a GitHub PAT is configured in this container (`wrangler whoami` unauthenticated, `~/.git-credentials` absent).
+
+---
+
+## Complete 298-File Project Autopsy & Security Hardening Checkpoint (2026-11-27)
+
+- **Scope Audited:** All `298` project files across `src/`, `server/`, `worker/`, `migrations/`, `db/`, `scripts/`, `docs/`, and `audit/` (static route cross-checks across 41 React routes, API parity across 152 Worker / 112 Express routes, SQL parameterization, XSS/URL sanitization, auth/session/cookie flags, RBAC role hierarchy, rate limiting, dependency audit).
+- **Bugs & Security Issues Fixed:**
+  1. **Admin Vertical Privilege Escalation & Unauthorized `super_admin` Tampering/Deletion (`worker/index.ts`, `server/authStore.ts`, `server/prd61Routes.ts`)**: Enforced `super_admin`-only guards on assigning `super_admin` or modifying/suspending/deleting any `super_admin` (`403`), explicit enum validation (`400`), self-demotion/self-suspension guards (`400`), and immediate session revocation on demotion to `learner`.
+  2. **Per-Account Brute-Force Lockout & Admin Auth Rate Limiting (`worker/index.ts`, `worker/routes/parts06To12Routes.ts`, `worker/routes/prd61Routes.ts`, `server/authStore.ts`, `server/prd61Routes.ts`, `server.ts`)**: Added IP rate limiting on Worker `/api/v1/admin/auth/bootstrap` (`5/min`) and `/api/v1/admin/auth/login` (`10/min`), plus hashed per-account failed-login lockouts (`5` failed attempts -> `15 min` `429 ACCOUNT_LOCKED` + `Retry-After`, cleared on valid login) across both Worker (`RATE_LIMIT_KV`) and Express.
+  3. **Protocol-Relative Open Redirect Guard (`src/domain/cmsEngine.ts`)**: Blocked `//...` protocol-relative URLs in `sanitizeUrl()`.
+  4. **Express Health Parity (`server/prd61Routes.ts`)**: Added `0005_performance_indexes.sql` to `GET /api/v1/admin/system-health` `migrationsReady`.
+- **Post-Fix Verification:** `npm run lint` (`0` errors), `npm run verify:db` (`5` migrations, `63` tables, `100%` parity), `npm test` (**194 / 194 PASS**, 13 suites), `npm run build:all` (`dist/` + `dist-admin/`), `npx wrangler deploy --env staging --dry-run` (`1004.74 KiB` / `201.53 KiB` gzip, `0` warnings), `scripts/smoke-test-deployment.mjs` (**6 / 6 PASS**), `bun audit` (`0` vulnerabilities across 273 packages), and headless Chromium desktop (`1440×900`) & mobile (`390×844`) checks (`0px` overflow, `0` app errors).
+
+---
+
+## Global Ultra Performance, Realtime SSE & Multi-Device Optimization Checkpoint (2026-11-27)
+
+- **Audit & Baseline Documents:** Added `audit/PERFORMANCE_BASELINE.md`, `audit/PERFORMANCE_GAP_ANALYSIS.md`, and `audit/PERFORMANCE_IMPLEMENTATION_TRACKER.md`.
+- **Frontend Perceived Speed & Discord-Inspired Interaction:**
+  - Added pure client SWR/TTL query cache, request deduplication, 12s `AbortController` timeouts, and optimistic rollback helper (`src/services/queryCache.ts`, `src/domain/queryCache.test.ts`, wired into `src/services/prd61Api.ts`).
+  - Added inversion-of-control route chunk prefetcher (`src/utils/routePrefetch.ts`, registered in `src/App.tsx` only so `dist-admin/` has `0` Learner/Three.js chunk leakage), zero-CLS `<WorkspaceRouteSkeleton />`, `Cmd/Ctrl+K` keyboard workspace search, optimistic notification read updates with rollback, persisted sidebar collapse state, safe-area mobile bottom bar (`.pb-safe`), `44px` mobile menu touch target, `touch-action: manipulation`, `.lv-defer-section`, and reduced mobile backdrop blur.
+- **Realtime SSE & Sync Engine:**
+  - Added pure `src/domain/realtimeSyncEngine.ts` + `src/domain/realtimeSyncEngine.test.ts` and `src/hooks/useRealtimeEvents.ts` (authenticated streaming-`fetch` SSE with backoff+jitter, deduplication, sequence ordering, offline/hidden pause, `401`/`403` stop, clean unmount/logout teardown).
+  - Implemented authenticated `GET /api/v1/realtime/events` (`401` unauth, `200 text/event-stream`, strict `no-store, private`) on both Express (`server/prd61Routes.ts` with live broadcast/maintenance pub-sub + 25s heartbeats) and Cloudflare Worker (`worker/routes/prd61Routes.ts`), and documented the Cloudflare Durable Objects upgrade path in `docs/ARCHITECTURE.md`.
+- **Backend D1 Optimization & Cloudflare Smart Placement:**
+  - Added additive D1 migration `migrations/0006_global_query_indexes.sql` (10 composite indexes) + `db/rollbacks/ROLLBACK_0006_global_query_indexes.sql` + `schema.sql` parity + `scripts/verify-d1-migrations.mjs` (`6` migrations, `63` tables, `100%` parity).
+  - Parallelized `buildHydratedAuthPayload()` (`6` serial queries → `1` parallel `Promise.all` with explicit projections), pushed search/cursor pagination to SQL in `GET /api/v1/admin/users` and `GET /api/v1/community/posts`, and enabled `[placement] mode = "smart"` in `wrangler.toml` for both staging and production.
+- **Verified Gate Results:** `npm run lint` (`0` errors), `npm run verify:db` (`6` migrations, `63` tables, `100%` parity), `npm test` (**204 / 204 PASS**, 13 suites), `npm run build:all` (`dist/` entry `86.45 kB` gzip; `dist-admin/` entry `26.17 kB` gzip, `0` warnings), Wrangler staging & production dry-runs (`1011.84 KiB` / `203.25 KiB` gzip, `0` warnings), `scripts/smoke-test-deployment.mjs` (**6 / 6 PASS**), local concurrent load test (up to `1,498.4 RPS`, `p95 11.72–17.15ms`, `0` errors), and headless Chromium 12-viewport verification (`320px`–`1920px` + `844×390` landscape, `0px` overflow on all 12 viewports, mobile `FCP/LCP 148ms`, `CLS 0.044`, click-to-paint `50.8ms`, live authenticated SSE `200 text/event-stream`).
+- **External Blockers (Unchanged):** Live Cloudflare Staging/Production redeploy, remote D1 migration `0005`/`0006`, `git push origin main`, and multi-region WAN edge probes remain blocked pending owner `CLOUDFLARE_API_TOKEN`, GitHub PAT/SSH, and external multi-region runners.
+
+---
+
+## Critical Production Blank-Screen Recovery, SW v4 Hardening & Scenario A–M Regression Checkpoint (2026-11-27)
+
+- **Live Staging Root Cause Reproduced (`https://staging.linguaverse-web-1s7.pages.dev` in headless Chromium):**
+  - First visit renders the complete landing page immediately from synchronous `createDefaultCmsConfig()`, then crashes when the stale deployed Staging Worker (`linguaverse-ai-api-staging`) returns `{"config":null}` from `GET /api/v1/cms/public` → stale deployed bundle (`index-BNuKe6hs.js`) throws `TypeError: Cannot read properties of null (reading 'sections')` with no top-level ErrorBoundary, unmounting `#root` into a blank dark navy `#05091F` screen (`~11.6s` on cold load, `~317ms` on reload — producing the exact intermittent blank-screen behavior).
+- **Additional Resilience & Rolling-Deploy Blank-Screen Hardening Implemented:**
+  - **Pure Boot Recovery Engine (`src/domain/bootRecovery.ts`, `src/domain/bootRecovery.test.ts`):** Pure chunk/CSS/module load error classifier and 30s anti-loop auto-reload guard.
+  - **Service Worker v4 (`public/sw.js`, `src/utils/pwaRuntime.ts`, `src/domain/pwaCompliance.test.ts`):** Bumped caches to `linguaverse-shell-v4` / `linguaverse-fonts-v4`, moved `request.mode === 'navigate'` BEFORE `PRECACHE_URLS` (`cache: 'no-cache'` online, `/` offline fallback only), added `/assets/*` HTML-fallback mismatch detection (`503` + `X-LV-Chunk-Mismatch: 1` + stale `/` purge), `PURGE_ALL_CACHES` handler, `updateViaCache: 'none'`, and 5-minute foreground visibility update checks.
+  - **Zero-JS Boot Watchdogs (`index.html`, `admin.html`, `src/main.tsx`, `src/admin-main.tsx`):** Pure-DOM inline boot watchdogs detecting module `<script>` failures or 12s startup stalls before React mounts, performing one-shot cache-purge recovery or showing a `"Reload Fresh App"` recovery card; `markAppBootMounted()` clears watchdog and resets reload guards after 5s of stable mount.
+  - **Isolated Feature & Section Boundaries (`src/components/common/RootErrorBoundary.tsx`, `src/components/landing/HeroCommunicationCore.tsx`, `src/pages/LandingPage.tsx`):** Added `SafeFeatureBoundary` around lazy `<ThreeLanguageGlobe />` (graceful SVG fallback on WebGL/chunk failure) and around all non-hero landing sections, plus `unhandledrejection` chunk-error listener.
+  - **API Timeout & Explicit Vite Base Paths (`src/services/cmsApi.ts`, `vite.config.ts`, `vite.admin.config.ts`, `.github/workflows/ci-cd.yml`):** Added 10s `AbortController` timeout to `fetchPublicCmsConfig()`, explicit `base: '/'` in both Vite configs, and synced CI migration step descriptions to `0001 -> 0006`.
+- **Verified Gate Results:** `npm run lint` (`0` errors), `npm test` (**206 / 206 PASS**, 13 suites), `npm run verify:db` (`6` migrations, `63` tables, `100%` parity), `npm run build:all` (`dist/` + `dist-admin/`), `bun audit` (`0` vulnerabilities / `273` packages), bundle secret scan (`0` hits), Wrangler staging & production dry-runs (`1011.84 KiB` / `203.25 KiB` gzip, `0` warnings), `scripts/smoke-test-deployment.mjs` (**6 / 6 PASS**), and all **13 Mandatory Browser Regression Scenarios (A–M)** PASS on built `dist/` (`5×` reloads non-blank, `{"config":null}` + `500` API non-blank, slow network non-blocking, boot failure fallback verified, `EN ⇄ বাংলা` verified, mobile `390×844` `0px` overflow + menu verified, `0` uncaught page errors).
+- **Remaining External Blockers:** `git push origin main` (no GitHub PAT/SSH in container) and live Cloudflare Worker/Pages production & staging deployment (no `CLOUDFLARE_API_TOKEN` in container; `wrangler whoami` unauthenticated).
+
+
+
+
+

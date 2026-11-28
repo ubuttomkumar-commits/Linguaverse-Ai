@@ -6,9 +6,14 @@
  *   node scripts/smoke-test-deployment.mjs --api-url=http://localhost:3000 --web-url=http://localhost:3000 --admin-url=http://localhost:3000/admin.html
  */
 function parseArg(name, fallback) {
-  const prefix = `--${name}=`;
-  const hit = process.argv.find((a) => a.startsWith(prefix));
-  return hit ? hit.slice(prefix.length).replace(/\/$/, '') : fallback;
+  const eqPrefix = `--${name}=`;
+  const eqHit = process.argv.find((a) => a.startsWith(eqPrefix));
+  if (eqHit) return eqHit.slice(eqPrefix.length).replace(/\/$/, '');
+  const idx = process.argv.indexOf(`--${name}`);
+  if (idx !== -1 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith('--')) {
+    return process.argv[idx + 1].replace(/\/$/, '');
+  }
+  return fallback;
 }
 
 const apiUrl = parseArg('api-url', 'http://localhost:3000');
@@ -53,7 +58,11 @@ await check('Public CMS & Curriculum Overlay', async () => {
   ]);
   if (cmsRes.status !== 200) throw new Error(`CMS status ${cmsRes.status}`);
   if (ovRes.status !== 200) throw new Error(`Overlay status ${ovRes.status}`);
-  return '200 ok (CMS + Overlay)';
+  const cmsJson = await cmsRes.json();
+  if (!cmsJson?.config || !Array.isArray(cmsJson.config.sections) || cmsJson.config.sections.length === 0) {
+    throw new Error('Public CMS returned null or empty sections array');
+  }
+  return `200 ok (CMS sections=${cmsJson.config.sections.length} + Overlay)`;
 });
 
 await check('Unauthenticated Admin Overview Guard (401)', async () => {

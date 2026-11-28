@@ -151,30 +151,70 @@ async function callWorkerGeminiJson(
 export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps): void {
   const { requireAuth, requireAdmin, writeAuditLog } = deps;
 
+  const KV_SYSTEM_STATUS_KEY = 'public_cache:system_status_v1';
+  const PUBLIC_STATUS_CACHE_CONTROL = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+
   // 1. Public non-secret system status (Maintenance Mode + Feature Flags)
   app.get('/api/v1/system/status', async (c) => {
-    const flags = await loadJsonSetting<PlatformFeatureFlags>(
-      c.env.DB,
-      FEATURE_FLAGS_KEY,
-      DEFAULT_FEATURE_FLAGS
-    );
-    const sys = await loadJsonSetting<{
+    if (c.env.LINGUAVERSE_KV) {
+      try {
+        const cached = await c.env.LINGUAVERSE_KV.get(KV_SYSTEM_STATUS_KEY);
+        if (cached) {
+          c.header('Cache-Control', PUBLIC_STATUS_CACHE_CONTROL);
+          c.header('X-Cache', 'HIT');
+          return c.json(JSON.parse(cached));
+        }
+      } catch {
+        // Fallback to D1
+      }
+    }
+
+    const rows = await c.env.DB.prepare(
+      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?, ?)`
+    )
+      .bind(FEATURE_FLAGS_KEY, 'platform_config_v1')
+      .all<{ setting_key: string; setting_value: string }>();
+
+    let flags: PlatformFeatureFlags = { ...DEFAULT_FEATURE_FLAGS };
+    let sys: {
       maintenanceBannerEn?: string;
       maintenanceBannerBn?: string;
       allowNewRegistrations?: boolean;
-    }>(c.env.DB, 'platform_config_v1', {
+    } = {
       maintenanceBannerEn: '',
       maintenanceBannerBn: '',
       allowNewRegistrations: true,
-    });
-    return c.json({
+    };
+
+    for (const row of rows.results ?? []) {
+      try {
+        if (row.setting_key === FEATURE_FLAGS_KEY && row.setting_value) {
+          flags = { ...DEFAULT_FEATURE_FLAGS, ...(JSON.parse(row.setting_value) as Partial<PlatformFeatureFlags>) };
+        } else if (row.setting_key === 'platform_config_v1' && row.setting_value) {
+          sys = { ...sys, ...(JSON.parse(row.setting_value) as typeof sys) };
+        }
+      } catch {
+        // Keep safe defaults
+      }
+    }
+
+    const payload = {
       ok: true,
       maintenanceMode: flags.maintenanceMode,
       maintenanceBannerEn: sys.maintenanceBannerEn ?? '',
       maintenanceBannerBn: sys.maintenanceBannerBn ?? '',
       allowNewRegistrations: sys.allowNewRegistrations ?? true,
       featureFlags: flags,
-    });
+    };
+
+    if (c.env.LINGUAVERSE_KV) {
+      await c.env.LINGUAVERSE_KV.put(KV_SYSTEM_STATUS_KEY, JSON.stringify(payload), {
+        expirationTtl: 60,
+      }).catch(() => {});
+    }
+    c.header('Cache-Control', PUBLIC_STATUS_CACHE_CONTROL);
+    c.header('X-Cache', 'MISS');
+    return c.json(payload);
   });
 
   // 1B. Separate Admin Application Auth & One-Time Initial Super Admin Provisioning (D1 Parity)
@@ -211,6 +251,12 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
   });
 
   app.post('/api/v1/admin/auth/bootstrap', async (c) => {
+    if (!(await deps.checkRateLimit(c, 'admin_bootstrap', 5))) {
+      return c.json(
+        { error: 'Too many bootstrap attempts. Please wait a minute.', code: 'RATE_LIMITED' },
+        429
+      );
+    }
     const body = await c.req.json().catch(() => ({}));
     const validated = validateInitialAdminBootstrapInput(body);
     if (!validated.ok) {
@@ -308,6 +354,12 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
   });
 
   app.post('/api/v1/admin/auth/login', async (c) => {
+    if (!(await deps.checkRateLimit(c, 'admin_login', 10))) {
+      return c.json(
+        { error: 'Too many administrator login attempts. Please wait a minute.', code: 'RATE_LIMITED' },
+        429
+      );
+    }
     const body = (await c.req.json().catch(() => ({}))) as {
       email?: string;
       password?: string;
@@ -317,6 +369,19 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
     const password = typeof body.password === 'string' ? body.password : '';
     if (!email || !password) {
       return c.json({ error: 'Email and password are required.', code: 'MISSING_CREDENTIALS' }, 400);
+    }
+
+    const lockout = await deps.checkAccountLockout(c.env, 'admin', email);
+    if (lockout.locked) {
+      c.header('Retry-After', String(lockout.retryAfterSeconds));
+      return c.json(
+        {
+          error: 'Too many failed administrator login attempts. Please wait before trying again.',
+          code: 'ACCOUNT_LOCKED',
+          retryAfterSeconds: lockout.retryAfterSeconds,
+        },
+        429
+      );
     }
 
     const row = await c.env.DB.prepare(
@@ -338,8 +403,21 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
       }>();
 
     if (!row || !(await verifyPasswordPbkdf2(password, row.password_salt, row.password_hash))) {
+      const failed = await deps.recordFailedLogin(c.env, 'admin', email);
+      if (failed.locked) {
+        c.header('Retry-After', String(failed.retryAfterSeconds));
+        return c.json(
+          {
+            error: 'Too many failed administrator login attempts. Please wait before trying again.',
+            code: 'ACCOUNT_LOCKED',
+            retryAfterSeconds: failed.retryAfterSeconds,
+          },
+          429
+        );
+      }
       return c.json({ error: 'Invalid administrator email or password.', code: 'INVALID_CREDENTIALS' }, 401);
     }
+    await deps.clearFailedLogin(c.env, 'admin', email);
     if (row.account_status === 'suspended') {
       return c.json({ error: 'This administrator account is suspended.', code: 'ACCOUNT_SUSPENDED' }, 403);
     }
@@ -466,6 +544,9 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
       updatedBy: admin.email,
     };
     await saveJsonSetting(c.env.DB, FEATURE_FLAGS_KEY, next, admin.email);
+    if (c.env.LINGUAVERSE_KV) {
+      await c.env.LINGUAVERSE_KV.delete(KV_SYSTEM_STATUS_KEY).catch(() => {});
+    }
     await writeAuditLog(c.env, {
       actorUserId: admin.id,
       actorEmail: admin.email,
@@ -574,13 +655,16 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
   app.get('/api/v1/admin/system-health', async (c) => {
     const admin = await requireAdmin(c, ['admin', 'super_admin', 'ai_ops']);
     if (admin instanceof Response) return admin;
-    const [usersRow, examRow, writingRow, bridgeRow, notifRow, auditRow, secRows] = await Promise.all([
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM users`).first<{ cnt: number }>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM examination_attempts`).first<{ cnt: number }>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM writing_diary_entries`).first<{ cnt: number }>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM human_bridge_logs`).first<{ cnt: number }>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM user_notifications`).first<{ cnt: number }>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM audit_logs`).first<{ cnt: number }>(),
+    const [countsRow, secRows] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM users) AS total_users,
+           (SELECT COUNT(*) FROM examination_attempts) AS exam_attempts,
+           (SELECT COUNT(*) FROM writing_diary_entries) AS writing_entries,
+           (SELECT COUNT(*) FROM human_bridge_logs) AS bridge_logs,
+           (SELECT COUNT(*) FROM user_notifications) AS notifications,
+           (SELECT COUNT(*) FROM audit_logs) AS audit_logs`
+      ).first<Record<string, number>>(),
       c.env.DB.prepare(
         `SELECT id, action, actor_email, summary_en, created_at
          FROM audit_logs
@@ -625,16 +709,18 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
           '0002_parts06_12_parity.sql',
           '0003_p3_community_vocab_billing.sql',
           '0004_prd61_examinations_labs_providers.sql',
+          '0005_performance_indexes.sql',
+          '0006_global_query_indexes.sql',
         ],
         backupStatus: 'Use `npx wrangler d1 export linguaverse-db --remote --output=./backup.sql` before migrations.',
       },
       counts: {
-        totalUsers: Number(usersRow?.cnt ?? 0),
-        examinationAttempts: Number(examRow?.cnt ?? 0),
-        writingDiaryEntries: Number(writingRow?.cnt ?? 0),
-        humanBridgeLogs: Number(bridgeRow?.cnt ?? 0),
-        persistedNotifications: Number(notifRow?.cnt ?? 0),
-        auditLogs: Number(auditRow?.cnt ?? 0),
+        totalUsers: Number(countsRow?.total_users ?? 0),
+        examinationAttempts: Number(countsRow?.exam_attempts ?? 0),
+        writingDiaryEntries: Number(countsRow?.writing_entries ?? 0),
+        humanBridgeLogs: Number(countsRow?.bridge_logs ?? 0),
+        persistedNotifications: Number(countsRow?.notifications ?? 0),
+        auditLogs: Number(countsRow?.audit_logs ?? 0),
       },
       providersSummary: buildWorkerProviderStatuses(c.env).map((p) => ({
         id: p.id,
@@ -1123,5 +1209,120 @@ export function registerWorkerPrd61Routes(app: WorkerApp, deps: WorkerRouteDeps)
       summaryBn: `প্ল্যাটফর্ম নোটিশ পাঠানো হয়েছে: "${titleEn}"`,
     });
     return c.json({ notification: { id, userId: '*', type: 'system_broadcast', titleEn, titleBn: titleBn || titleEn, bodyEn, bodyBn: bodyBn || bodyEn, actionRoute, readAt: null, createdAt: nowIso } }, 201);
+  });
+
+  // 8. Authenticated Realtime Event Stream (SSE — Stateless Worker Snapshot + Durable Objects Ready)
+  app.get('/api/v1/realtime/events', async (c) => {
+    const user = await requireAuth(c);
+    if (user instanceof Response) return user;
+
+    const [recentNotifsRes, statusRows] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT id, user_id, type, title_en, title_bn, body_en, body_bn, action_route, read_at, created_at
+         FROM user_notifications
+         WHERE (user_id = ? OR user_id = '*') AND read_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 5`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+      c.env.DB.prepare(
+        `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?, ?)`
+      )
+        .bind(FEATURE_FLAGS_KEY, 'platform_config_v1')
+        .all<{ setting_key: string; setting_value: string }>(),
+    ]);
+
+    let maintenanceMode = false;
+    let maintenanceBannerEn = '';
+    let maintenanceBannerBn = '';
+    for (const row of statusRows.results ?? []) {
+      try {
+        if (row.setting_key === FEATURE_FLAGS_KEY && row.setting_value) {
+          const parsed = JSON.parse(row.setting_value) as Partial<PlatformFeatureFlags>;
+          maintenanceMode = Boolean(parsed.maintenanceMode);
+        } else if (row.setting_key === 'platform_config_v1' && row.setting_value) {
+          const parsed = JSON.parse(row.setting_value) as {
+            maintenanceBannerEn?: string;
+            maintenanceBannerBn?: string;
+          };
+          maintenanceBannerEn = parsed.maintenanceBannerEn ?? '';
+          maintenanceBannerBn = parsed.maintenanceBannerBn ?? '';
+        }
+      } catch {
+        // Keep safe defaults
+      }
+    }
+
+    const encoder = new TextEncoder();
+    const nowIso = new Date().toISOString();
+    let seq = 0;
+
+    const formatFrame = (
+      type: 'connected' | 'notification.created' | 'system.status_updated',
+      payload: Record<string, unknown>,
+      customId?: string
+    ) => {
+      seq += 1;
+      const envelope = {
+        id: customId || `wrk_rt_${Date.now()}_${seq}`,
+        seq,
+        type,
+        emittedAt: nowIso,
+        payload,
+      };
+      return `id: ${envelope.id}\ndata: ${JSON.stringify(envelope)}\n\n`;
+    };
+
+    const chunks: string[] = [
+      formatFrame('connected', { userId: user.id, runtime: 'cloudflare-worker' }),
+    ];
+
+    if (maintenanceMode) {
+      chunks.push(
+        formatFrame(
+          'system.status_updated',
+          { maintenanceMode, maintenanceBannerEn, maintenanceBannerBn },
+          `status_${maintenanceMode ? 'on' : 'off'}_${maintenanceBannerEn.slice(0, 16)}`
+        )
+      );
+    }
+
+    for (const r of recentNotifsRes.results ?? []) {
+      chunks.push(
+        formatFrame(
+          'notification.created',
+          {
+            id: r.id,
+            userId: r.user_id,
+            type: r.type,
+            titleEn: r.title_en,
+            titleBn: r.title_bn,
+            bodyEn: r.body_en,
+            bodyBn: r.body_bn,
+            actionRoute: r.action_route ?? undefined,
+            readAt: r.read_at ?? null,
+            createdAt: r.created_at,
+          },
+          `notif_${String(r.id)}`
+        )
+      );
+    }
+
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(chunks.join('')));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-store, private',
+        'X-Accel-Buffering': 'no',
+      },
+    });
   });
 }

@@ -1,0 +1,31 @@
+# LINGUAVERSE AI — Cloudflare Pages Edge Caching & Security Headers (Learner PWA)
+# Immutable hashed Vite bundles cached 1 year at Cloudflare edge & browser
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Static PWA icons & manifest (1 day + 7 days stale-while-revalidate)
+/*.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+# Always revalidate Service Worker & HTML shell immediately on new deployments
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Global security headers for Learner PWA
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), geolocation=(), payment=(), usb=()

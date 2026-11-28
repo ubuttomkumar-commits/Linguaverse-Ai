@@ -988,7 +988,45 @@ CREATE TABLE IF NOT EXISTS user_notifications (
 CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
   ON user_notifications(user_id, created_at DESC);
 
+-- ============================================================================
+-- Section 17: D1 Query Performance Indexes (Migration 0005 Parity)
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_users_created_desc
+  ON users(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
+  ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_courses_custom_published
+  ON courses(is_custom, published_status, sort_order ASC);
+CREATE INDEX IF NOT EXISTS idx_lessons_custom_published
+  ON lessons(is_custom, published_status, sort_order ASC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created
+  ON audit_logs(action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cms_analytics_created
+  ON cms_analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audio_assets_created
+  ON audio_assets(created_at);
 
-
-
+-- ============================================================================
+-- Section 18: Global Query & Hydration Composite Indexes (Migration 0006 Parity)
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_learner_mistakes_user_last_seen
+  ON learner_mistakes(user_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_learner_mistakes_user_status
+  ON learner_mistakes(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_lesson_attempts_user_completed
+  ON lesson_attempts(user_id, completed_at ASC);
+CREATE INDEX IF NOT EXISTS idx_speaking_sessions_user_updated
+  ON speaking_sessions(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transfer_attempts_user_completed
+  ON transfer_attempts(user_id, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_xp_events_user_verified
+  ON user_xp_events(user_id, verified_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_posts_status_created
+  ON community_posts(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post_status_created
+  ON community_comments(post_id, status, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_users_email_verified
+  ON users(email_verified);
+CREATE INDEX IF NOT EXISTS idx_users_account_status
+  ON users(account_status);
 

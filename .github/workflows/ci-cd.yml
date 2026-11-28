@@ -47,7 +47,7 @@ jobs:
       - name: TypeScript typecheck
         run: npm run lint
 
-      - name: Verify D1 SQLite migrations (0001 -> 0004), foreign keys, seed idempotency & rollbacks
+      - name: Verify D1 SQLite migrations (0001 -> 0006), foreign keys, seed idempotency & rollbacks
         run: npm run verify:db
 
       - name: Run domain, storage, and Cloudflare Worker parity tests
@@ -97,7 +97,7 @@ jobs:
             npm install
           fi
 
-      - name: Apply additive D1 migrations sequentially (0001 -> 0004) & idempotent reference seed
+      - name: Apply additive D1 migrations sequentially (0001 -> 0006) & idempotent reference seed
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -118,7 +118,7 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
         run: |
           npm run build
-          npx wrangler pages deploy dist --project-name=linguaverse-ai
+          npx wrangler pages deploy dist --project-name=linguaverse-web
 
       - name: Build & deploy Separate Admin Application to Cloudflare Pages
         env:

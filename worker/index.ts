@@ -26,7 +26,12 @@ import {
   validateAudioUploadConstraints,
   verifyImageMagicBytes,
 } from '../src/domain/securityPolicy';
-import { validateMediaUpload } from '../src/domain/cmsEngine';
+import {
+  createDefaultCmsConfig,
+  sanitizeCmsConfigPatch,
+  validateMediaUpload,
+  type CmsConfig,
+} from '../src/domain/cmsEngine';
 import {
   buildSpeakingSystemInstruction,
   buildSpeakingTurnPrompt,
@@ -97,7 +102,43 @@ app.use('*', async (c, next) => {
   return middleware(c, next);
 });
 
+const PUBLIC_CACHE_CONTROL = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+const PRIVATE_NO_STORE = 'no-store, no-cache, must-revalidate, private';
+const KV_PUBLIC_CMS_KEY = 'public_cache:cms_v1';
+const KV_PUBLIC_OVERLAY_KEY = 'public_cache:curriculum_overlay_v1';
+
+async function readPublicKvJson<T>(env: WorkerEnv, key: string): Promise<T | null> {
+  if (!env.LINGUAVERSE_KV) return null;
+  try {
+    const cached = await env.LINGUAVERSE_KV.get(key);
+    return cached ? (JSON.parse(cached) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writePublicKvJson(env: WorkerEnv, key: string, value: unknown, ttlSeconds = 60): Promise<void> {
+  if (!env.LINGUAVERSE_KV) return;
+  try {
+    await env.LINGUAVERSE_KV.put(key, JSON.stringify(value), { expirationTtl: ttlSeconds });
+  } catch {
+    // Non-fatal edge cache write failure
+  }
+}
+
+async function invalidatePublicKvKeys(env: WorkerEnv, keys: string[]): Promise<void> {
+  if (!env.LINGUAVERSE_KV) return;
+  await Promise.all(
+    keys.map((key) =>
+      env.LINGUAVERSE_KV!.delete(key).catch(() => {
+        // Ignore non-fatal cache delete errors
+      })
+    )
+  );
+}
+
 app.use('*', async (c, next) => {
+  const startedAt = Date.now();
   const corrId = c.req.header('X-Correlation-Id') || c.req.header('X-Request-Id') || generateRandomId('req');
   c.header('X-Correlation-Id', corrId);
   c.header('X-Request-Id', corrId);
@@ -106,6 +147,17 @@ app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   c.header('Permissions-Policy', 'camera=(), geolocation=(), payment=()');
   await next();
+  const durationMs = Math.max(0, Date.now() - startedAt);
+  c.res.headers.set('Server-Timing', `app;dur=${durationMs}`);
+  const reqPath = new URL(c.req.url).pathname;
+  const isPrivateOrAdmin =
+    reqPath.startsWith('/api/v1/admin/') ||
+    reqPath.startsWith('/api/v1/auth/') ||
+    Boolean(c.req.header('Authorization'));
+  if (isPrivateOrAdmin || !c.res.headers.has('Cache-Control')) {
+    c.res.headers.set('Cache-Control', PRIVATE_NO_STORE);
+    c.res.headers.set('Pragma', 'no-cache');
+  }
 });
 
 // 2. Edge KV Rate Limiting Middleware
@@ -122,6 +174,81 @@ async function checkRateLimit(c: AppContext, bucket: string, maxPerMinute: numbe
   }
   await kv.put(key, String(current + 1), { expirationTtl: 90 });
   return true;
+}
+
+const WORKER_ACCOUNT_LOCKOUT_MAX_ATTEMPTS = 5;
+const WORKER_ACCOUNT_LOCKOUT_TTL_SECONDS = 15 * 60; // 15 minutes
+
+async function buildLockoutKey(scope: string, email: string): Promise<string> {
+  const digest = await sha256Hex(email.trim().toLowerCase());
+  return `lockout:${scope}:${digest}`;
+}
+
+async function checkAccountLockout(
+  env: WorkerEnv,
+  scope: string,
+  email: string
+): Promise<{ locked: boolean; retryAfterSeconds: number }> {
+  const kv = env.RATE_LIMIT_KV ?? env.LINGUAVERSE_KV;
+  if (!kv || !email) return { locked: false, retryAfterSeconds: 0 };
+  const key = await buildLockoutKey(scope, email);
+  const raw = await kv.get(key);
+  if (!raw) return { locked: false, retryAfterSeconds: 0 };
+  try {
+    const parsed = JSON.parse(raw) as { attempts?: number; lockedUntilMs?: number };
+    if (typeof parsed.lockedUntilMs === 'number' && parsed.lockedUntilMs > Date.now()) {
+      return {
+        locked: true,
+        retryAfterSeconds: Math.max(1, Math.ceil((parsed.lockedUntilMs - Date.now()) / 1000)),
+      };
+    }
+  } catch {
+    // Ignore malformed KV record
+  }
+  return { locked: false, retryAfterSeconds: 0 };
+}
+
+async function recordFailedLogin(
+  env: WorkerEnv,
+  scope: string,
+  email: string
+): Promise<{ locked: boolean; attempts: number; retryAfterSeconds: number }> {
+  const kv = env.RATE_LIMIT_KV ?? env.LINGUAVERSE_KV;
+  if (!kv || !email) return { locked: false, attempts: 0, retryAfterSeconds: 0 };
+  const key = await buildLockoutKey(scope, email);
+  let attempts = 0;
+  const raw = await kv.get(key);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as { attempts?: number };
+      attempts = Number(parsed.attempts || 0);
+    } catch {
+      attempts = 0;
+    }
+  }
+  attempts += 1;
+  if (attempts >= WORKER_ACCOUNT_LOCKOUT_MAX_ATTEMPTS) {
+    const lockedUntilMs = Date.now() + WORKER_ACCOUNT_LOCKOUT_TTL_SECONDS * 1000;
+    await kv.put(key, JSON.stringify({ attempts, lockedUntilMs }), {
+      expirationTtl: WORKER_ACCOUNT_LOCKOUT_TTL_SECONDS,
+    });
+    return {
+      locked: true,
+      attempts,
+      retryAfterSeconds: WORKER_ACCOUNT_LOCKOUT_TTL_SECONDS,
+    };
+  }
+  await kv.put(key, JSON.stringify({ attempts }), {
+    expirationTtl: WORKER_ACCOUNT_LOCKOUT_TTL_SECONDS,
+  });
+  return { locked: false, attempts, retryAfterSeconds: 0 };
+}
+
+async function clearFailedLogin(env: WorkerEnv, scope: string, email: string): Promise<void> {
+  const kv = env.RATE_LIMIT_KV ?? env.LINGUAVERSE_KV;
+  if (!kv || !email) return;
+  const key = await buildLockoutKey(scope, email);
+  await kv.delete(key);
 }
 
 // 3. Session Helpers (HTTP-only Cookie + Bearer Token; fail-closed JWT secret resolution)
@@ -292,41 +419,78 @@ async function buildHydratedAuthPayload(
   user: AuthUserContext,
   token: string
 ) {
-  const profileRow = await env.DB.prepare(
-    `SELECT * FROM learner_profiles WHERE user_id = ? LIMIT 1`
-  )
-    .bind(user.id)
-    .first<Record<string, unknown>>();
-
-  const mistakesRes = await env.DB.prepare(
-    `SELECT * FROM learner_mistakes WHERE user_id = ? ORDER BY last_seen_at DESC LIMIT 200`
-  )
-    .bind(user.id)
-    .all<Record<string, unknown>>();
-
-  const lessonAttemptsRes = await env.DB.prepare(
-    `SELECT * FROM lesson_attempts WHERE user_id = ? ORDER BY completed_at ASC LIMIT 200`
-  )
-    .bind(user.id)
-    .all<Record<string, unknown>>();
-
-  const speakingRes = await env.DB.prepare(
-    `SELECT * FROM speaking_sessions WHERE user_id = ? ORDER BY updated_at DESC LIMIT 50`
-  )
-    .bind(user.id)
-    .all<Record<string, unknown>>();
-
-  const transferRes = await env.DB.prepare(
-    `SELECT * FROM transfer_attempts WHERE user_id = ? ORDER BY completed_at DESC LIMIT 50`
-  )
-    .bind(user.id)
-    .all<Record<string, unknown>>();
-
-  const xpRes = await env.DB.prepare(
-    `SELECT * FROM user_xp_events WHERE user_id = ? ORDER BY verified_at DESC LIMIT 200`
-  )
-    .bind(user.id)
-    .all<Record<string, unknown>>();
+  const [profileRow, mistakesRes, lessonAttemptsRes, speakingRes, transferRes, xpRes] =
+    await Promise.all([
+      env.DB.prepare(
+        `SELECT preferred_ui_language, explanation_language, self_estimated_level, primary_goal,
+                daily_time_goal_minutes, spaced_repetition_preset, store_mic_recordings,
+                log_ai_evaluations, privacy_consent_updated_at, onboarding_completed,
+                diagnostic_completed, updated_at
+         FROM learner_profiles
+         WHERE user_id = ?
+         LIMIT 1`
+      )
+        .bind(user.id)
+        .first<Record<string, unknown>>(),
+      env.DB.prepare(
+        `SELECT id, user_id, source, lesson_id, speaking_session_id, domain, category,
+                user_example, corrected_example, pattern_en, pattern_bn, explanation_en,
+                explanation_bn, occurrences, severity, confidence, status,
+                false_correction_reported, false_correction_reason, false_correction_reported_at,
+                admin_review_status, admin_review_note, admin_reviewed_at, admin_reviewed_by,
+                created_at, last_seen_at
+         FROM learner_mistakes
+         WHERE user_id = ?
+         ORDER BY last_seen_at DESC
+         LIMIT 200`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+      env.DB.prepare(
+        `SELECT id, user_id, lesson_id, started_at, completed_at, duration_seconds,
+                guided_correct, guided_total, independent_correct, independent_total,
+                assessment_correct, assessment_total, overall_accuracy_percent,
+                mistakes_logged_count
+         FROM lesson_attempts
+         WHERE user_id = ?
+         ORDER BY completed_at ASC
+         LIMIT 200`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+      env.DB.prepare(
+        `SELECT id, user_id, mode_id, pressure_level, started_at, updated_at,
+                duration_seconds, turns_json, total_mistakes_detected
+         FROM speaking_sessions
+         WHERE user_id = ?
+         ORDER BY updated_at DESC
+         LIMIT 50`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+      env.DB.prepare(
+        `SELECT id, user_id, scenario_id, pressure_level, target_skill_label_en,
+                target_skill_label_bn, linked_source_type, linked_source_id, user_response,
+                twist_prompt_shown, twist_response, input_channel, duration_seconds, timed_out,
+                evaluation_json, passed, completed_at
+         FROM transfer_attempts
+         WHERE user_id = ?
+         ORDER BY completed_at DESC
+         LIMIT 50`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+      env.DB.prepare(
+        `SELECT id, user_id, idempotency_key, source_type, source_id, title_en, title_bn,
+                detail_en, detail_bn, xp_earned, verified_at
+         FROM user_xp_events
+         WHERE user_id = ?
+         ORDER BY verified_at DESC
+         LIMIT 200`
+      )
+        .bind(user.id)
+        .all<Record<string, unknown>>(),
+    ]);
 
   const lessonAttempts = lessonAttemptsRes.results.map((r) => ({
     id: String(r.id),
@@ -678,6 +842,19 @@ app.post('/api/v1/auth/login', async (c) => {
     return c.json({ error: 'Email and password are required.' }, 400);
   }
 
+  const lockout = await checkAccountLockout(c.env, 'learner', email);
+  if (lockout.locked) {
+    c.header('Retry-After', String(lockout.retryAfterSeconds));
+    return c.json(
+      {
+        error: 'Too many failed sign-in attempts for this account. Please wait before trying again.',
+        code: 'ACCOUNT_LOCKED',
+        retryAfterSeconds: lockout.retryAfterSeconds,
+      },
+      429
+    );
+  }
+
   const userRow = await c.env.DB.prepare(
     `SELECT id, name, email, password_salt, password_hash, plan, role,
             email_verified, account_status, created_at
@@ -698,6 +875,18 @@ app.post('/api/v1/auth/login', async (c) => {
     }>();
 
   if (!userRow) {
+    const failed = await recordFailedLogin(c.env, 'learner', email);
+    if (failed.locked) {
+      c.header('Retry-After', String(failed.retryAfterSeconds));
+      return c.json(
+        {
+          error: 'Too many failed sign-in attempts for this account. Please wait before trying again.',
+          code: 'ACCOUNT_LOCKED',
+          retryAfterSeconds: failed.retryAfterSeconds,
+        },
+        429
+      );
+    }
     return c.json({ error: 'Invalid email or password.' }, 401);
   }
   if (userRow.account_status === 'suspended') {
@@ -706,8 +895,22 @@ app.post('/api/v1/auth/login', async (c) => {
 
   const valid = await verifyPasswordPbkdf2(password, userRow.password_salt, userRow.password_hash);
   if (!valid) {
+    const failed = await recordFailedLogin(c.env, 'learner', email);
+    if (failed.locked) {
+      c.header('Retry-After', String(failed.retryAfterSeconds));
+      return c.json(
+        {
+          error: 'Too many failed sign-in attempts for this account. Please wait before trying again.',
+          code: 'ACCOUNT_LOCKED',
+          retryAfterSeconds: failed.retryAfterSeconds,
+        },
+        429
+      );
+    }
     return c.json({ error: 'Invalid email or password.' }, 401);
   }
+
+  await clearFailedLogin(c.env, 'learner', email);
 
   const nowIso = new Date().toISOString();
   const sessionId = generateRandomId('ses');
@@ -1294,6 +1497,13 @@ app.get('/api/v1/curriculum/courses', async (c) => {
 });
 
 app.get('/api/v1/curriculum/overlay', async (c) => {
+  const cached = await readPublicKvJson<Record<string, unknown>>(c.env, KV_PUBLIC_OVERLAY_KEY);
+  if (cached) {
+    c.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+    c.header('X-Cache', 'HIT');
+    return c.json(cached);
+  }
+
   const [coursesRes, modulesRes, lessonsRes] = await Promise.all([
     c.env.DB.prepare(
       `SELECT * FROM courses WHERE is_custom = 1 AND published_status = 'published' ORDER BY sort_order ASC`
@@ -1365,14 +1575,18 @@ app.get('/api/v1/curriculum/overlay', async (c) => {
     }
   });
 
-  return c.json({
+  const payload = {
     schemaVersion: 1,
     catalogVersion: Math.max(1, customCourses.length + customModules.length + customLessons.length + 1),
     customCourses,
     customModules,
     customLessons,
     updatedAt: new Date().toISOString(),
-  });
+  };
+  await writePublicKvJson(c.env, KV_PUBLIC_OVERLAY_KEY, payload, 60);
+  c.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+  c.header('X-Cache', 'MISS');
+  return c.json(payload);
 });
 
 // ============================================================================
@@ -1382,38 +1596,29 @@ app.get('/api/v1/admin/overview', async (c) => {
   const admin = await requireAdmin(c);
   if (admin instanceof Response) return admin;
 
-  const [
-    usersRow,
-    verifiedRow,
-    suspendedRow,
-    lessonsRow,
-    speakingRow,
-    transferRow,
-    aiCallsRow,
-    activeMistakesRow,
-    flaggedMistakesRow,
-  ] = await Promise.all([
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM users`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM users WHERE email_verified = 1`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM users WHERE account_status = 'suspended'`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM lesson_attempts`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM speaking_sessions`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM transfer_attempts`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM ai_telemetry_events`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM learner_mistakes WHERE status != 'resolved'`).first<{ cnt: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS cnt FROM learner_mistakes WHERE false_correction_reported = 1`).first<{ cnt: number }>(),
-  ]);
+  const stats = await c.env.DB.prepare(
+    `SELECT
+       (SELECT COUNT(*) FROM users) AS total_users,
+       (SELECT COUNT(*) FROM users WHERE email_verified = 1) AS verified_users,
+       (SELECT COUNT(*) FROM users WHERE account_status = 'suspended') AS suspended_users,
+       (SELECT COUNT(*) FROM lesson_attempts) AS lessons_completed,
+       (SELECT COUNT(*) FROM speaking_sessions) AS speaking_sessions,
+       (SELECT COUNT(*) FROM transfer_attempts) AS transfer_attempts,
+       (SELECT COUNT(*) FROM ai_telemetry_events) AS ai_calls,
+       (SELECT COUNT(*) FROM learner_mistakes WHERE status != 'resolved') AS active_mistakes,
+       (SELECT COUNT(*) FROM learner_mistakes WHERE false_correction_reported = 1) AS flagged_mistakes`
+  ).first<Record<string, number>>();
 
   return c.json({
-    totalUsers: Number(usersRow?.cnt || 0),
-    verifiedUsers: Number(verifiedRow?.cnt || 0),
-    suspendedUsers: Number(suspendedRow?.cnt || 0),
-    lessonsCompleted: Number(lessonsRow?.cnt || 0),
-    speakingSessions: Number(speakingRow?.cnt || 0),
-    transferAttempts: Number(transferRow?.cnt || 0),
-    aiCalls: Number(aiCallsRow?.cnt || 0),
-    activeMistakes: Number(activeMistakesRow?.cnt || 0),
-    flaggedMistakes: Number(flaggedMistakesRow?.cnt || 0),
+    totalUsers: Number(stats?.total_users || 0),
+    verifiedUsers: Number(stats?.verified_users || 0),
+    suspendedUsers: Number(stats?.suspended_users || 0),
+    lessonsCompleted: Number(stats?.lessons_completed || 0),
+    speakingSessions: Number(stats?.speaking_sessions || 0),
+    transferAttempts: Number(stats?.transfer_attempts || 0),
+    aiCalls: Number(stats?.ai_calls || 0),
+    activeMistakes: Number(stats?.active_mistakes || 0),
+    flaggedMistakes: Number(stats?.flagged_mistakes || 0),
   });
 });
 
@@ -1421,40 +1626,69 @@ app.get('/api/v1/admin/users', async (c) => {
   const admin = await requireAdmin(c, ['super_admin', 'admin']);
   if (admin instanceof Response) return admin;
 
-  const q = (c.req.query('q') || '').trim().toLowerCase();
+  const q = (c.req.query('q') || '').trim().toLowerCase().slice(0, 120);
+  const beforeCreatedAt = (c.req.query('beforeCreatedAt') || '').trim().slice(0, 40);
+  const requestedLimit = Number(c.req.query('limit') || '100');
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(200, Math.floor(requestedLimit)))
+    : 100;
+
+  const whereClauses: string[] = [];
+  const bindValues: unknown[] = [];
+
+  if (q) {
+    const likePattern = `%${q}%`;
+    whereClauses.push(
+      `(LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(u.role) LIKE ?)`
+    );
+    bindValues.push(likePattern, likePattern, likePattern);
+  }
+  if (beforeCreatedAt) {
+    whereClauses.push(`u.created_at < ?`);
+    bindValues.push(beforeCreatedAt);
+  }
+
+  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  bindValues.push(limit);
+
   const res = await c.env.DB.prepare(
     `SELECT u.id, u.name, u.email, u.role, u.plan, u.email_verified, u.account_status, u.created_at,
             (SELECT COUNT(*) FROM lesson_attempts la WHERE la.user_id = u.id) AS lessons_completed,
             (SELECT COUNT(*) FROM speaking_sessions ss WHERE ss.user_id = u.id) AS speaking_sessions,
             (SELECT COUNT(*) FROM learner_mistakes lm WHERE lm.user_id = u.id AND lm.status != 'resolved') AS active_mistakes
      FROM users u
-     ORDER BY u.created_at DESC LIMIT 200`
-  ).all<Record<string, unknown>>();
+     ${whereSql}
+     ORDER BY u.created_at DESC
+     LIMIT ?`
+  )
+    .bind(...bindValues)
+    .all<Record<string, unknown>>();
 
-  const mapped = res.results
-    .map((r) => ({
-      id: String(r.id),
-      name: String(r.name),
-      email: String(r.email),
-      role: String(r.role) as WorkerAdminRole,
-      plan: String(r.plan),
-      emailVerified: Boolean(r.email_verified),
-      accountStatus: String(r.account_status || 'active'),
-      lessonsCompleted: Number(r.lessons_completed || 0),
-      speakingSessions: Number(r.speaking_sessions || 0),
-      activeMistakes: Number(r.active_mistakes || 0),
-      createdAt: String(r.created_at),
-    }))
-    .filter(
-      (u) =>
-        !q ||
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.role.toLowerCase().includes(q)
-    );
+  const mapped = res.results.map((r) => ({
+    id: String(r.id),
+    name: String(r.name),
+    email: String(r.email),
+    role: String(r.role) as WorkerAdminRole,
+    plan: String(r.plan),
+    emailVerified: Boolean(r.email_verified),
+    accountStatus: String(r.account_status || 'active'),
+    lessonsCompleted: Number(r.lessons_completed || 0),
+    speakingSessions: Number(r.speaking_sessions || 0),
+    activeMistakes: Number(r.active_mistakes || 0),
+    createdAt: String(r.created_at),
+  }));
 
   return c.json(mapped);
 });
+
+const VALID_WORKER_USER_ROLES = new Set<WorkerAdminRole>([
+  'learner',
+  'moderator',
+  'content_manager',
+  'ai_ops',
+  'admin',
+  'super_admin',
+]);
 
 app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
   const admin = await requireAdmin(c, ['super_admin', 'admin']);
@@ -1462,10 +1696,21 @@ app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
 
   const targetUserId = c.req.param('targetUserId');
   const patch = (await c.req.json().catch(() => ({}))) as {
-    role?: WorkerAdminRole;
-    accountStatus?: 'active' | 'suspended';
+    role?: string;
+    accountStatus?: string;
     emailVerified?: boolean;
   };
+
+  if (patch.role !== undefined && !VALID_WORKER_USER_ROLES.has(patch.role as WorkerAdminRole)) {
+    return c.json({ error: 'Invalid RBAC role.', code: 'INVALID_ROLE' }, 400);
+  }
+  if (
+    patch.accountStatus !== undefined &&
+    patch.accountStatus !== 'active' &&
+    patch.accountStatus !== 'suspended'
+  ) {
+    return c.json({ error: 'Invalid accountStatus.', code: 'INVALID_STATUS' }, 400);
+  }
 
   const target = await c.env.DB.prepare(
     `SELECT id, name, email, role, plan, email_verified, account_status, created_at
@@ -1475,8 +1720,37 @@ app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
     .first<Record<string, unknown>>();
   if (!target) return c.json({ error: 'Target user not found.' }, 404);
 
-  const nextRole = patch.role ?? (String(target.role) as WorkerAdminRole);
-  const nextStatus = patch.accountStatus ?? String(target.account_status || 'active');
+  const currentRole = String(target.role) as WorkerAdminRole;
+
+  // Prevent vertical privilege escalation and unauthorized super_admin modifications
+  if (admin.role !== 'super_admin') {
+    if (currentRole === 'super_admin') {
+      return c.json(
+        { error: 'Only a Super Admin can modify a Super Admin account.', code: 'SUPER_ADMIN_REQUIRED' },
+        403
+      );
+    }
+    if (patch.role === 'super_admin') {
+      return c.json(
+        { error: 'Only a Super Admin can assign the super_admin role.', code: 'SUPER_ADMIN_REQUIRED' },
+        403
+      );
+    }
+  }
+
+  if (targetUserId === admin.id) {
+    if (patch.accountStatus === 'suspended') {
+      return c.json({ error: 'You cannot suspend your own active administrator account.' }, 400);
+    }
+    if (patch.role !== undefined && patch.role !== admin.role) {
+      return c.json({ error: 'You cannot change your own administrator role.' }, 400);
+    }
+  }
+
+  const nextRole = (patch.role as WorkerAdminRole | undefined) ?? currentRole;
+  const nextStatus =
+    (patch.accountStatus as 'active' | 'suspended' | undefined) ??
+    (String(target.account_status || 'active') as 'active' | 'suspended');
   const nextVerified =
     patch.emailVerified !== undefined
       ? patch.emailVerified
@@ -1490,7 +1764,8 @@ app.patch('/api/v1/admin/users/:targetUserId', async (c) => {
     .bind(nextRole, nextStatus, nextVerified, new Date().toISOString(), targetUserId)
     .run();
 
-  if (nextStatus === 'suspended') {
+  const demotedToLearner = currentRole !== 'learner' && nextRole === 'learner';
+  if (nextStatus === 'suspended' || demotedToLearner) {
     await c.env.DB.prepare(`UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`)
       .bind(new Date().toISOString(), targetUserId)
       .run();
@@ -1530,10 +1805,16 @@ app.delete('/api/v1/admin/users/:targetUserId', async (c) => {
   if (targetUserId === admin.id) {
     return c.json({ error: 'You cannot delete your own administrator account.' }, 400);
   }
-  const target = await c.env.DB.prepare(`SELECT id, email FROM users WHERE id = ? LIMIT 1`)
+  const target = await c.env.DB.prepare(`SELECT id, email, role FROM users WHERE id = ? LIMIT 1`)
     .bind(targetUserId)
-    .first<{ id: string; email: string }>();
+    .first<{ id: string; email: string; role: WorkerAdminRole }>();
   if (!target) return c.json({ error: 'Target user not found.' }, 404);
+  if (target.role === 'super_admin' && admin.role !== 'super_admin') {
+    return c.json(
+      { error: 'Only a Super Admin can delete a Super Admin account.', code: 'SUPER_ADMIN_REQUIRED' },
+      403
+    );
+  }
   await c.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(targetUserId).run();
   await c.env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(targetUserId).run();
   await writeAuditLog(c.env, {
@@ -1591,6 +1872,7 @@ app.post('/api/v1/admin/curriculum/courses', async (c) => {
     summaryBn: `"${String(course.titleBn || id)}" কোর্স প্রকাশ করা হয়েছে (v${version})।`,
   });
 
+  await invalidatePublicKvKeys(c.env, [KV_PUBLIC_OVERLAY_KEY]);
   return c.json({ id, catalogVersion: version });
 });
 
@@ -1639,6 +1921,7 @@ app.post('/api/v1/admin/curriculum/lessons', async (c) => {
     summaryBn: `"${String(lesson.titleBn || id)}" লেসন প্রকাশ করা হয়েছে (v${version})।`,
   });
 
+  await invalidatePublicKvKeys(c.env, [KV_PUBLIC_OVERLAY_KEY]);
   return c.json({ id, catalogVersion: version });
 });
 
@@ -1884,15 +2167,53 @@ app.get('/api/v1/admin/audit-logs', async (c) => {
 // ============================================================================
 // Public & Admin CMS, Analytics, and Honest Subscription Endpoints (D1 + R2)
 // ============================================================================
+function parseStoredCmsConfig(raw: string | null | undefined): CmsConfig {
+  const defaults = createDefaultCmsConfig();
+  if (!raw) return defaults;
+  try {
+    const parsed = JSON.parse(raw) as Partial<CmsConfig> | null;
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    const merged = sanitizeCmsConfigPatch(
+      defaults,
+      parsed,
+      typeof parsed.updatedBy === 'string' && parsed.updatedBy ? parsed.updatedBy : 'system'
+    );
+    return {
+      ...merged,
+      version: Number.isFinite(Number(parsed.version)) && Number(parsed.version) > 0
+        ? Number(parsed.version)
+        : defaults.version,
+      publishedAt:
+        typeof parsed.publishedAt === 'string' && parsed.publishedAt
+          ? parsed.publishedAt
+          : defaults.publishedAt,
+      updatedAt:
+        typeof parsed.updatedAt === 'string' && parsed.updatedAt
+          ? parsed.updatedAt
+          : merged.updatedAt,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
 app.get('/api/v1/cms/public', async (c) => {
+  const cached = await readPublicKvJson<{ config: CmsConfig }>(c.env, KV_PUBLIC_CMS_KEY);
+  if (cached?.config && Array.isArray(cached.config.sections)) {
+    c.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+    c.header('X-Cache', 'HIT');
+    return c.json(cached, 200);
+  }
+
   const row = await c.env.DB.prepare(
     `SELECT payload_json FROM cms_documents WHERE doc_key = 'published' LIMIT 1`
   ).first<{ payload_json: string }>();
 
-  if (row?.payload_json) {
-    return c.json({ config: JSON.parse(row.payload_json) });
-  }
-  return c.json({ config: null }, 200);
+  const payload = { config: parseStoredCmsConfig(row?.payload_json) };
+  await writePublicKvJson(c.env, KV_PUBLIC_CMS_KEY, payload, 60);
+  c.header('Cache-Control', PUBLIC_CACHE_CONTROL);
+  c.header('X-Cache', 'MISS');
+  return c.json(payload, 200);
 });
 
 app.post('/api/v1/analytics/event', async (c) => {
@@ -1947,18 +2268,34 @@ app.get('/api/v1/admin/cms', async (c) => {
   const publishedRow = docs.results.find((d) => d.doc_key === 'published');
   const draftRow = docs.results.find((d) => d.doc_key === 'draft');
 
-  const eventsRes = await c.env.DB.prepare(
-    `SELECT id, event_type, path, metadata_json, created_at
-     FROM cms_analytics_events ORDER BY created_at DESC LIMIT 200`
-  ).all<Record<string, unknown>>();
+  const [eventsRes, auditRes] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT id, event_type, path, metadata_json, created_at
+       FROM cms_analytics_events ORDER BY created_at DESC LIMIT 200`
+    ).all<Record<string, unknown>>(),
+    c.env.DB.prepare(
+      `SELECT id, actor_email, actor_role, action, resource_type, resource_id, summary_en, created_at
+       FROM audit_logs ORDER BY created_at DESC LIMIT 60`
+    ).all<Record<string, unknown>>(),
+  ]);
+
+  const published = parseStoredCmsConfig(publishedRow?.payload_json);
+  const draft = parseStoredCmsConfig(draftRow?.payload_json ?? publishedRow?.payload_json);
 
   return c.json({
-    published: publishedRow ? JSON.parse(publishedRow.payload_json) : null,
-    draft: draftRow
-      ? JSON.parse(draftRow.payload_json)
-      : publishedRow
-        ? JSON.parse(publishedRow.payload_json)
-        : null,
+    published,
+    draft,
+    auditLogs: auditRes.results.map((r) => ({
+      id: String(r.id),
+      correlationId: String(r.id),
+      actorEmail: String(r.actor_email),
+      actorRole: String(r.actor_role),
+      action: String(r.action),
+      resourceType: String(r.resource_type),
+      resourceId: String(r.resource_id),
+      summary: String(r.summary_en),
+      timestamp: String(r.created_at),
+    })),
     analytics: {
       totalPageViews: eventsRes.results.filter((e) => e.event_type === 'page_view').length,
       heroCtaClicks: eventsRes.results.filter((e) => e.event_type === 'hero_cta_click').length,
@@ -1981,28 +2318,26 @@ app.put('/api/v1/admin/cms/draft', async (c) => {
   if (admin instanceof Response) return admin;
 
   const body = (await c.req.json().catch(() => ({}))) as {
-    patch?: Record<string, unknown>;
+    patch?: Partial<CmsConfig>;
     summary?: string;
   };
-  if (!body.patch) return c.json({ error: 'CMS patch is required.' }, 400);
+  if (!body.patch || typeof body.patch !== 'object') {
+    return c.json({ error: 'CMS patch is required.' }, 400);
+  }
 
   const nowIso = new Date().toISOString();
   const existing = await c.env.DB.prepare(
     `SELECT version, payload_json FROM cms_documents WHERE doc_key = 'draft' LIMIT 1`
   ).first<{ version: number; payload_json: string }>();
 
-  const merged = {
-    ...(existing?.payload_json ? JSON.parse(existing.payload_json) : {}),
-    ...body.patch,
-    updatedAt: nowIso,
-    updatedBy: admin.email,
-  };
+  const baseConfig = parseStoredCmsConfig(existing?.payload_json);
+  const merged = sanitizeCmsConfigPatch(baseConfig, body.patch, admin.email);
 
   await c.env.DB.prepare(
     `INSERT OR REPLACE INTO cms_documents (doc_key, version, payload_json, updated_by, updated_at)
      VALUES ('draft', ?, ?, ?, ?)`
   )
-    .bind(existing?.version || 1, JSON.stringify(merged), admin.email, nowIso)
+    .bind(existing?.version || merged.version || 1, JSON.stringify(merged), admin.email, nowIso)
     .run();
 
   await writeAuditLog(c.env, {
@@ -2024,7 +2359,7 @@ app.post('/api/v1/admin/cms/publish', async (c) => {
   if (admin instanceof Response) return admin;
 
   const body = (await c.req.json().catch(() => ({}))) as {
-    patch?: Record<string, unknown>;
+    patch?: Partial<CmsConfig>;
   };
   const nowIso = new Date().toISOString();
 
@@ -2036,15 +2371,13 @@ app.post('/api/v1/admin/cms/publish', async (c) => {
   ).first<{ payload_json: string }>();
 
   const nextVersion = Number(currentPub?.version || 0) + 1;
-  const basePayload = currentDraft?.payload_json
-    ? JSON.parse(currentDraft.payload_json)
-    : currentPub?.payload_json
-      ? JSON.parse(currentPub.payload_json)
-      : {};
+  const baseConfig = parseStoredCmsConfig(currentDraft?.payload_json ?? currentPub?.payload_json);
+  const patched = body.patch
+    ? sanitizeCmsConfigPatch(baseConfig, body.patch, admin.email)
+    : baseConfig;
 
-  const publishedPayload = {
-    ...basePayload,
-    ...(body.patch || {}),
+  const publishedPayload: CmsConfig = {
+    ...patched,
     version: nextVersion,
     publishedAt: nowIso,
     updatedAt: nowIso,
@@ -2073,6 +2406,7 @@ app.post('/api/v1/admin/cms/publish', async (c) => {
     summaryBn: `CMS কনফিগারেশন v${nextVersion} লাইভ প্রকাশ করা হয়েছে।`,
   });
 
+  await invalidatePublicKvKeys(c.env, [KV_PUBLIC_CMS_KEY]);
   return c.json({ published: publishedPayload, draft: publishedPayload });
 });
 
@@ -2080,6 +2414,7 @@ app.post('/api/v1/admin/cms/reset', async (c) => {
   const admin = await requireAdmin(c, ['super_admin', 'admin']);
   if (admin instanceof Response) return admin;
   await c.env.DB.prepare(`DELETE FROM cms_documents WHERE doc_key = 'draft'`).run();
+  await invalidatePublicKvKeys(c.env, [KV_PUBLIC_CMS_KEY]);
   await writeAuditLog(c.env, {
     actorUserId: admin.id,
     actorEmail: admin.email,
@@ -2185,9 +2520,7 @@ app.post('/api/v1/admin/media', async (c) => {
   const draftRow = await c.env.DB.prepare(
     `SELECT version, payload_json FROM cms_documents WHERE doc_key = 'draft' LIMIT 1`
   ).first<{ version: number; payload_json: string }>();
-  const draftDoc = draftRow?.payload_json
-    ? (JSON.parse(draftRow.payload_json) as Record<string, unknown>)
-    : {};
+  const draftDoc = parseStoredCmsConfig(draftRow?.payload_json);
   const existingMedia = Array.isArray(draftDoc.media) ? draftDoc.media : [];
   draftDoc.media = [asset, ...existingMedia];
   draftDoc.updatedAt = nowIso;
@@ -2197,7 +2530,7 @@ app.post('/api/v1/admin/media', async (c) => {
     `INSERT OR REPLACE INTO cms_documents (doc_key, version, payload_json, updated_by, updated_at)
      VALUES ('draft', ?, ?, ?, ?)`
   )
-    .bind(draftRow?.version || 1, JSON.stringify(draftDoc), admin.email, nowIso)
+    .bind(draftRow?.version || draftDoc.version || 1, JSON.stringify(draftDoc), admin.email, nowIso)
     .run();
 
   await writeAuditLog(c.env, {
@@ -2290,6 +2623,7 @@ app.delete('/api/v1/admin/media/:mediaId', async (c) => {
     summaryEn: `Deleted CMS media asset ${mediaId}.`,
     summaryBn: `CMS মিডিয়া ফাইল ${mediaId} মুছে ফেলা হয়েছে।`,
   });
+  await invalidatePublicKvKeys(c.env, [KV_PUBLIC_CMS_KEY]);
   return c.json({ ok: true, id: mediaId });
 });
 
@@ -2410,6 +2744,9 @@ const routeDeps: WorkerRouteDeps = {
   checkRateLimit,
   writeAuditLog,
   clearSessionCookie,
+  checkAccountLockout,
+  recordFailedLogin,
+  clearFailedLogin,
 };
 
 registerLearnerPersistenceRoutes(app, routeDeps);

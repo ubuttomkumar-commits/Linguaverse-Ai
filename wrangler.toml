@@ -1,10 +1,12 @@
-# LINGUAVERSE AI — Cloudflare Workers + D1 + R2 + KV + Cron Configuration (PRD v6.1)
-# Validated against Wrangler v4.168.0 (`npx wrangler deploy --dry-run --env staging|production`)
+# LINGUAVERSE AI — Cloudflare Workers + D1 + KV + Cron Configuration (PRD v6.1)
+# Provisioned on Cloudflare Account: fa6ffb91f755b6a7066cd0cf4ce70556 (APAC D1)
 #
-# NOTE: Learner PWA (`dist/`) and Separate Admin App (`dist-admin/`) deploy via separate
-# Cloudflare Pages projects (`npx wrangler pages deploy dist --project-name linguaverse-ai`
-# and `npx wrangler pages deploy dist-admin --project-name linguaverse-admin`).
-# Do NOT add `pages_build_output_dir` here so `wrangler deploy` targets the Worker cleanly.
+# NOTE:
+# - Learner PWA (`dist/`) and Separate Admin App (`dist-admin/`) deploy to separate
+#   Cloudflare Pages projects (see docs/CLOUDFLARE_DEPLOYMENT.md).
+# - Cloudflare R2 is NOT yet activated on this account (API code 10042: "Please enable R2
+#   through the Cloudflare Dashboard"). Worker audio/media R2 routes degrade cleanly with
+#   HTTP 503 until the owner activates R2 and uncomments the [[env.*.r2_buckets]] blocks below.
 
 name = "linguaverse-ai-api"
 main = "worker/index.ts"
@@ -15,8 +17,7 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 
 # ============================================================================
-# Top-Level (Local Development via `npx wrangler dev`)
-# Replace placeholder UUIDs below with your real Cloudflare resource IDs.
+# Top-Level (Local Development via `npx wrangler dev` — points to staging D1/KV)
 # ============================================================================
 [vars]
 APP_ENV = "development"
@@ -33,45 +34,31 @@ EMAIL_FROM = "LINGUAVERSE AI <noreply@linguaverse.ai>"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "linguaverse-db-dev"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "linguaverse-db-staging"
+database_id = "19181902-a6d5-4d95-9d5f-a7e71016ecc9"
 migrations_dir = "migrations"
-
-[[r2_buckets]]
-binding = "AUDIO_BUCKET"
-bucket_name = "linguaverse-audio-dev"
-preview_bucket_name = "linguaverse-audio-preview"
-
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "linguaverse-media-dev"
-preview_bucket_name = "linguaverse-media-preview"
 
 [[kv_namespaces]]
 binding = "LINGUAVERSE_KV"
-id = "00000000000000000000000000000001"
-preview_id = "00000000000000000000000000000002"
+id = "2b6558da20cc45cdb0b6a5b3f5500dc2"
 
 [[kv_namespaces]]
 binding = "SESSION_KV"
-id = "00000000000000000000000000000003"
-preview_id = "00000000000000000000000000000004"
+id = "7838b1514ab84ec7a0e8627c6046b8d2"
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "00000000000000000000000000000005"
-preview_id = "00000000000000000000000000000006"
-
-[triggers]
-crons = ["0 3 * * *", "0 */6 * * *"]
+id = "afe07d0d0a1c421c9d54aa196edba2a1"
 
 # ============================================================================
 # Staging / Preview Environment (`--env staging`)
-# Wrangler v4 does NOT inherit vars/bindings/triggers into named environments,
-# so staging defines its own isolated D1, R2, KV, vars, and Cron triggers.
+# Worker URL: https://linguaverse-ai-api-staging.uttombarmon45.workers.dev
 # ============================================================================
 [env.staging]
 name = "linguaverse-ai-api-staging"
+
+[env.staging.placement]
+mode = "smart"
 
 [env.staging.vars]
 APP_ENV = "staging"
@@ -89,48 +76,45 @@ EMAIL_FROM = "LINGUAVERSE AI Staging <noreply@linguaverse.ai>"
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "linguaverse-db-staging"
-database_id = "00000000-0000-0000-0000-000000000010"
+database_id = "19181902-a6d5-4d95-9d5f-a7e71016ecc9"
 migrations_dir = "migrations"
-
-[[env.staging.r2_buckets]]
-binding = "AUDIO_BUCKET"
-bucket_name = "linguaverse-audio-staging"
-preview_bucket_name = "linguaverse-audio-preview"
-
-[[env.staging.r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "linguaverse-media-staging"
-preview_bucket_name = "linguaverse-media-preview"
 
 [[env.staging.kv_namespaces]]
 binding = "LINGUAVERSE_KV"
-id = "00000000000000000000000000000011"
-preview_id = "00000000000000000000000000000012"
+id = "2b6558da20cc45cdb0b6a5b3f5500dc2"
 
 [[env.staging.kv_namespaces]]
 binding = "SESSION_KV"
-id = "00000000000000000000000000000013"
-preview_id = "00000000000000000000000000000014"
+id = "7838b1514ab84ec7a0e8627c6046b8d2"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "00000000000000000000000000000015"
-preview_id = "00000000000000000000000000000016"
+id = "afe07d0d0a1c421c9d54aa196edba2a1"
+
+# Uncomment after enabling R2 in Cloudflare Dashboard (code 10042) & creating staging buckets:
+# [[env.staging.r2_buckets]]
+# binding = "AUDIO_BUCKET"
+# bucket_name = "linguaverse-audio-staging"
+# [[env.staging.r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "linguaverse-media-staging"
 
 [env.staging.triggers]
-crons = ["0 3 * * *", "0 */6 * * *"]
+crons = ["0 */6 * * *"]
 
 # ============================================================================
 # Production Environment (`--env production`)
-# Replace placeholder UUIDs with real production Cloudflare resource IDs
-# before running `npx wrangler deploy --env production`.
+# Worker URL: https://linguaverse-ai-api-prod.uttombarmon45.workers.dev
 # ============================================================================
 [env.production]
 name = "linguaverse-ai-api-prod"
-# Uncomment and set your real Cloudflare domain/zone after DNS onboarding:
+# Uncomment and set your custom domain/zone after DNS onboarding:
 # routes = [
 #   { pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }
 # ]
+
+[env.production.placement]
+mode = "smart"
 
 [env.production.vars]
 APP_ENV = "production"
@@ -148,45 +132,28 @@ EMAIL_FROM = "LINGUAVERSE AI <noreply@linguaverse.ai>"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "linguaverse-db"
-database_id = "00000000-0000-0000-0000-000000000020"
+database_id = "820f66eb-f97d-4b9a-a516-467d01578c4c"
 migrations_dir = "migrations"
-
-[[env.production.r2_buckets]]
-binding = "AUDIO_BUCKET"
-bucket_name = "linguaverse-audio"
-preview_bucket_name = "linguaverse-audio-preview"
-
-[[env.production.r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "linguaverse-media"
-preview_bucket_name = "linguaverse-media-preview"
 
 [[env.production.kv_namespaces]]
 binding = "LINGUAVERSE_KV"
-id = "00000000000000000000000000000021"
-preview_id = "00000000000000000000000000000022"
+id = "31fd9f32dac341d8ac5adedbdea3e1cb"
 
 [[env.production.kv_namespaces]]
 binding = "SESSION_KV"
-id = "00000000000000000000000000000023"
-preview_id = "00000000000000000000000000000024"
+id = "472e8e9880474f1aafca7279a1faa427"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "00000000000000000000000000000025"
-preview_id = "00000000000000000000000000000026"
+id = "7ee0c176d0a548589f0372b19ea90407"
+
+# Uncomment after enabling R2 in Cloudflare Dashboard (code 10042) & creating production buckets:
+# [[env.production.r2_buckets]]
+# binding = "AUDIO_BUCKET"
+# bucket_name = "linguaverse-audio"
+# [[env.production.r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "linguaverse-media"
 
 [env.production.triggers]
 crons = ["0 3 * * *", "0 */6 * * *"]
-
-# Production Secrets (NEVER commit real values; inject via `npx wrangler secret put <NAME> --env production`):
-# Required core secrets:
-# - GEMINI_API_KEY
-# - JWT_SIGNING_SECRET (min 32 random chars)
-# - ADMIN_BOOTSTRAP_SECRET (min 16 random chars; used once for initial Super Admin provisioning)
-# - CORS_ALLOWED_ORIGIN (exact comma-separated origins, e.g. https://app.yourdomain.com,https://admin.yourdomain.com)
-# Optional external integrations (gracefully disabled / fail-closed 503 until configured):
-# - RESEND_API_KEY (or EMAIL_PROVIDER_API_KEY for Brevo)
-# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-# - STRIPE_WEBHOOK_SECRET / SSLCOMMERZ_STORE_PASSWD / PADDLE_WEBHOOK_SECRET
-# - DEEPGRAM_API_KEY / OPENAI_API_KEY / ELEVENLABS_API_KEY / AZURE_SPEECH_KEY / TURNSTILE_SECRET_KEY

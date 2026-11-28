@@ -56,7 +56,17 @@
   textarea,
   summary {
     outline-color: #00D9FF;
+    touch-action: manipulation;
   }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.lv-defer-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 560px;
 }
 
 .font-display {
@@ -383,6 +393,13 @@
 .lv-parallax-stage {
   transform: perspective(1200px) rotateX(var(--py, 0deg)) rotateY(var(--px, 0deg));
   transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Low-end mobile GPU optimization: reduce expensive blur radius on compact viewports */
+@media (max-width: 640px) {
+  .lv-portal-panel {
+    backdrop-filter: blur(8px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1618,7 +1618,7 @@ test('PRD v6.1 Full Parity: Security Headers, Feature Flags, AI Providers, Admin
   };
   assert.equal(healthBody.runtime, 'cloudflare-worker');
   assert.equal(healthBody.database.status, 'healthy');
-  assert.equal(healthBody.database.migrationsReady.length, 4);
+  assert.equal(healthBody.database.migrationsReady.length, 6);
 
   // 4. Suspend user revokes active sessions; DELETE removes user cleanly
   const suspendRes = await workerApp.request(
@@ -2450,6 +2450,565 @@ test('Cloudflare Worker R2 CMS Media (Upload, SVG Block, Sandboxed Serve, Delete
   const cronRun2 = await runWorkerScheduledMaintenance(env, '2026-11-27T09:00:00Z');
   assert.equal(cronRun2.remindersCreated, 0);
 });
+
+test('Cloudflare Worker fresh empty D1 CMS endpoints return complete default CmsConfig (never null)', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const admin = await registerAndVerifyUser(env, 'cms.fresh.admin@example.com', 'Fresh CMS Admin');
+  db.prepare(`UPDATE users SET role = 'super_admin' WHERE id = ?`).run(admin.userId);
+
+  // 1. Fresh empty D1: GET /api/v1/cms/public must return full default config (never null)
+  const pubRes = await workerApp.request('http://localhost/api/v1/cms/public', {}, env);
+  assert.equal(pubRes.status, 200);
+  const pubData = (await pubRes.json()) as {
+    config: { sections: Array<{ id: string }>; hero: { headlineLine1En: string }; seo: { metaTitle: string } };
+  };
+  assert.ok(pubData.config, 'Public CMS config must never be null on empty D1');
+  assert.ok(Array.isArray(pubData.config.sections) && pubData.config.sections.length >= 6);
+  assert.ok(pubData.config.hero.headlineLine1En.length > 0);
+  assert.ok(pubData.config.seo.metaTitle.length > 0);
+
+  // 2. Fresh empty D1: GET /api/v1/admin/cms must hydrate published, draft, auditLogs, analytics
+  const adminCmsRes = await workerApp.request(
+    'http://localhost/api/v1/admin/cms',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminCmsRes.status, 200);
+  const adminCms = (await adminCmsRes.json()) as {
+    published: { sections: Array<{ id: string }> };
+    draft: { sections: Array<{ id: string }> };
+    auditLogs: unknown[];
+  };
+  assert.ok(Array.isArray(adminCms.published.sections) && adminCms.published.sections.length >= 6);
+  assert.ok(Array.isArray(adminCms.draft.sections) && adminCms.draft.sections.length >= 6);
+  assert.ok(Array.isArray(adminCms.auditLogs));
+
+  // 3. Partial draft patch & publish on empty D1 must preserve all sections and defaults
+  const draftRes = await workerApp.request(
+    'http://localhost/api/v1/admin/cms/draft',
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({
+        patch: {
+          seo: {
+            metaTitle: 'LinguaVerse AI Staging Verified',
+            metaDescription: 'Verified default hydration on fresh Cloudflare D1.',
+            ogTitle: 'LinguaVerse AI Staging Verified',
+            ogDescription: 'Verified default hydration on fresh Cloudflare D1.',
+            ogImageUrl: '',
+            canonicalUrl: 'https://staging.linguaverse-web-1s7.pages.dev/',
+            twitterCard: 'summary_large_image',
+          },
+        },
+        summary: 'Update SEO title on fresh D1',
+      }),
+    },
+    env
+  );
+  assert.equal(draftRes.status, 200);
+  const draftJson = (await draftRes.json()) as { draft: { sections: unknown[]; seo: { metaTitle: string } } };
+  assert.ok(Array.isArray(draftJson.draft.sections) && draftJson.draft.sections.length >= 6);
+  assert.equal(draftJson.draft.seo.metaTitle, 'LinguaVerse AI Staging Verified');
+
+  const publishRes = await workerApp.request(
+    'http://localhost/api/v1/admin/cms/publish',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({}),
+    },
+    env
+  );
+  assert.equal(publishRes.status, 200);
+  const pubAfterRes = await workerApp.request('http://localhost/api/v1/cms/public', {}, env);
+  const pubAfter = (await pubAfterRes.json()) as {
+    config: { sections: unknown[]; seo: { metaTitle: string }; version: number };
+  };
+  assert.equal(pubAfter.config.seo.metaTitle, 'LinguaVerse AI Staging Verified');
+  assert.ok(Array.isArray(pubAfter.config.sections) && pubAfter.config.sections.length >= 6);
+  assert.equal(pubAfter.config.version, 1);
+});
+
+test('Cloudflare Worker performance caching: public KV HIT/MISS + admin invalidation + strict no-store on Admin/Auth routes', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const admin = await registerAndVerifyUser(env, 'perf.admin@example.com', 'Perf Admin');
+  db.prepare(`UPDATE users SET role = 'super_admin' WHERE id = ?`).run(admin.userId);
+
+  // 1. Public CMS: MISS -> HIT with public Cache-Control & Server-Timing
+  const cmsMiss = await workerApp.request('http://localhost/api/v1/cms/public', {}, env);
+  assert.equal(cmsMiss.status, 200);
+  assert.equal(cmsMiss.headers.get('X-Cache'), 'MISS');
+  assert.ok((cmsMiss.headers.get('Cache-Control') || '').includes('public, max-age=30'));
+  assert.ok((cmsMiss.headers.get('Server-Timing') || '').startsWith('app;dur='));
+
+  const cmsHit = await workerApp.request('http://localhost/api/v1/cms/public', {}, env);
+  assert.equal(cmsHit.status, 200);
+  assert.equal(cmsHit.headers.get('X-Cache'), 'HIT');
+
+  // 2. Public System Status: MISS -> HIT -> Admin feature-flag update invalidates KV cache immediately
+  const statusMiss = await workerApp.request('http://localhost/api/v1/system/status', {}, env);
+  assert.equal(statusMiss.status, 200);
+  assert.equal(statusMiss.headers.get('X-Cache'), 'MISS');
+  const statusHit = await workerApp.request('http://localhost/api/v1/system/status', {}, env);
+  assert.equal(statusHit.headers.get('X-Cache'), 'HIT');
+
+  const flagUpdate = await workerApp.request(
+    'http://localhost/api/v1/admin/feature-flags',
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({ ieltsExamPrepEnabled: false }),
+    },
+    env
+  );
+  assert.equal(flagUpdate.status, 200);
+  const statusAfterInvalidate = await workerApp.request('http://localhost/api/v1/system/status', {}, env);
+  assert.equal(statusAfterInvalidate.headers.get('X-Cache'), 'MISS');
+  const statusJson = (await statusAfterInvalidate.json()) as {
+    featureFlags: { ieltsExamPrepEnabled: boolean };
+  };
+  assert.equal(statusJson.featureFlags.ieltsExamPrepEnabled, false);
+
+  // 3. Public Curriculum Overlay: MISS -> HIT -> Admin course publish invalidates KV cache immediately
+  const ovMiss = await workerApp.request('http://localhost/api/v1/curriculum/overlay', {}, env);
+  assert.equal(ovMiss.headers.get('X-Cache'), 'MISS');
+  const ovHit = await workerApp.request('http://localhost/api/v1/curriculum/overlay', {}, env);
+  assert.equal(ovHit.headers.get('X-Cache'), 'HIT');
+
+  const coursePub = await workerApp.request(
+    'http://localhost/api/v1/admin/curriculum/courses',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${admin.token}`,
+      },
+      body: JSON.stringify({
+        id: 'course_perf_test',
+        titleEn: 'Fast Track Fluency',
+        titleBn: 'দ্রুত ফ্লুয়েন্সি',
+        publishedStatus: 'published',
+      }),
+    },
+    env
+  );
+  assert.equal(coursePub.status, 200);
+  const ovAfter = await workerApp.request('http://localhost/api/v1/curriculum/overlay', {}, env);
+  assert.equal(ovAfter.headers.get('X-Cache'), 'MISS');
+  const ovJson = (await ovAfter.json()) as { customCourses: Array<{ id: string }> };
+  assert.ok(ovJson.customCourses.some((c) => c.id === 'course_perf_test'));
+
+  // 4. Security Invariant: Private & Admin routes MUST NEVER be cached (strict no-store, private)
+  const adminOverview = await workerApp.request(
+    'http://localhost/api/v1/admin/overview',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminOverview.status, 200);
+  assert.ok((adminOverview.headers.get('Cache-Control') || '').includes('no-store'));
+  assert.ok((adminOverview.headers.get('Cache-Control') || '').includes('private'));
+
+  const adminAuthStatus = await workerApp.request('http://localhost/api/v1/admin/auth/status', {}, env);
+  assert.equal(adminAuthStatus.status, 200);
+  assert.ok((adminAuthStatus.headers.get('Cache-Control') || '').includes('no-store'));
+
+  const authMe = await workerApp.request(
+    'http://localhost/api/v1/auth/me',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(authMe.status, 200);
+  assert.ok((authMe.headers.get('Cache-Control') || '').includes('no-store'));
+});
+
+test('Security hardening: Admin RBAC prevents vertical privilege escalation, super_admin tampering/deletion, self-demotion, and invalid enum crashes', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const superAdmin = await registerAndVerifyUser(env, 'root.super@example.com', 'Root Super');
+  const regularAdmin = await registerAndVerifyUser(env, 'ops.admin@example.com', 'Ops Admin');
+  const learner = await registerAndVerifyUser(env, 'target.learner@example.com', 'Target Learner');
+
+  db.prepare(`UPDATE users SET role = 'super_admin' WHERE id = ?`).run(superAdmin.userId);
+  db.prepare(`UPDATE users SET role = 'admin' WHERE id = ?`).run(regularAdmin.userId);
+
+  // 1. Regular admin CANNOT promote themselves or anyone else to super_admin (403)
+  const selfEscalate = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${regularAdmin.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${regularAdmin.token}` },
+      body: JSON.stringify({ role: 'super_admin' }),
+    },
+    env
+  );
+  assert.equal(selfEscalate.status, 403);
+
+  const promoteOtherToSuper = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${learner.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${regularAdmin.token}` },
+      body: JSON.stringify({ role: 'super_admin' }),
+    },
+    env
+  );
+  assert.equal(promoteOtherToSuper.status, 403);
+
+  // 2. Regular admin CANNOT modify, suspend, or delete a super_admin (403)
+  const demoteSuper = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${superAdmin.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${regularAdmin.token}` },
+      body: JSON.stringify({ role: 'learner', accountStatus: 'suspended' }),
+    },
+    env
+  );
+  assert.equal(demoteSuper.status, 403);
+
+  const deleteSuper = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${superAdmin.userId}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${regularAdmin.token}` },
+    },
+    env
+  );
+  assert.equal(deleteSuper.status, 403);
+
+  // 3. Invalid role/status returns 400 (not 500 SQLite CHECK crash) and self-suspend/self-demote returns 400
+  const badRole = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${learner.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${regularAdmin.token}` },
+      body: JSON.stringify({ role: 'god_mode' }),
+    },
+    env
+  );
+  assert.equal(badRole.status, 400);
+
+  const selfSuspend = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${regularAdmin.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${regularAdmin.token}` },
+      body: JSON.stringify({ accountStatus: 'suspended' }),
+    },
+    env
+  );
+  assert.equal(selfSuspend.status, 400);
+
+  // 4. Super Admin CAN demote a regular admin to learner, and doing so immediately revokes their active session
+  const demoteAdmin = await workerApp.request(
+    `http://localhost/api/v1/admin/users/${regularAdmin.userId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${superAdmin.token}` },
+      body: JSON.stringify({ role: 'learner' }),
+    },
+    env
+  );
+  assert.equal(demoteAdmin.status, 200);
+
+  const revokedSessionCheck = await workerApp.request(
+    'http://localhost/api/v1/auth/me',
+    { headers: { Authorization: `Bearer ${regularAdmin.token}` } },
+    env
+  );
+  assert.equal(revokedSessionCheck.status, 401);
+});
+
+test('Security hardening: Per-account brute-force lockout on learner & admin login plus admin bootstrap rate limiting', async () => {
+  const { db, env } = createTestWorkerEnv();
+  const learner = await registerAndVerifyUser(env, 'lockout.learner@example.com', 'Lockout Learner');
+  const admin = await registerAndVerifyUser(env, 'lockout.admin@example.com', 'Lockout Admin');
+  db.prepare(`UPDATE users SET role = 'super_admin' WHERE id = ?`).run(admin.userId);
+
+  // 1. Five wrong passwords on learner login lock the account (429 ACCOUNT_LOCKED + Retry-After) even across distinct IPs
+  for (let i = 1; i <= 5; i++) {
+    const res = await workerApp.request(
+      'http://localhost/api/v1/auth/login',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': `198.51.100.${i}`,
+        },
+        body: JSON.stringify({ email: learner.email, password: `WrongPass!${i}` }),
+      },
+      env
+    );
+    if (i < 5) {
+      assert.equal(res.status, 401);
+    } else {
+      assert.equal(res.status, 429);
+      assert.ok(Number(res.headers.get('Retry-After') || '0') > 0);
+      const body = (await res.json()) as { code: string };
+      assert.equal(body.code, 'ACCOUNT_LOCKED');
+    }
+  }
+
+  // Subsequent attempt with EVEN THE CORRECT password is still blocked during lockout window
+  const lockedCorrect = await workerApp.request(
+    'http://localhost/api/v1/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.99' },
+      body: JSON.stringify({ email: learner.email, password: 'Password123!' }),
+    },
+    env
+  );
+  assert.equal(lockedCorrect.status, 429);
+
+  // 2. Five wrong passwords on Admin login lock the admin account across distinct IPs
+  for (let i = 1; i <= 5; i++) {
+    const res = await workerApp.request(
+      'http://localhost/api/v1/admin/auth/login',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': `203.0.113.${i}`,
+        },
+        body: JSON.stringify({ email: admin.email, password: `BadAdminPass!${i}` }),
+      },
+      env
+    );
+    if (i < 5) {
+      assert.equal(res.status, 401);
+    } else {
+      assert.equal(res.status, 429);
+      assert.ok(Number(res.headers.get('Retry-After') || '0') > 0);
+      const body = (await res.json()) as { code: string };
+      assert.equal(body.code, 'ACCOUNT_LOCKED');
+    }
+  }
+
+  // 3. Admin bootstrap endpoint enforces IP rate limiting (5/min -> 6th returns 429 RATE_LIMITED)
+  for (let i = 1; i <= 6; i++) {
+    const res = await workerApp.request(
+      'http://localhost/api/v1/admin/auth/bootstrap',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'CF-Connecting-IP': '192.0.2.55',
+        },
+        body: JSON.stringify({
+          name: 'Attacker',
+          email: 'attacker@example.com',
+          password: 'Password123!',
+          bootstrapSecret: `guess-${i}`,
+        }),
+      },
+      env
+    );
+    if (i < 6) {
+      assert.notEqual(res.status, 429);
+    } else {
+      assert.equal(res.status, 429);
+      const body = (await res.json()) as { code: string };
+      assert.equal(body.code, 'RATE_LIMITED');
+    }
+  }
+});
+
+test('Global Performance & Realtime Parity: migration 0006 EXPLAIN QUERY PLAN, SQL search pushdown, community cursor pagination, and authenticated SSE stream', async () => {
+  const { env, db } = createTestWorkerEnv();
+  const mig0005 = fs.readFileSync(path.join(ROOT, 'migrations/0005_performance_indexes.sql'), 'utf8');
+  const mig0006 = fs.readFileSync(path.join(ROOT, 'migrations/0006_global_query_indexes.sql'), 'utf8');
+  db.exec(mig0005);
+  db.exec(mig0006);
+
+  // 1. Verify SQLite query plans use composite indexes from migration 0006 (zero full table scan)
+  const mistakePlan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN SELECT id, status FROM learner_mistakes WHERE user_id = ? ORDER BY last_seen_at DESC LIMIT 50`
+    )
+    .all('usr_plan') as Array<{ detail: string }>;
+  assert.ok(
+    mistakePlan.some((row) => row.detail.includes('idx_learner_mistakes_user_last_seen')),
+    `Expected idx_learner_mistakes_user_last_seen in query plan, got: ${JSON.stringify(mistakePlan)}`
+  );
+
+  const lessonPlan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN SELECT id FROM lesson_attempts WHERE user_id = ? ORDER BY completed_at ASC LIMIT 50`
+    )
+    .all('usr_plan') as Array<{ detail: string }>;
+  assert.ok(
+    lessonPlan.some((row) => row.detail.includes('idx_lesson_attempts_user_completed')),
+    `Expected idx_lesson_attempts_user_completed in query plan, got: ${JSON.stringify(lessonPlan)}`
+  );
+
+  const postsPlan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN SELECT id FROM community_posts WHERE status = 'active' ORDER BY created_at DESC LIMIT 20`
+    )
+    .all() as Array<{ detail: string }>;
+  assert.ok(
+    postsPlan.some((row) => row.detail.includes('idx_community_posts_status_created')),
+    `Expected idx_community_posts_status_created in query plan, got: ${JSON.stringify(postsPlan)}`
+  );
+
+  const commentsPlan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN SELECT id FROM community_comments WHERE post_id = ? AND status = 'active' ORDER BY created_at ASC`
+    )
+    .all('post_1') as Array<{ detail: string }>;
+  assert.ok(
+    commentsPlan.some((row) => row.detail.includes('idx_community_comments_post_status_created')),
+    `Expected idx_community_comments_post_status_created in query plan, got: ${JSON.stringify(commentsPlan)}`
+  );
+
+  // 2. Register verified learner + super_admin and verify parallelized /api/v1/auth/me hydration
+  const learner = await registerAndVerifyUser(env, 'perf.learner@example.com', 'Perf Learner');
+  const admin = await registerAndVerifyUser(env, 'perf.admin@example.com', 'Perf Admin');
+  db.prepare(`UPDATE users SET role = 'super_admin' WHERE id = ?`).run(admin.userId);
+
+  const meRes = await workerApp.request(
+    'http://localhost/api/v1/auth/me',
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(meRes.status, 200);
+  const meBody = (await meRes.json()) as {
+    user: { id: string; email: string };
+    profile: { userId: string };
+    mistakes: unknown[];
+    lessonAttempts: unknown[];
+  };
+  assert.equal(meBody.user.id, learner.userId);
+  assert.equal(meBody.profile.userId, learner.userId);
+  assert.ok(Array.isArray(meBody.mistakes));
+  assert.ok(Array.isArray(meBody.lessonAttempts));
+
+  // 3. Admin users SQL search pushdown & limit cap (plus learner 403 RBAC check)
+  const learnerAdminRes = await workerApp.request(
+    'http://localhost/api/v1/admin/users?q=perf.learner',
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(learnerAdminRes.status, 403);
+
+  const adminSearchRes = await workerApp.request(
+    'http://localhost/api/v1/admin/users?q=perf.learner&limit=5',
+    { headers: { Authorization: `Bearer ${admin.token}` } },
+    env
+  );
+  assert.equal(adminSearchRes.status, 200);
+  const adminSearchBody = (await adminSearchRes.json()) as Array<{ email: string }>;
+  assert.equal(adminSearchBody.length, 1);
+  assert.equal(adminSearchBody[0].email, 'perf.learner@example.com');
+
+  // 4. Community posts cursor pagination + post-scoped comments
+  const post1Res = await workerApp.request(
+    'http://localhost/api/v1/community/posts',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${learner.token}` },
+      body: JSON.stringify({
+        category: 'discussion',
+        title: 'First Fluency Tip',
+        body: 'Practice speaking aloud for five minutes daily to build reflex confidence.',
+        tags: ['fluency'],
+      }),
+    },
+    env
+  );
+  assert.equal(post1Res.status, 201);
+  await new Promise((r) => setTimeout(r, 10));
+
+  const post2Res = await workerApp.request(
+    'http://localhost/api/v1/community/posts',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${learner.token}` },
+      body: JSON.stringify({
+        category: 'question',
+        title: 'Second Question About Tenses',
+        body: 'When should I use present perfect versus simple past in interview answers?',
+        tags: ['grammar'],
+      }),
+    },
+    env
+  );
+  assert.equal(post2Res.status, 201);
+
+  const page1Res = await workerApp.request(
+    'http://localhost/api/v1/community/posts?limit=1',
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(page1Res.status, 200);
+  const page1Body = (await page1Res.json()) as {
+    posts: Array<{ id: string; title: string }>;
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+  assert.equal(page1Body.posts.length, 1);
+  assert.equal(page1Body.hasMore, true);
+  assert.ok(typeof page1Body.nextCursor === 'string' && page1Body.nextCursor.length > 0);
+
+  const page2Res = await workerApp.request(
+    `http://localhost/api/v1/community/posts?limit=1&before=${encodeURIComponent(page1Body.nextCursor)}`,
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(page2Res.status, 200);
+  const page2Body = (await page2Res.json()) as {
+    posts: Array<{ id: string; title: string }>;
+    hasMore: boolean;
+  };
+  assert.equal(page2Body.posts.length, 1);
+  assert.notEqual(page2Body.posts[0].id, page1Body.posts[0].id);
+
+  // 5. Authenticated SSE Realtime stream (/api/v1/realtime/events)
+  const unauthSseRes = await workerApp.request('http://localhost/api/v1/realtime/events', {}, env);
+  assert.equal(unauthSseRes.status, 401);
+
+  // Create a broadcast notification so SSE stream delivers it
+  const bcRes = await workerApp.request(
+    'http://localhost/api/v1/admin/notifications/broadcast',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({
+        titleEn: 'Realtime Push Live',
+        bodyEn: 'Notifications now stream directly to active learner workspaces.',
+        actionRoute: '/app',
+      }),
+    },
+    env
+  );
+  assert.equal(bcRes.status, 201);
+
+  const authSseRes = await workerApp.request(
+    'http://localhost/api/v1/realtime/events',
+    { headers: { Authorization: `Bearer ${learner.token}` } },
+    env
+  );
+  assert.equal(authSseRes.status, 200);
+  assert.ok((authSseRes.headers.get('Content-Type') || '').includes('text/event-stream'));
+  const sseCacheControl = authSseRes.headers.get('Cache-Control') || '';
+  assert.ok(sseCacheControl.includes('no-store') && sseCacheControl.includes('private'));
+  const sseText = await authSseRes.text();
+  assert.ok(sseText.includes('"type":"connected"'), 'expected connected SSE frame');
+  assert.ok(sseText.includes('"type":"notification.created"'), 'expected notification.created SSE frame');
+  assert.ok(sseText.includes('Realtime Push Live'), 'expected broadcast payload in SSE stream');
+});
+
+
 
 
 

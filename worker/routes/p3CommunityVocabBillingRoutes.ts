@@ -311,40 +311,83 @@ export function registerP3CommunityVocabBillingRoutes(
         ? categoryRaw
         : 'all';
     const query = (c.req.query('q') || '').slice(0, 120);
+    const beforeCursor = (c.req.query('before') || '').trim().slice(0, 40);
+    const requestedLimit = Number(c.req.query('limit') || '50');
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(100, Math.floor(requestedLimit)))
+      : 50;
 
-    const [postsRes, commentsRes, blocksRes, restrictionRow] = await Promise.all([
+    const postWhereClauses = [`status = 'active'`];
+    const postBindValues: unknown[] = [];
+    if (beforeCursor) {
+      postWhereClauses.push(`created_at < ?`);
+      postBindValues.push(beforeCursor);
+    }
+    postBindValues.push(limit + 1);
+
+    const [postsRes, blocksRes, restrictionRow] = await Promise.all([
       c.env.DB.prepare(
-        `SELECT * FROM community_posts WHERE status = 'active' ORDER BY created_at DESC LIMIT 100`
-      ).all<Record<string, unknown>>(),
-      c.env.DB.prepare(
-        `SELECT * FROM community_comments WHERE status = 'active' ORDER BY created_at ASC LIMIT 400`
-      ).all<Record<string, unknown>>(),
+        `SELECT id, author_user_id, author_name, author_level, category, title, body,
+                tags_json, helpful_user_ids_json, status, moderation_note, created_at, updated_at
+         FROM community_posts
+         WHERE ${postWhereClauses.join(' AND ')}
+         ORDER BY created_at DESC
+         LIMIT ?`
+      )
+        .bind(...postBindValues)
+        .all<Record<string, unknown>>(),
       c.env.DB.prepare(`SELECT blocked_user_id FROM community_user_blocks WHERE blocker_user_id = ?`)
         .bind(auth.id)
         .all<{ blocked_user_id: string }>(),
-      c.env.DB.prepare(`SELECT * FROM community_user_restrictions WHERE user_id = ? LIMIT 1`)
+      c.env.DB.prepare(
+        `SELECT user_id, restriction_level, reason, restricted_by, expires_at,
+                appeal_text, appeal_status, updated_at
+         FROM community_user_restrictions
+         WHERE user_id = ?
+         LIMIT 1`
+      )
         .bind(auth.id)
         .first<Record<string, unknown>>(),
     ]);
 
+    const rawPostRows = postsRes.results ?? [];
+    const hasMore = rawPostRows.length > limit;
+    const pageRows = hasMore ? rawPostRows.slice(0, limit) : rawPostRows;
+    const nextCursor =
+      hasMore && pageRows.length > 0 ? String(pageRows[pageRows.length - 1].created_at) : null;
+
     const commentsByPost = new Map<string, CommunityCommentRecord[]>();
-    for (const row of commentsRes.results) {
-      const postId = String(row.post_id);
-      const list = commentsByPost.get(postId) ?? [];
-      list.push({
-        id: String(row.id),
-        postId,
-        authorUserId: String(row.author_user_id),
-        authorName: String(row.author_name),
-        body: String(row.body),
-        status: (row.status as CommunityCommentRecord['status']) || 'active',
-        createdAt: String(row.created_at),
-        updatedAt: String(row.updated_at),
-      });
-      commentsByPost.set(postId, list);
+    if (pageRows.length > 0) {
+      const postIds = pageRows.map((r) => String(r.id));
+      const placeholders = postIds.map(() => '?').join(', ');
+      const commentsRes = await c.env.DB.prepare(
+        `SELECT id, post_id, author_user_id, author_name, body, status, created_at, updated_at
+         FROM community_comments
+         WHERE post_id IN (${placeholders}) AND status = 'active'
+         ORDER BY created_at ASC
+         LIMIT 400`
+      )
+        .bind(...postIds)
+        .all<Record<string, unknown>>();
+
+      for (const row of commentsRes.results ?? []) {
+        const postId = String(row.post_id);
+        const list = commentsByPost.get(postId) ?? [];
+        list.push({
+          id: String(row.id),
+          postId,
+          authorUserId: String(row.author_user_id),
+          authorName: String(row.author_name),
+          body: String(row.body),
+          status: (row.status as CommunityCommentRecord['status']) || 'active',
+          createdAt: String(row.created_at),
+          updatedAt: String(row.updated_at),
+        });
+        commentsByPost.set(postId, list);
+      }
     }
 
-    const allPosts: CommunityPostRecord[] = postsRes.results.map((r) => ({
+    const allPosts: CommunityPostRecord[] = pageRows.map((r) => ({
       id: String(r.id),
       authorUserId: String(r.author_user_id),
       authorName: String(r.author_name),
@@ -366,6 +409,8 @@ export function registerP3CommunityVocabBillingRoutes(
 
     return c.json({
       posts: filterCommunityFeedForViewer(allPosts, blockedUserIds, { category, query }),
+      nextCursor,
+      hasMore,
       viewerUserId: auth.id,
       blockedUserIds,
       restriction,
@@ -1435,6 +1480,10 @@ export function registerP3CommunityVocabBillingRoutes(
     )
       .bind('platform_config_v1', JSON.stringify(saved), admin.email, now)
       .run();
+
+    if (c.env.LINGUAVERSE_KV) {
+      await c.env.LINGUAVERSE_KV.delete('public_cache:system_status_v1').catch(() => {});
+    }
 
     await writeAuditLog(c.env, {
       actorUserId: admin.id,

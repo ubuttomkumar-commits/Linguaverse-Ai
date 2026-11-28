@@ -23,8 +23,12 @@ const MIGRATIONS = [
   'migrations/0002_parts06_12_parity.sql',
   'migrations/0003_p3_community_vocab_billing.sql',
   'migrations/0004_prd61_examinations_labs_providers.sql',
+  'migrations/0005_performance_indexes.sql',
+  'migrations/0006_global_query_indexes.sql',
 ];
 const ROLLBACKS = [
+  'db/rollbacks/ROLLBACK_0006_global_query_indexes.sql',
+  'db/rollbacks/ROLLBACK_0005_performance_indexes.sql',
   'db/rollbacks/ROLLBACK_0004_prd61_examinations_labs_providers.sql',
   'db/rollbacks/ROLLBACK_0003_p3_community_vocab_billing.sql',
   'db/rollbacks/ROLLBACK_0002_parts06_12_parity.sql',

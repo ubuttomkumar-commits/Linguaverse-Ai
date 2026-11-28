@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, Mic, PencilLine, Sparkles, XCircle } from 'lu
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useCms } from '../../context/CmsContext';
 import { GlobeStaticFallback } from './GlobeStaticFallback';
+import { SafeFeatureBoundary } from '../common/RootErrorBoundary';
 
 const ThreeLanguageGlobe = lazy(() => import('./ThreeLanguageGlobe'));
 
@@ -39,6 +40,7 @@ export function HeroCommunicationCore() {
   const { config } = useCms();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [globeReady, setGlobeReady] = useState(false);
   const [promptIndex, setPromptIndex] = useState(0);
 
   useEffect(() => {
@@ -48,6 +50,27 @@ export function HeroCommunicationCore() {
     sync();
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  // Defer heavy WebGL Three.js chunk (~600 kB) until after first paint on desktop,
+  // and keep the crisp static SVG fallback on narrow mobile / Save-Data connections.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData || window.innerWidth < 768) {
+      setGlobeReady(false);
+      return;
+    }
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(() => setGlobeReady(true), { timeout: 1200 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(() => setGlobeReady(true), 450);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -69,7 +92,7 @@ export function HeroCommunicationCore() {
   const activeSample = SAMPLE_PROMPTS[promptIndex % SAMPLE_PROMPTS.length];
   const ringCircumference = 2 * Math.PI * 24;
   const ringDashOffset = ringCircumference * (1 - activeSample.ringPercent / 100);
-  const showThree = config.settings.featureFlags.showThreeGlobe && !reducedMotion;
+  const showThree = globeReady && config.settings.featureFlags.showThreeGlobe && !reducedMotion;
 
   return (
     <div
@@ -92,14 +115,16 @@ export function HeroCommunicationCore() {
         className="pointer-events-none absolute -top-5 right-4 z-0 h-[250px] w-[250px] opacity-95 sm:right-6 sm:h-[290px] sm:w-[290px]"
       >
         {showThree ? (
-          <Suspense fallback={<GlobeStaticFallback ariaLabel="3D Language Globe" />}>
-            <ThreeLanguageGlobe
-              activeFocusIndex={promptIndex % 3}
-              pointerX={0}
-              pointerY={0}
-              ariaLabel="Interactive 3D Language Globe"
-            />
-          </Suspense>
+          <SafeFeatureBoundary fallback={<GlobeStaticFallback ariaLabel="3D Language Globe" />}>
+            <Suspense fallback={<GlobeStaticFallback ariaLabel="3D Language Globe" />}>
+              <ThreeLanguageGlobe
+                activeFocusIndex={promptIndex % 3}
+                pointerX={0}
+                pointerY={0}
+                ariaLabel="Interactive 3D Language Globe"
+              />
+            </Suspense>
+          </SafeFeatureBoundary>
         ) : (
           <GlobeStaticFallback ariaLabel="3D Language Globe" />
         )}

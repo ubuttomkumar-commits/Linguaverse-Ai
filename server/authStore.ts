@@ -58,6 +58,11 @@ export interface ServerAuthSession {
   revokedAt?: string;
 }
 
+interface FailedLoginBucket {
+  attempts: number;
+  lockedUntil?: string;
+}
+
 interface AuthStoreFile {
   version: 1;
   users: Record<string, ServerAuthUser>;
@@ -65,6 +70,7 @@ interface AuthStoreFile {
   resetTokens: StoredPasswordResetToken[];
   otpTokens: Record<string, StoredOtpTokenRecord[]>;
   resetCooldownByEmail: Record<string, string>;
+  failedLogins: Record<string, FailedLoginBucket>;
 }
 
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -72,6 +78,8 @@ const AUTH_STORE_FILE = path.join(DATA_DIR, 'auth-store.json');
 
 const SESSION_SHORT_MS = 24 * 60 * 60 * 1000; // 24 hours
 const SESSION_REMEMBER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const ACCOUNT_LOCKOUT_MAX_ATTEMPTS = 5;
+const ACCOUNT_LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 // Dedicated sliding-window rate limiters
 export const authLoginLimiter = new SlidingWindowRateLimiter(12, 15 * 60 * 1000);
@@ -93,6 +101,7 @@ function emptyStore(): AuthStoreFile {
     resetTokens: [],
     otpTokens: {},
     resetCooldownByEmail: {},
+    failedLogins: {},
   };
 }
 
@@ -111,6 +120,7 @@ function readStore(): AuthStoreFile {
       resetTokens: Array.isArray(parsed.resetTokens) ? parsed.resetTokens : [],
       otpTokens: parsed.otpTokens ?? {},
       resetCooldownByEmail: parsed.resetCooldownByEmail ?? {},
+      failedLogins: parsed.failedLogins ?? {},
     };
   } catch {
     return emptyStore();
@@ -357,6 +367,37 @@ export async function registerServerUser(payload: {
   };
 }
 
+function checkStoreLockout(
+  store: AuthStoreFile,
+  key: string
+): { locked: boolean; retryAfterSeconds: number } {
+  const bucket = store.failedLogins[key];
+  if (!bucket?.lockedUntil) return { locked: false, retryAfterSeconds: 0 };
+  const remainingMs = Date.parse(bucket.lockedUntil) - Date.now();
+  if (remainingMs > 0) {
+    return { locked: true, retryAfterSeconds: Math.max(1, Math.ceil(remainingMs / 1000)) };
+  }
+  delete store.failedLogins[key];
+  return { locked: false, retryAfterSeconds: 0 };
+}
+
+function recordStoreFailedLogin(
+  store: AuthStoreFile,
+  key: string
+): { locked: boolean; retryAfterSeconds: number } {
+  const prev = store.failedLogins[key];
+  const attempts = (prev?.attempts ?? 0) + 1;
+  if (attempts >= ACCOUNT_LOCKOUT_MAX_ATTEMPTS) {
+    const lockedUntil = new Date(Date.now() + ACCOUNT_LOCKOUT_DURATION_MS).toISOString();
+    store.failedLogins[key] = { attempts, lockedUntil };
+    writeStore(store);
+    return { locked: true, retryAfterSeconds: Math.ceil(ACCOUNT_LOCKOUT_DURATION_MS / 1000) };
+  }
+  store.failedLogins[key] = { attempts };
+  writeStore(store);
+  return { locked: false, retryAfterSeconds: 0 };
+}
+
 export function loginServerUser(payload: {
   email: string;
   password: string;
@@ -368,7 +409,7 @@ export function loginServerUser(payload: {
       rawSessionToken: string;
       session: ServerAuthSession;
     }
-  | { ok: false; status: number; error: string } {
+  | { ok: false; status: number; error: string; code?: string; retryAfterSeconds?: number } {
   const email = payload.email.trim().toLowerCase();
   const password = payload.password;
 
@@ -377,14 +418,41 @@ export function loginServerUser(payload: {
   }
 
   const store = readStore();
+  const lockKey = `learner:${sha256Hex(email)}`;
+  const lockStatus = checkStoreLockout(store, lockKey);
+  if (lockStatus.locked) {
+    return {
+      ok: false,
+      status: 429,
+      code: 'ACCOUNT_LOCKED',
+      retryAfterSeconds: lockStatus.retryAfterSeconds,
+      error: 'Too many failed sign-in attempts for this account. Please wait before trying again.',
+    };
+  }
+
   const user = Object.values(store.users).find((u) => u.email === email);
   if (!user || !verifyPasswordScrypt(password, user.passwordSalt, user.passwordHash)) {
+    const failOutcome = recordStoreFailedLogin(store, lockKey);
+    if (failOutcome.locked) {
+      return {
+        ok: false,
+        status: 429,
+        code: 'ACCOUNT_LOCKED',
+        retryAfterSeconds: failOutcome.retryAfterSeconds,
+        error: 'Too many failed sign-in attempts for this account. Please wait before trying again.',
+      };
+    }
     // Generic error message prevents user enumeration
     return {
       ok: false,
       status: 401,
       error: 'Invalid email or password. Please check your credentials and try again.',
     };
+  }
+
+  if (store.failedLogins[lockKey]) {
+    delete store.failedLogins[lockKey];
+    writeStore(store);
   }
 
   if (user.accountStatus === 'suspended') {
@@ -715,7 +783,8 @@ export function listServerAdminUsers(search?: string) {
 export function adminUpdateServerUser(
   targetUserId: string,
   actorUserId: string,
-  patch: { role?: string; accountStatus?: 'active' | 'suspended'; plan?: 'free' | 'pro' | 'institution' }
+  patch: { role?: string; accountStatus?: 'active' | 'suspended'; plan?: 'free' | 'pro' | 'institution' },
+  actorRole: string = 'admin'
 ):
   | { ok: true; user: ReturnType<typeof sanitizeUser>; revokedSessions: number }
   | { ok: false; status: number; error: string } {
@@ -724,36 +793,55 @@ export function adminUpdateServerUser(
   if (!user) {
     return { ok: false, status: 404, error: 'Target user account not found.' };
   }
-  if (patch.accountStatus === 'suspended' && targetUserId === actorUserId) {
-    return { ok: false, status: 400, error: 'Cannot suspend your own active admin account.' };
+  if (patch.role !== undefined && !VALID_SERVER_ADMIN_ROLES.has(patch.role)) {
+    return { ok: false, status: 400, error: 'Invalid RBAC role.' };
   }
-  if (patch.role !== undefined) {
-    if (!VALID_SERVER_ADMIN_ROLES.has(patch.role)) {
-      return { ok: false, status: 400, error: 'Invalid RBAC role.' };
+  if (patch.accountStatus !== undefined && patch.accountStatus !== 'active' && patch.accountStatus !== 'suspended') {
+    return { ok: false, status: 400, error: 'Invalid accountStatus.' };
+  }
+  if (patch.plan !== undefined && patch.plan !== 'free' && patch.plan !== 'pro' && patch.plan !== 'institution') {
+    return { ok: false, status: 400, error: 'Invalid subscription plan.' };
+  }
+
+  // Prevent vertical privilege escalation and unauthorized super_admin mutations
+  if (actorRole !== 'super_admin') {
+    if (user.role === 'super_admin') {
+      return { ok: false, status: 403, error: 'Only a Super Admin can modify a Super Admin account.' };
     }
+    if (patch.role === 'super_admin') {
+      return { ok: false, status: 403, error: 'Only a Super Admin can assign the super_admin role.' };
+    }
+  }
+
+  if (targetUserId === actorUserId) {
+    if (patch.accountStatus === 'suspended') {
+      return { ok: false, status: 400, error: 'Cannot suspend your own active admin account.' };
+    }
+    if (patch.role !== undefined && patch.role !== user.role) {
+      return { ok: false, status: 400, error: 'Cannot change your own administrator role.' };
+    }
+  }
+
+  const previousRole = user.role;
+  if (patch.role !== undefined) {
     user.role = patch.role as typeof user.role;
   }
   let revokedSessions = 0;
   if (patch.accountStatus !== undefined) {
-    if (patch.accountStatus !== 'active' && patch.accountStatus !== 'suspended') {
-      return { ok: false, status: 400, error: 'Invalid accountStatus.' };
-    }
     user.accountStatus = patch.accountStatus;
-    if (patch.accountStatus === 'suspended') {
-      const nowIso = new Date().toISOString();
-      for (const s of Object.values(store.sessions)) {
-        if (s.userId === targetUserId && !s.revokedAt) {
-          s.revokedAt = nowIso;
-          revokedSessions += 1;
-        }
-      }
-    }
   }
   if (patch.plan !== undefined) {
-    if (patch.plan !== 'free' && patch.plan !== 'pro' && patch.plan !== 'institution') {
-      return { ok: false, status: 400, error: 'Invalid subscription plan.' };
-    }
     user.plan = patch.plan;
+  }
+  const demotedToLearner = previousRole !== 'learner' && user.role === 'learner';
+  if (user.accountStatus === 'suspended' || demotedToLearner) {
+    const nowIso = new Date().toISOString();
+    for (const s of Object.values(store.sessions)) {
+      if (s.userId === targetUserId && !s.revokedAt) {
+        s.revokedAt = nowIso;
+        revokedSessions += 1;
+      }
+    }
   }
   user.updatedAt = new Date().toISOString();
   writeStore(store);
@@ -762,7 +850,8 @@ export function adminUpdateServerUser(
 
 export function adminDeleteServerUser(
   targetUserId: string,
-  actorUserId: string
+  actorUserId: string,
+  actorRole: string = 'admin'
 ): { ok: true; email: string } | { ok: false; status: number; error: string } {
   if (targetUserId === actorUserId) {
     return { ok: false, status: 400, error: 'Cannot delete your own active admin account.' };
@@ -771,6 +860,9 @@ export function adminDeleteServerUser(
   const user = store.users[targetUserId];
   if (!user) {
     return { ok: false, status: 404, error: 'Target user account not found.' };
+  }
+  if (user.role === 'super_admin' && actorRole !== 'super_admin') {
+    return { ok: false, status: 403, error: 'Only a Super Admin can delete a Super Admin account.' };
   }
   const email = user.email;
   delete store.users[targetUserId];
@@ -881,19 +973,45 @@ export function loginServerAdminUser(input: {
       rawToken: string;
       session: ServerAuthSession;
     }
-  | { ok: false; status: number; code: string; error: string } {
+  | { ok: false; status: number; code: string; error: string; retryAfterSeconds?: number } {
   const normalizedEmail = input.email.trim().toLowerCase();
   const store = readStore();
+  const lockKey = `admin:${sha256Hex(normalizedEmail)}`;
+  const lockStatus = checkStoreLockout(store, lockKey);
+  if (lockStatus.locked) {
+    return {
+      ok: false,
+      status: 429,
+      code: 'ACCOUNT_LOCKED',
+      retryAfterSeconds: lockStatus.retryAfterSeconds,
+      error: 'Too many failed administrator login attempts. Please wait before trying again.',
+    };
+  }
+
   const user = Object.values(store.users).find(
     (u) => u.email.toLowerCase() === normalizedEmail
   );
   if (!user || !verifyPasswordScrypt(input.password, user.passwordSalt, user.passwordHash)) {
+    const failOutcome = recordStoreFailedLogin(store, lockKey);
+    if (failOutcome.locked) {
+      return {
+        ok: false,
+        status: 429,
+        code: 'ACCOUNT_LOCKED',
+        retryAfterSeconds: failOutcome.retryAfterSeconds,
+        error: 'Too many failed administrator login attempts. Please wait before trying again.',
+      };
+    }
     return {
       ok: false,
       status: 401,
       code: 'INVALID_CREDENTIALS',
       error: 'Invalid administrator email or password.',
     };
+  }
+  if (store.failedLogins[lockKey]) {
+    delete store.failedLogins[lockKey];
+    writeStore(store);
   }
   if (user.accountStatus === 'suspended') {
     return {

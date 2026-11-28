@@ -79,11 +79,28 @@ export class CloudflareD1Repository implements LinguaVerseRepository {
       headers.set('Authorization', `Bearer ${token}`);
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
-    });
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId =
+      controller && !init.signal
+        ? setTimeout(() => controller.abort(), 10_000)
+        : null;
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        signal: init.signal ?? controller?.signal,
+        credentials: 'include',
+        headers,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Request timed out. Please check your connection and try again.');
+      }
+      throw err;
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       let message = `Request failed (${response.status})`;

@@ -433,7 +433,14 @@ async function startServer() {
     });
 
     if (!result.ok) {
-      res.status(result.status).json({ error: result.error });
+      if (result.retryAfterSeconds) {
+        res.setHeader('Retry-After', String(result.retryAfterSeconds));
+      }
+      res.status(result.status).json({
+        error: result.error,
+        ...(result.code ? { code: result.code } : {}),
+        ...(result.retryAfterSeconds ? { retryAfterSeconds: result.retryAfterSeconds } : {}),
+      });
       return;
     }
 

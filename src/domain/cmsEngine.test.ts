@@ -47,6 +47,7 @@ describe('CMS Domain Engine', () => {
     assert.equal(sanitizeText('Hello <script>alert(1)</script> World'), 'Hello  World');
     assert.equal(sanitizeUrl('javascript:alert(1)'), '');
     assert.equal(sanitizeUrl('data:text/html,<h1>x</h1>'), '');
+    assert.equal(sanitizeUrl('//evil.example/phish'), '');
     assert.equal(sanitizeUrl('https://linguaverse.ai/docs'), 'https://linguaverse.ai/docs');
     assert.equal(sanitizeUrl('#pricing'), '#pricing');
     assert.equal(sanitizeUrl('/app/speak'), '/app/speak');

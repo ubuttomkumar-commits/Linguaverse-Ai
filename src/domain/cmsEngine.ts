@@ -375,7 +375,7 @@ export function sanitizeUrl(value: unknown): string {
   if (typeof value !== 'string') return '';
   const trimmed = value.trim();
   if (!trimmed) return '';
-  if (trimmed.startsWith('#') || trimmed.startsWith('/')) {
+  if (trimmed.startsWith('#') || (trimmed.startsWith('/') && !trimmed.startsWith('//'))) {
     return trimmed.slice(0, 300);
   }
   try {

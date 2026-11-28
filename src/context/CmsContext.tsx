@@ -1,6 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { createDefaultCmsConfig, type CmsConfig } from '../domain/cmsEngine';
-import { fetchPublicCmsConfig, trackPublicAnalyticsEvent } from '../services/cmsApi';
+import { createDefaultCmsConfig, sanitizeCmsConfigPatch, type CmsConfig } from '../domain/cmsEngine';
+import {
+  clearPublicCmsClientCache,
+  fetchPublicCmsConfig,
+  trackPublicAnalyticsEvent,
+} from '../services/cmsApi';
 
 interface CmsContextValue {
   config: CmsConfig;
@@ -94,6 +98,29 @@ function syncDocumentSeo(config: CmsConfig): void {
   });
 }
 
+function normalizeLiveCmsConfig(raw: Partial<CmsConfig> | null | undefined): CmsConfig {
+  const defaults = createDefaultCmsConfig();
+  if (!raw || typeof raw !== 'object') {
+    return defaults;
+  }
+  const merged = sanitizeCmsConfigPatch(
+    defaults,
+    raw,
+    typeof raw.updatedBy === 'string' && raw.updatedBy ? raw.updatedBy : 'system'
+  );
+  return {
+    ...merged,
+    version:
+      Number.isFinite(Number(raw.version)) && Number(raw.version) > 0
+        ? Number(raw.version)
+        : defaults.version,
+    publishedAt:
+      typeof raw.publishedAt === 'string' && raw.publishedAt
+        ? raw.publishedAt
+        : defaults.publishedAt,
+  };
+}
+
 export function CmsProvider({
   children,
   skipDocumentSeo = false,
@@ -107,7 +134,7 @@ export function CmsProvider({
   const refreshPublicCms = useCallback(async () => {
     try {
       const live = await fetchPublicCmsConfig();
-      setConfig(live);
+      setConfig(normalizeLiveCmsConfig(live));
     } catch {
       // Keep default CMS config gracefully if server is unavailable
     } finally {
@@ -126,7 +153,8 @@ export function CmsProvider({
   }, [config, skipDocumentSeo]);
 
   const applyPublishedConfig = useCallback((next: CmsConfig) => {
-    setConfig(next);
+    clearPublicCmsClientCache();
+    setConfig(normalizeLiveCmsConfig(next));
   }, []);
 
   const trackEvent = useCallback(

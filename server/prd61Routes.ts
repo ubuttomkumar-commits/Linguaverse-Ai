@@ -1,4 +1,5 @@
 import type express from 'express';
+import { EventEmitter } from 'node:events';
 import {
   adminDeleteServerUser,
   adminUpdateServerUser,
@@ -88,6 +89,18 @@ import { validateNotificationPreferencesPatch } from '../src/domain/notification
 import type { ExpressP3RouteDeps } from './p3Routes.ts';
 
 const prd61RateBuckets = new Map<string, number[]>();
+const realtimeHub = new EventEmitter();
+realtimeHub.setMaxListeners(500);
+
+interface ExpressRealtimeBroadcastEvent {
+  targetUserId: string; // '*' for all authenticated users, or specific user.id
+  type: 'notification.created' | 'system.status_updated';
+  payload: Record<string, unknown>;
+}
+
+function emitExpressRealtimeEvent(event: ExpressRealtimeBroadcastEvent): void {
+  realtimeHub.emit('event', event);
+}
 
 function checkPrd61RateLimit(key: string, maxRequests: number, windowMs: number): number | null {
   const now = Date.now();
@@ -125,6 +138,7 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
   app.get('/api/v1/system/status', (_req, res) => {
     const flags = getServerFeatureFlags();
     const sys = getSystemConfigSettings();
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
     res.json({
       ok: true,
       maintenanceMode: flags.maintenanceMode,
@@ -133,6 +147,71 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       allowNewRegistrations: sys.allowNewRegistrations,
       featureFlags: flags,
     });
+  });
+
+  // ==========================================================================
+  // 1A. Authenticated Realtime Event Stream (SSE)
+  // ==========================================================================
+  app.get('/api/v1/realtime/events', (req, res) => {
+    const user = requireSignedInUser(req, res);
+    if (!user) return;
+
+    const ip = req.ip || 'unknown';
+    const retryAfter = checkPrd61RateLimit(`realtime_sse:${ip}:${user.id}`, 30, 60 * 1000);
+    if (retryAfter !== null) {
+      res.setHeader('Retry-After', String(retryAfter));
+      res.status(429).json({ error: 'Too many realtime stream connections.', code: 'RATE_LIMITED' });
+      return;
+    }
+
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    let seq = 0;
+    const writeFrame = (
+      type: 'connected' | 'ping' | 'notification.created' | 'system.status_updated',
+      payload: Record<string, unknown>,
+      customId?: string
+    ) => {
+      seq += 1;
+      const envelope = {
+        id: customId || `rt_${Date.now()}_${seq}`,
+        seq,
+        type,
+        emittedAt: new Date().toISOString(),
+        payload,
+      };
+      res.write(`id: ${envelope.id}\ndata: ${JSON.stringify(envelope)}\n\n`);
+    };
+
+    writeFrame('connected', { userId: user.id, runtime: 'express-local-dev' });
+
+    const onRealtimeEvent = (evt: ExpressRealtimeBroadcastEvent) => {
+      if (evt.targetUserId !== '*' && evt.targetUserId !== user.id) return;
+      const customId =
+        typeof evt.payload.id === 'string' ? `notif_${evt.payload.id}` : undefined;
+      writeFrame(evt.type, evt.payload, customId);
+    };
+
+    realtimeHub.on('event', onRealtimeEvent);
+
+    const heartbeatTimer = setInterval(() => {
+      writeFrame('ping', { ts: Date.now() });
+    }, 25_000);
+
+    const cleanup = () => {
+      clearInterval(heartbeatTimer);
+      realtimeHub.off('event', onRealtimeEvent);
+    };
+
+    req.on('close', cleanup);
+    res.on('close', cleanup);
   });
 
   // ==========================================================================
@@ -258,6 +337,9 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       rememberMe: Boolean(body.rememberMe),
     });
     if (!result.ok) {
+      if (result.retryAfterSeconds) {
+        res.setHeader('Retry-After', String(result.retryAfterSeconds));
+      }
       res.status(result.status).json({ error: result.error, code: result.code });
       return;
     }
@@ -353,6 +435,16 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
         actorEmail: admin.email,
         path: '/api/v1/admin/feature-flags',
         summary: `Maintenance mode set to ${validation.patch.maintenanceMode ? 'ENABLED' : 'DISABLED'}.`,
+      });
+      const sys = getSystemConfigSettings();
+      emitExpressRealtimeEvent({
+        targetUserId: '*',
+        type: 'system.status_updated',
+        payload: {
+          maintenanceMode: updated.maintenanceMode,
+          maintenanceBannerEn: sys.maintenanceBannerEn,
+          maintenanceBannerBn: sys.maintenanceBannerBn,
+        },
       });
     }
     res.json({ featureFlags: updated });
@@ -543,13 +635,15 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       ok: true,
       runtime: 'express-local-dev',
       database: {
-        engine: 'local-json-store (Cloudflare D1 migrations 0001..0004 verified via SQLite parity tests)',
+        engine: 'local-json-store (Cloudflare D1 migrations 0001..0006 verified via SQLite parity tests)',
         status: 'healthy',
         migrationsReady: [
           '0001_initial_schema.sql',
           '0002_parts06_12_parity.sql',
           '0003_p3_community_vocab_billing.sql',
           '0004_prd61_examinations_labs_providers.sql',
+          '0005_performance_indexes.sql',
+          '0006_global_query_indexes.sql',
         ],
         backupStatus: 'Local dev store; in production run `npx wrangler d1 export linguaverse-db --remote --output=./backup.sql` before migrations.',
       },
@@ -616,7 +710,7 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       accountStatus?: 'active' | 'suspended';
       plan?: 'free' | 'pro' | 'institution';
     };
-    const result = adminUpdateServerUser(targetUserId, admin.id, body);
+    const result = adminUpdateServerUser(targetUserId, admin.id, body, admin.role);
     if (!result.ok) {
       res.status(result.status).json({ error: result.error });
       return;
@@ -650,7 +744,7 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
     );
     if (!admin) return;
     const targetUserId = String(req.params.userId || '').trim();
-    const result = adminDeleteServerUser(targetUserId, admin.id);
+    const result = adminDeleteServerUser(targetUserId, admin.id, admin.role);
     if (!result.ok) {
       res.status(result.status).json({ error: result.error });
       return;
@@ -951,6 +1045,11 @@ export function registerExpressPrd61Routes(app: express.Express, deps: ExpressP3
       action: 'admin.notification.broadcast',
       resource: `system_config:${notification.id}`,
       details: `Broadcast platform notice: "${titleEn}"`,
+    });
+    emitExpressRealtimeEvent({
+      targetUserId: '*',
+      type: 'notification.created',
+      payload: notification as unknown as Record<string, unknown>,
     });
     res.status(201).json({ notification });
   });
